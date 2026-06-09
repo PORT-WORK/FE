@@ -1,0 +1,12 @@
+@import './tailwind.css';
+@import './fonts.css';
+@import './theme.css';
+
+/* Hide scrollbars globally */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
