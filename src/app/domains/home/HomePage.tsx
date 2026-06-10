@@ -24,14 +24,19 @@ const PRO_FEATURES = [
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { setPayModal } = useApp();
+  const { setPayModal, isLoggedIn, language } = useApp();
   const [input, setInput] = useState('');
   const [activeStep, setActiveStep] = useState(0);
+  const ko = language === 'ko';
 
   useEffect(() => {
     const timer = setInterval(() => setActiveStep(prev => (prev + 1) % STEPS.length), 1800);
     return () => clearInterval(timer);
   }, []);
+
+  const handleGenerate = () => {
+    navigate(isLoggedIn ? '/generate' : '/login');
+  };
 
   return (
     <div className="min-h-full px-8 py-16" style={{ background: '#050505' }}>
@@ -44,19 +49,21 @@ export default function HomePage() {
           <div className="relative text-center">
             <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-400">
               <Sparkles size={11} className="text-violet-400" />
-              AI portfolio builder
+              {ko ? 'AI 포트폴리오 빌더' : 'AI portfolio builder'}
             </div>
 
             <h1 className="mb-4 text-5xl font-black leading-tight text-white">
-              Build a portfolio
+              {ko ? '몇 분 만에 포트폴리오를' : 'Build a portfolio'}
               <br />
               <span style={{ background: 'linear-gradient(90deg, #a78bfa, #60a5fa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                with AI in minutes
+                {ko ? 'AI로 완성하세요' : 'with AI in minutes'}
               </span>
             </h1>
 
             <p className="mx-auto mb-8 max-w-2xl text-sm leading-relaxed text-zinc-500">
-              Connect your work history, project data, and blog content. We turn it into a clean portfolio structure automatically.
+              {ko
+                ? '프로젝트, 글, 작업 내역을 연결하면 AI가 포트폴리오 구조로 자동 정리합니다.'
+                : 'Connect your work history, project data, and blog content. We turn it into a clean portfolio structure automatically.'}
             </p>
 
             <div className="mx-auto mb-4 flex max-w-2xl items-center overflow-hidden rounded-2xl border border-white/10 bg-[#0d0d0d]">
@@ -64,28 +71,32 @@ export default function HomePage() {
               <input
                 value={input}
                 onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && navigate('/generate')}
-                placeholder="Describe your background and strengths..."
+                onKeyDown={e => e.key === 'Enter' && handleGenerate()}
+                placeholder={ko ? '배경과 강점을 입력해보세요...' : 'Describe your background and strengths...'}
                 className="flex-1 bg-transparent px-4 py-4 text-sm text-white placeholder-zinc-700 focus:outline-none"
               />
               <button
-                onClick={() => navigate('/generate')}
+                onClick={handleGenerate}
                 className="m-1.5 flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white"
               >
-                Generate <ArrowRight size={14} />
+                {ko ? '생성' : 'Generate'} <ArrowRight size={14} />
               </button>
             </div>
             <div className="flex items-center justify-center gap-5 text-xs text-zinc-600">
               <span className="flex items-center gap-1.5"><div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />14k portfolios created</span>
               <span>4.9/5 rating</span>
-              <span>Free to start</span>
+              <span>{ko ? '무료로 시작 가능' : 'Free to start'}</span>
             </div>
           </div>
         </div>
 
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {STEPS.map((step, index) => (
-            <div key={step.label} className="rounded-2xl border border-white/5 bg-white/[0.02] p-5" style={{ background: activeStep === index ? 'rgba(124,58,237,0.08)' : 'rgba(255,255,255,0.02)' }}>
+            <div
+              key={step.label}
+              className="rounded-2xl border border-white/5 bg-white/[0.02] p-5"
+              style={{ background: activeStep === index ? 'rgba(124,58,237,0.08)' : 'rgba(255,255,255,0.02)' }}
+            >
               <div className="mb-2 flex items-center gap-2">
                 <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-zinc-300">{index + 1}</div>
                 <span className="text-sm font-semibold text-white">{step.label}</span>
@@ -99,7 +110,7 @@ export default function HomePage() {
           {TEMPLATES.map(template => (
             <button
               key={template.id}
-              onClick={() => navigate('/generate')}
+              onClick={handleGenerate}
               className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-left transition-transform hover:-translate-y-0.5"
             >
               <div className="mb-2 text-2xl">{template.emoji}</div>
@@ -124,7 +135,9 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-            <button className="w-full rounded-xl border border-white/10 py-2.5 text-sm text-zinc-400">Start free</button>
+            <button onClick={() => navigate('/login')} className="w-full rounded-xl border border-white/10 py-2.5 text-sm text-zinc-400">
+              {ko ? '무료 시작' : 'Start free'}
+            </button>
           </div>
 
           <div className="relative">
@@ -147,7 +160,7 @@ export default function HomePage() {
                 ))}
               </ul>
               <button onClick={() => setPayModal(true)} className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 py-2.5 text-sm font-bold text-white">
-                Try Pro
+                {ko ? 'Pro 시작' : 'Try Pro'}
               </button>
             </div>
           </div>

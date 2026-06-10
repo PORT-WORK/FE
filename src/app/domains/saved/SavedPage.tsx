@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Bookmark, ChevronDown, ExternalLink, Heart, Star } from 'lucide-react';
+import { useApp } from '../../contexts/AppContext';
 import { listExploreUsers } from '../../api/contentApi';
 
 const TABS = [
-  { label: 'Saved', count: 12 },
-  { label: 'Liked', count: 34 },
-  { label: 'Archived', count: 8 },
+  { label: 'Saved' },
+  { label: 'Liked' },
+  { label: 'Archived' },
 ];
 
 const SORT_OPTIONS = ['Latest', 'A-Z', 'Popular'];
@@ -17,6 +18,8 @@ export default function SavedPage() {
   const [sortIdx, setSortIdx] = useState(0);
   const [items, setItems] = useState<any[]>([]);
   const navigate = useNavigate();
+  const { language } = useApp();
+  const ko = language === 'ko';
 
   useEffect(() => {
     listExploreUsers().then(data => setItems(data.slice(0, tab === 2 ? 4 : tab === 1 ? 5 : 3)));
@@ -38,9 +41,6 @@ export default function SavedPage() {
             {TABS.map((item, idx) => (
               <button key={item.label} onClick={() => setTab(idx)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all" style={{ background: tab === idx ? 'rgba(255,255,255,0.08)' : 'transparent', color: tab === idx ? '#f4f4f5' : '#71717a' }}>
                 {item.label}
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: tab === idx ? 'rgba(124,58,237,0.2)' : 'rgba(255,255,255,0.06)', color: tab === idx ? '#a78bfa' : '#52525b' }}>
-                  {item.count}
-                </span>
               </button>
             ))}
           </div>
@@ -68,10 +68,10 @@ export default function SavedPage() {
                 {tab === 0 ? <Bookmark size={32} className="text-violet-500 opacity-50" /> : tab === 1 ? <Heart size={32} className="text-red-500 opacity-50" /> : <Star size={32} className="text-yellow-500 opacity-50" />}
               </div>
             </div>
-            <p className="text-sm font-medium text-zinc-400 mb-1">No saved items yet.</p>
-            <p className="text-xs text-zinc-700 mb-5">Save a portfolio from Explore to see it here.</p>
+            <p className="text-sm font-medium text-zinc-400 mb-1">{ko ? '저장된 항목이 없습니다' : 'No saved items yet.'}</p>
+            <p className="text-xs text-zinc-700 mb-5">{ko ? '탐색에서 포트폴리오를 저장하면 여기 표시됩니다.' : 'Save a portfolio from Explore to see it here.'}</p>
             <button onClick={() => navigate('/explore')} className="px-5 py-2.5 rounded-xl text-xs font-medium text-violet-400 transition-all hover:bg-violet-500/10" style={{ border: '1px solid rgba(124,58,237,0.3)' }}>
-              Go to Explore
+              {ko ? '탐색으로 이동' : 'Go to Explore'}
             </button>
           </div>
         ) : (

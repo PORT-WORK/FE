@@ -23,7 +23,8 @@ function SkeletonCard() {
 
 export default function ExplorePage() {
   const navigate = useNavigate();
-  const { t, privacy } = useApp();
+  const { t, privacy, language } = useApp();
+  const ko = language === 'ko';
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [activeRole, setActiveRole] = useState('All');
@@ -66,16 +67,16 @@ export default function ExplorePage() {
         <div className="flex items-center gap-3 mb-5">
           <div className="flex-1 relative">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('explore_search')} className="w-full pl-9 pr-9 py-2.5 text-sm text-zinc-300 placeholder-zinc-700 rounded-xl focus:outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={ko ? '이름, 직무, 기술로 검색...' : t('explore_search')} className="w-full pl-9 pr-9 py-2.5 text-sm text-zinc-300 placeholder-zinc-700 rounded-xl focus:outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }} />
             {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-300"><X size={13} /></button>}
           </div>
-          <button onClick={() => setFollowOnly(prev => !prev)} className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs transition-all flex-shrink-0" style={{ background: followOnly ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${followOnly ? 'rgba(124,58,237,0.25)' : 'rgba(255,255,255,0.07)'}`, color: followOnly ? '#a78bfa' : '#71717a' }}>
-            <Users size={12} />Following only
+            <button onClick={() => setFollowOnly(prev => !prev)} className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs transition-all flex-shrink-0" style={{ background: followOnly ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${followOnly ? 'rgba(124,58,237,0.25)' : 'rgba(255,255,255,0.07)'}`, color: followOnly ? '#a78bfa' : '#71717a' }}>
+            <Users size={12} />{ko ? '팔로잉만' : 'Following only'}
           </button>
           <div className="relative flex-shrink-0" onClick={e => e.stopPropagation()}>
             <button onClick={() => setSortOpen(prev => !prev)} className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs text-zinc-400 transition-all" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <SlidersHorizontal size={12} />
-              {SORT_OPTIONS[sortIdx]}
+              {ko ? ['최신', '인기순', '조회순'][sortIdx] : SORT_OPTIONS[sortIdx]}
               <ChevronDown size={11} className="text-zinc-600" />
             </button>
             {sortOpen && (
@@ -106,7 +107,7 @@ export default function ExplorePage() {
           ))}
         </div>
 
-        {!loading && <p className="text-xs text-zinc-600">{sorted.length} {t('explore_count')}</p>}
+        {!loading && <p className="text-xs text-zinc-600">{sorted.length} {ko ? '개의 포트폴리오' : t('explore_count')}</p>}
       </div>
 
       <div className="max-w-5xl mx-auto grid grid-cols-3 gap-4">
@@ -117,10 +118,10 @@ export default function ExplorePage() {
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <Search size={24} className="text-zinc-700" />
             </div>
-            <p className="text-sm font-medium text-zinc-400 mb-1">No results found</p>
-            <p className="text-xs text-zinc-700 mb-5">Try different keywords or reset filters.</p>
+            <p className="text-sm font-medium text-zinc-400 mb-1">{ko ? '검색 결과가 없습니다' : 'No results found'}</p>
+            <p className="text-xs text-zinc-700 mb-5">{ko ? '다른 키워드를 사용하거나 필터를 초기화하세요.' : 'Try different keywords or reset filters.'}</p>
             <button onClick={() => { setSearch(''); setActiveRole('All'); setActiveStack(''); setFollowOnly(false); }} className="px-4 py-2 rounded-xl text-xs font-medium transition-all" style={{ border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa' }}>
-              Reset filters
+              {ko ? '필터 초기화' : 'Reset filters'}
             </button>
           </div>
         ) : (
