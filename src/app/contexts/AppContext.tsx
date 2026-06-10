@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { buildOauthLoginUrl } from '../api/client';
+import { fetchCurrentUser, type UserProfile } from '../api/contentApi';
 
 export type Lang = 'ko' | 'en';
 
@@ -23,6 +25,7 @@ type AppContextValue = {
   isLoggedIn: boolean;
   login: (provider: 'kakao' | 'google') => void;
   logout: () => void;
+  authReady: boolean;
   aiCount: number;
   aiLimit: number;
   payModal: boolean;
@@ -255,6 +258,17 @@ const defaultUser: AppUser = {
   bio: 'Frontend developer focused on performance, clean architecture, and design systems.',
 };
 
+function mapProfileToUser(profile: UserProfile): AppUser {
+  return {
+    name: profile.name,
+    email: profile.email,
+    role: profile.tier || 'Member',
+    avatar: profile.profileImageUrl || '',
+    provider: 'google',
+    bio: profile.bio || undefined,
+  };
+}
+
 const defaultState = {
   language: 'ko' as Lang,
   user: null as AppUser | null,
@@ -277,6 +291,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notifs, setNotifs] = useState(defaultState.notifs);
   const [privacy, setPrivacy] = useState(defaultState.privacy);
   const [connections, setConnections] = useState(defaultState.connections);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     try {
@@ -295,12 +310,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let alive = true;
+    void fetchCurrentUser()
+      .then(profile => {
+        if (!alive) return;
+        const nextUser = mapProfileToUser(profile);
+        setUser(nextUser);
+        setAiCount((value) => Math.max(value, 1));
+      })
+      .catch(() => {
+        if (!alive) return;
+        setUser(null);
+      })
+      .finally(() => {
+        if (alive) setAuthReady(true);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ language, user, aiCount, notifs, privacy, connections }));
   }, [language, user, aiCount, notifs, privacy, connections]);
 
   const login = (provider: 'kakao' | 'google') => {
-    setUser({ ...defaultUser, provider });
-    setAiCount((value) => Math.max(value, 1));
+    window.location.assign(buildOauthLoginUrl(provider));
   };
 
   const logout = () => setUser(null);
@@ -313,6 +349,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     isLoggedIn: Boolean(user),
     login,
     logout,
+    authReady,
     aiCount,
     aiLimit,
     payModal,
@@ -323,7 +360,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPrivacy,
     connections,
     setConnections,
-  }), [language, user, aiCount, aiLimit, payModal, notifs, privacy, connections]);
+  }), [language, user, authReady, aiCount, aiLimit, payModal, notifs, privacy, connections]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

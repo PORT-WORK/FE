@@ -6,27 +6,27 @@ import { useApp } from '../../contexts/AppContext';
 const HOME_COPY = {
   ko: {
     badge: 'AI 포트폴리오 빌더',
-    titleMain: '아이디어를 정리하면',
+    titleMain: '아이디어를 수집하면',
     titleAccent: 'AI가 포트폴리오로 조립합니다',
     subtitle: '프로젝트, 글, 작업 기록을 연결하면 AI가 포트폴리오 구조로 자동 정리합니다.',
     placeholder: '배경과 강점을 입력해보세요...',
     action: '생성',
     steps: [
-      { label: '데이터 연결', detail: '프로젝트, 블로그, 스킬 데이터를 불러옵니다.' },
-      { label: '작업 분석', detail: 'AI가 경험을 섹션 단위로 정리합니다.' },
+      { label: '데이터 연결', detail: '프로젝트, 글, 기술 데이터를 연결합니다.' },
+      { label: '작업 분석', detail: 'AI가 경력을 섹션 단위로 정리합니다.' },
       { label: '포트폴리오 생성', detail: '정리된 내용을 PPTX로 만듭니다.' },
     ],
     templates: [
       { id: 'dev', label: '개발자', emoji: '💻', desc: '기술 중심 포트폴리오' },
       { id: 'design', label: '디자이너', emoji: '🎨', desc: '시각 중심 포트폴리오' },
-      { id: 'pm', label: 'PM', emoji: '📋', desc: '제품 스토리 포트폴리오' },
+      { id: 'pm', label: 'PM', emoji: '📋', desc: '제품 이야기 중심 포트폴리오' },
     ],
-    free: ['포트폴리오 3개', '기본 AI 생성', '템플릿 10개', '1GB 저장공간'],
+    free: ['3 포트폴리오 파일 저장', '3회 AI 포트폴리오 제작'],
     freeBtn: '무료 시작',
     proBtn: 'Pro 시작',
-    proFeatures: ['무제한 AI 생성', '프리미엄 템플릿', 'Notion/GitHub/Figma 연동', '실시간 분석'],
+    proFeatures: ['10 포트폴리오 파일 저장', '30회 AI 포트폴리오 제작'],
     footer: 'AI 생성 결과는 참고용입니다. 발행 전 반드시 검토하세요.',
-    pricing: { free: '무료', pro: '인기' },
+    pricing: { free: '무료', pro: 'Popular' },
   },
   en: {
     badge: 'AI Portfolio Builder',
@@ -45,10 +45,10 @@ const HOME_COPY = {
       { id: 'design', label: 'Designer', emoji: '🎨', desc: 'Visual-first portfolio' },
       { id: 'pm', label: 'PM', emoji: '📋', desc: 'Product story portfolio' },
     ],
-    free: ['3 portfolios', 'Basic AI generation', '10 templates', '1GB storage'],
+    free: ['3 portfolio files stored', '3 AI portfolio generations'],
     freeBtn: 'Start free',
     proBtn: 'Try Pro',
-    proFeatures: ['Unlimited AI generation', 'Premium templates', 'Notion/GitHub/Figma sync', 'Realtime analytics'],
+    proFeatures: ['10 portfolio files stored', '30 AI portfolio generations'],
     footer: 'AI-generated content is for reference. Review before publishing.',
     pricing: { free: 'Free', pro: 'Popular' },
   },
@@ -152,21 +152,21 @@ export default function HomePage() {
         </div>
 
         <div className="mt-10 grid gap-5 md:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-7">
-            <p className="mb-3 text-xs uppercase tracking-wider text-zinc-600">{copy.pricing.free}</p>
+          <div className="rounded-2xl border p-7" style={{ borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(124,58,237,0.06)' }}>
+            <p className="mb-3 text-xs uppercase tracking-wider text-violet-300">{copy.pricing.free}</p>
             <div className="mb-5 flex items-end gap-2">
               <span className="text-4xl font-black text-white">$0</span>
               <span className="mb-1 text-sm text-zinc-600">/ month</span>
             </div>
             <ul className="mb-6 space-y-2">
               {copy.free.map(item => (
-                <li key={item} className="flex items-center gap-2.5 text-sm text-zinc-500">
-                  <Check size={13} className="text-zinc-700" />
+                <li key={item} className="flex items-center gap-2.5 text-sm text-zinc-300">
+                  <Check size={13} className="text-violet-400" />
                   {item}
                 </li>
               ))}
             </ul>
-            <button onClick={() => navigate('/login')} className="w-full rounded-xl border border-white/10 py-2.5 text-sm text-zinc-400">
+            <button onClick={() => navigate('/login')} className="w-full rounded-xl py-2.5 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
               {copy.freeBtn}
             </button>
           </div>

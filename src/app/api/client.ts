@@ -8,15 +8,21 @@ const baseURL = rawBaseURL
   : 'http://localhost:8080/api';
 
 const userId = String(import.meta.env.VITE_USER_ID || 1);
+const backendOrigin = baseURL.replace(/\/api$/, '');
 
 export const apiClient = axios.create({
   baseURL,
   timeout: 10000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
     'X-USER-ID': userId,
   },
 });
+
+export function buildOauthLoginUrl(provider: 'kakao' | 'google') {
+  return `${backendOrigin}/oauth2/authorization/${provider}`;
+}
 
 function unwrap<T>(payload: T): T {
   if (

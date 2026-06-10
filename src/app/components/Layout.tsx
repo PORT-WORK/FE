@@ -58,7 +58,7 @@ const NOTIF_ICON: Record<string, ReactNode> = {
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { t, isLoggedIn, user, language, aiCount, aiLimit, payModal, setPayModal, connections } = useApp();
+  const { t, isLoggedIn, user, language, aiCount, aiLimit, payModal, setPayModal, connections, authReady } = useApp();
   const [notifOpen, setNotifOpen] = useState(false);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [notifications, setNotifications] = useState<NotifItem[]>(MOCK_NOTIFS);
@@ -82,10 +82,10 @@ export default function Layout() {
   }, []);
 
   useEffect(() => {
-    if (!isLoggedIn && location.pathname !== '/' && location.pathname !== '/login') {
+    if (authReady && !isLoggedIn && location.pathname !== '/' && location.pathname !== '/login' && location.pathname !== '/oauth/success') {
       navigate('/login', { replace: true });
     }
-  }, [isLoggedIn, location.pathname, navigate]);
+  }, [authReady, isLoggedIn, location.pathname, navigate]);
 
   const title = location.pathname === '/workspace'
     ? (language === 'ko' ? '프로젝트' : 'Project')

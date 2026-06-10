@@ -1,14 +1,12 @@
-import { useNavigate } from 'react-router';
 import { Sparkles, Zap, Crown } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
+import { buildOauthLoginUrl } from '../../api/client';
 
 export default function LoginPage() {
-  const navigate = useNavigate();
-  const { login, t } = useApp();
+  const { t } = useApp();
 
   const handleLogin = (provider: 'kakao' | 'google') => {
-    login(provider);
-    navigate('/');
+    window.location.assign(buildOauthLoginUrl(provider));
   };
 
   return (

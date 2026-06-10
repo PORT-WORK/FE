@@ -13,8 +13,10 @@ import AnalyticsPage from './domains/analytics/AnalyticsPage';
 import AIGeneratePage from './domains/generate/AIGeneratePage';
 import EditorPage from './domains/portfolio/EditorPage';
 import LoginPage from './domains/auth/LoginPage';
+import OAuthSuccessPage from './domains/auth/OAuthSuccessPage';
 
 export const router = createBrowserRouter([
+  { path: '/oauth/success', Component: OAuthSuccessPage },
   // Login page (no layout)
   { path: '/login', Component: LoginPage },
   {
