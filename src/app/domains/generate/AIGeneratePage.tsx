@@ -1,27 +1,70 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Check, Loader2, Sparkles, Wand, Globe, RefreshCw, ChevronRight } from 'lucide-react';
-import { exportPortfolioPptx, listMyPortfolios, listPortfolioProjects, type PortfolioSummary, type ProjectItem } from '../../api/contentApi';
+import { Check, ChevronRight, Globe, Loader2, RefreshCw, Sparkles, Wand } from 'lucide-react';
+import { exportPortfolioPptx, fetchPortfolioData, listMyPortfolios, type PortfolioDataResponse, type PortfolioSummary } from '../../api/contentApi';
+import PortfolioSelectionModal from './ui/PortfolioSelectionModal';
+
+type Selection = {
+  portfolioId: number;
+  projectIds: number[];
+  categories: string[];
+  articleIds: string[];
+};
 
 const STEPS = [
   { label: 'Choose portfolio', detail: 'Pick the portfolio to build from.' },
   { label: 'Select projects', detail: 'Pick the projects you want AI to use.' },
-  { label: 'Collect source text', detail: 'Combine user-written notes, Notion pages, or direct drafts.' },
+  { label: 'Sort posts', detail: 'Choose the Notion posts and their order.' },
   { label: 'AI builds JSON', detail: 'The backend turns the source into structured slide JSON.' },
   { label: 'Export PPTX', detail: 'The PPTX is generated and downloaded.' },
 ];
 
-function buildSourceText(portfolio: PortfolioSummary | null, projects: ProjectItem[], notes: string) {
-  const projectText = projects.map(project => [
-    `Project: ${project.name}`,
-    `Role: ${project.role}`,
-    `Summary: ${project.summary || ''}`,
-    `Skills: ${project.skills.join(', ')}`,
-  ].join('\n')).join('\n\n');
+function buildSourceText(data: PortfolioDataResponse, selection: Selection, notes: string) {
+  const selectedProjectIds = new Set(selection.projectIds);
+  const selectedArticleIds = new Set(selection.articleIds.map(String));
+
+  const projectText = data.projects
+    .filter(item => selectedProjectIds.has(item.project.id))
+    .map(item => [
+      `Project: ${item.project.name}`,
+      `Role: ${item.project.role}`,
+      `Summary: ${item.project.summary || ''}`,
+      `Skills: ${Array.isArray(item.project.skills) ? item.project.skills.join(', ') : item.project.skills || ''}`,
+    ].join('\n'))
+    .join('\n\n');
+
+  const articleText = data.projects
+    .flatMap(item => item.documents.map(doc => ({
+      project: item.project,
+      document: doc.document,
+      blocks: doc.blocks,
+    })))
+    .filter(item => selectedArticleIds.has(String(item.document.id)))
+    .map(item => {
+      const blockText = item.blocks
+        .map(block => {
+          const content = block.content && typeof block.content === 'object'
+            ? Object.values(block.content).filter(Boolean).join(' ')
+            : '';
+          return content.trim();
+        })
+        .filter(Boolean)
+        .join('\n');
+
+      return [
+        `Post: ${item.document.title}`,
+        `Project: ${item.project.name}`,
+        `Category: ${item.document.category}`,
+        `Content: ${blockText}`,
+      ].join('\n');
+    })
+    .join('\n\n');
 
   return [
-    portfolio ? `Portfolio: ${portfolio.title}` : '',
+    `Portfolio: ${data.portfolio.title}`,
+    selection.categories.length ? `Categories: ${selection.categories.join(', ')}` : '',
     projectText,
+    articleText,
     notes.trim(),
   ].filter(Boolean).join('\n\n---\n\n');
 }
@@ -29,41 +72,27 @@ function buildSourceText(portfolio: PortfolioSummary | null, projects: ProjectIt
 export default function AIGeneratePage() {
   const navigate = useNavigate();
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
-  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<number>>(new Set());
+  const [selection, setSelection] = useState<Selection | null>(null);
   const [notes, setNotes] = useState('');
   const [step, setStep] = useState(0);
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
   const [logLines, setLogLines] = useState<string[]>([]);
+  const [selectorOpen, setSelectorOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
     listMyPortfolios().then(items => {
       if (!alive) return;
       setPortfolios(items);
-      if (items[0]) setSelectedPortfolioId(items[0].id);
+      setSelectedPortfolioId(items[0]?.id ?? null);
     });
     return () => {
       alive = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!selectedPortfolioId) {
-      setProjects([]);
-      return;
-    }
-    let alive = true;
-    listPortfolioProjects(selectedPortfolioId).then(items => {
-      if (alive) setProjects(items);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [selectedPortfolioId]);
 
   useEffect(() => {
     if (!busy) return;
@@ -84,34 +113,42 @@ export default function AIGeneratePage() {
   }, [busy]);
 
   const selectedPortfolio = useMemo(() => portfolios.find(item => item.id === selectedPortfolioId) || null, [portfolios, selectedPortfolioId]);
-  const selectedProjects = useMemo(() => projects.filter(project => selectedProjectIds.has(project.id)), [projects, selectedProjectIds]);
 
-  const toggleProject = (projectId: number) => {
-    setSelectedProjectIds(prev => {
-      const next = new Set(prev);
-      next.has(projectId) ? next.delete(projectId) : next.add(projectId);
-      return next;
-    });
-  };
+  const selectionSummary = useMemo(() => {
+    if (!selection) return [];
+    return [
+      `Portfolio: ${selectedPortfolio?.title || 'Not selected'}`,
+      `Projects: ${selection.projectIds.length}`,
+      `Categories: ${selection.categories.length}`,
+      `Posts: ${selection.articleIds.length}`,
+    ];
+  }, [selection, selectedPortfolio?.title]);
 
-  const startGeneration = async () => {
-    if (!selectedPortfolioId) return;
+  const startGeneration = async (nextSelection?: Selection) => {
+    const finalSelection = nextSelection || selection;
+    if (!finalSelection) return;
+    const portfolioId = finalSelection.portfolioId;
+
+    setSelectedPortfolioId(portfolioId);
+    setSelection(finalSelection);
     setDone(false);
     setBusy(true);
     setLogLines([
-      'Loading selected portfolio...',
-      'Collecting project data...',
-      'Preparing user-written source text...',
+      'Loading selected portfolio data...',
+      'Collecting projects and documents...',
+      'Preparing ordered Notion source text...',
       'Sending source text to AI layout generator...',
       'Building PPTX from generated JSON...',
     ]);
+
     try {
-      const sourceText = buildSourceText(selectedPortfolio, selectedProjects, notes);
-      const blob = await exportPortfolioPptx(selectedPortfolioId, sourceText);
+      const data = await fetchPortfolioData(portfolioId);
+      const sourceText = buildSourceText(data, finalSelection, notes);
+      const blob = await exportPortfolioPptx(portfolioId, sourceText);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `portfolio-${selectedPortfolioId}.pptx`;
+      link.download = `portfolio-${portfolioId}.pptx`;
       link.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -127,6 +164,17 @@ export default function AIGeneratePage() {
         <div className="absolute bottom-0 right-1/4 w-[400px] h-[300px] rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #2563eb 0%, transparent 70%)', filter: 'blur(60px)' }} />
       </div>
 
+      <PortfolioSelectionModal
+        open={selectorOpen}
+        portfolios={portfolios}
+        defaultPortfolioId={selectedPortfolioId}
+        onClose={() => setSelectorOpen(false)}
+        onConfirm={async nextSelection => {
+          setSelectorOpen(false);
+          await startGeneration(nextSelection);
+        }}
+      />
+
       <div className="relative z-10 w-full max-w-5xl grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-6">
         <div className="rounded-3xl p-6 backdrop-blur-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="flex items-center justify-between mb-6">
@@ -135,68 +183,47 @@ export default function AIGeneratePage() {
                 <Sparkles size={12} />
                 AI portfolio generation
               </div>
-              <h2 className="text-2xl font-black text-white">Generate from portfolio source materials</h2>
-              <p className="text-sm text-zinc-600 mt-1.5">Select a portfolio, choose the projects, add direct notes or Notion text, then let the backend generate JSON and PPTX.</p>
+              <h2 className="text-2xl font-black text-white">포트폴리오 만들기</h2>
+              <p className="text-sm text-zinc-600 mt-1.5">프로젝트와 Notion 글을 선택하면 backend가 JSON을 만들고 PPTX로 변환합니다.</p>
             </div>
             <button onClick={() => navigate('/portfolio')} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-zinc-400 hover:text-white transition-colors" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-              Back to portfolio <ChevronRight size={11} />
+              Back to archive <ChevronRight size={11} />
             </button>
           </div>
 
           <div className="space-y-4">
-            <div>
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">1. Portfolio</p>
-              <div className="grid grid-cols-2 gap-3">
-                {portfolios.map(portfolio => (
-                  <button
-                    key={portfolio.id}
-                    onClick={() => {
-                      setSelectedPortfolioId(portfolio.id);
-                      setSelectedProjectIds(new Set());
-                    }}
-                    className="rounded-2xl p-4 text-left transition-all"
-                    style={{ background: selectedPortfolioId === portfolio.id ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selectedPortfolioId === portfolio.id ? 'rgba(124,58,237,0.25)' : 'rgba(255,255,255,0.07)'}` }}
-                  >
-                    <p className="text-sm font-semibold text-white">{portfolio.title}</p>
-                    <p className="text-xs text-zinc-500 mt-1">{portfolio.jobRole}</p>
-                  </button>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              {selectionSummary.map(item => (
+                <div key={item} className="rounded-2xl p-4 text-sm text-zinc-400" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  {item}
+                </div>
+              ))}
             </div>
 
-            <div>
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">2. Projects</p>
-              <div className="space-y-2">
-                {projects.map(project => (
-                  <button
-                    key={project.id}
-                    onClick={() => toggleProject(project.id)}
-                    className="w-full flex items-center gap-3 rounded-2xl p-4 text-left transition-all"
-                    style={{ background: selectedProjectIds.has(project.id) ? 'rgba(37,99,235,0.12)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selectedProjectIds.has(project.id) ? 'rgba(37,99,235,0.25)' : 'rgba(255,255,255,0.07)'}` }}
-                  >
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                      {selectedProjectIds.has(project.id) ? <Check size={14} className="text-violet-300" /> : String(project.name).slice(0, 1).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{project.name}</p>
-                      <p className="text-xs text-zinc-500 truncate">{project.role || 'Project role'} · {project.skills.join(', ') || 'No skills yet'}</p>
-                    </div>
-                  </button>
-                ))}
+            <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Selected source</p>
+                  <p className="text-sm text-zinc-300 mt-1">포트폴리오 안의 프로젝트와 Notion 글을 모아서 AI 입력으로 보냅니다.</p>
+                </div>
+                <button
+                  onClick={() => setSelectorOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white"
+                  style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                >
+                  <Sparkles size={12} />
+                  포트폴리오 만들기
+                </button>
               </div>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">3. Source text</p>
               <textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Paste user-written notes, Notion page text, or direct article content here."
+                placeholder="추가로 AI에게 전달할 노트를 적어주세요."
                 rows={6}
                 className="w-full rounded-2xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-700 outline-none resize-none"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
               />
-              <p className="mt-2 text-xs text-zinc-600">The backend will convert this source text into slide JSON and then export the PPTX.</p>
+              <p className="mt-2 text-xs text-zinc-600">선택한 프로젝트, 분류, 게시글 순서가 모두 sourceText에 포함됩니다.</p>
             </div>
           </div>
         </div>
@@ -262,18 +289,18 @@ export default function AIGeneratePage() {
               <button className="flex items-center gap-1.5 px-4 py-3 text-sm text-zinc-400 rounded-xl transition-all hover:text-white" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
                 <Globe size={13} />Publish
               </button>
-              <button onClick={startGeneration} className="p-3 text-zinc-500 hover:text-zinc-300 rounded-xl transition-all hover:bg-white/[0.04]" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+              <button onClick={() => void startGeneration()} className="p-3 text-zinc-500 hover:text-zinc-300 rounded-xl transition-all hover:bg-white/[0.04]" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
                 <RefreshCw size={14} />
               </button>
             </div>
           ) : (
             <button
-              onClick={() => void startGeneration()}
-              disabled={!selectedPortfolioId || selectedProjectIds.size === 0 || busy}
+              onClick={() => setSelectorOpen(true)}
+              disabled={busy}
               className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40"
               style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 24px rgba(124,58,237,0.4)' }}
             >
-              Generate PPTX
+              포트폴리오 만들기
             </button>
           )}
         </div>

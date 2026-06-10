@@ -54,6 +54,38 @@ export type PortfolioDetail = {
   bookmarkCount: number;
 };
 
+export type PortfolioDataBlock = {
+  id: number;
+  documentId: number;
+  parentId: number | null;
+  blockType: string;
+  content: Record<string, unknown>;
+  orderIndex: number | null;
+};
+
+export type PortfolioDataDocument = {
+  document: {
+    id: number;
+    projectId: number;
+    category: string;
+    icon: string | null;
+    title: string;
+    readTimeMinutes: number | null;
+    orderIndex: number | null;
+  };
+  blocks: PortfolioDataBlock[];
+};
+
+export type PortfolioDataProject = {
+  project: ProjectItem;
+  documents: PortfolioDataDocument[];
+};
+
+export type PortfolioDataResponse = {
+  portfolio: PortfolioDetail;
+  projects: PortfolioDataProject[];
+};
+
 export type ProjectItem = {
   id: number;
   portfolioId: number;
@@ -442,6 +474,30 @@ export async function exportPortfolioPptx(portfolioId: number, sourceText = '') 
       ? { url: `/portfolios/${portfolioId}/export/pptx`, method: 'POST', data: { sourceText }, responseType: 'blob' }
       : { url: `/portfolios/${portfolioId}/export/pptx`, method: 'GET', responseType: 'blob' },
     async () => new Blob([JSON.stringify({ portfolioId, sourceText, exportedAt: new Date().toISOString() })], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }),
+  );
+}
+
+export async function fetchPortfolioData(portfolioId: number) {
+  return apiRequest<PortfolioDataResponse>(
+    { url: `/ai/portfolios/${portfolioId}/data`, method: 'GET' },
+    async () => ({
+      portfolio: {
+        id: portfolioId,
+        userId: 0,
+        title: '',
+        jobRole: '',
+        thumbnailUrl: null,
+        summary: null,
+        skills: [],
+        templateId: null,
+        customDomain: null,
+        isPublic: false,
+        viewCount: 0,
+        likeCount: 0,
+        bookmarkCount: 0,
+      },
+      projects: [],
+    }),
   );
 }
 

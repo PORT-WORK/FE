@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  Check,
   Edit3,
   ExternalLink,
   Github,
   Image,
-  MapPin,
   Mic,
   MoreHorizontal,
   Paperclip,
@@ -71,7 +69,6 @@ export default function MessagesPage() {
   const [recording, setRecording] = useState(false);
   const [recSec, setRecSec] = useState(0);
   const [recordingError, setRecordingError] = useState<string | null>(null);
-  const [selectedAudio, setSelectedAudio] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
@@ -243,7 +240,17 @@ export default function MessagesPage() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-2">
-          {conversations.map(item => (
+          {conversations.length === 0 ? (
+            <div className="h-full flex items-center justify-center px-4">
+              <div className="w-full rounded-3xl p-5 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="mx-auto mb-4 w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.18), rgba(37,99,235,0.18))' }}>
+                  <MessagePlaceholderIcon />
+                </div>
+                <p className="text-sm font-semibold text-white">대화가 없습니다</p>
+                <p className="text-xs text-zinc-600 mt-1">사람이 없으면 메시지 목록도 비어 있는 상태로 보여줍니다.</p>
+              </div>
+            </div>
+          ) : conversations.map(item => (
             <button
               key={item.id}
               onClick={() => { setActive(item.id); setShowProfile(false); }}
@@ -270,8 +277,8 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-shrink-0 flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-shrink-0 flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <button className="flex items-center gap-3 hover:opacity-80 transition-opacity" onClick={() => setShowProfile(prev => !prev)}>
             {activeCard?.avatar
               ? <img src={activeCard.avatar} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-violet-500/30" />
@@ -287,7 +294,17 @@ export default function MessagesPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2" onClick={() => setMenuMsgId(null)}>
-          {renderedChats.map(item => {
+          {!activeCard ? (
+            <div className="h-full min-h-[420px] flex items-center justify-center">
+              <div className="max-w-sm w-full rounded-[28px] p-8 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.12)' }}>
+                  <ExternalLink size={22} className="text-violet-300" />
+                </div>
+                <p className="text-lg font-bold text-white">대화를 시작할 사람이 없습니다</p>
+                <p className="text-sm text-zinc-600 mt-2">연결된 사용자가 생기면 이 화면에서 바로 메시지, 파일, 음성 메시지를 보낼 수 있습니다.</p>
+              </div>
+            </div>
+          ) : renderedChats.map(item => {
             if ('_sep' in item) return <DateSeparator key={item.id} label={item._sep} />;
             const msg = item;
             return (
@@ -392,7 +409,7 @@ export default function MessagesPage() {
             {recordingError && <p className="mt-2 text-xs text-red-400">{recordingError}</p>}
             <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-700">
               <span>{charPct.toFixed(0)}%</span>
-              <span>{recording ? `Recording ${recSec}s` : selectedAudio ? 'Audio ready' : 'Attachments supported locally'}</span>
+              <span>{recording ? `Recording ${recSec}s` : 'Attachments supported locally'}</span>
             </div>
           </div>
         </div>
@@ -429,6 +446,23 @@ export default function MessagesPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function MessagePlaceholderIcon() {
+  return (
+    <div className="relative">
+      <div className="absolute inset-0 rounded-full blur-xl" style={{ background: 'rgba(124,58,237,0.35)' }} />
+      <MessageBubble />
+    </div>
+  );
+}
+
+function MessageBubble() {
+  return (
+    <div className="relative w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.06)' }}>
+      <span className="block w-3 h-3 rounded-full" style={{ border: '1.5px solid rgba(196,181,253,0.95)' }} />
     </div>
   );
 }
