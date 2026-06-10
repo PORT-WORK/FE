@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { icon: Compass, key: 'nav_explore', path: '/explore' },
   { icon: Briefcase, key: 'nav_portfolio', path: '/portfolio' },
   { icon: LayoutTemplate, key: 'nav_workspace', path: '/workspace' },
-  { icon: MessageSquare, key: 'nav_messages', path: '/messages', badge: 3 },
+  { icon: MessageSquare, key: 'nav_messages', path: '/messages' },
   { icon: User, key: 'nav_profile', path: '/profile' },
   { icon: Bookmark, key: 'nav_saved', path: '/saved' },
   { icon: BarChart2, key: 'nav_analytics', path: '/analytics' },

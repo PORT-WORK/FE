@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [showConnections, setShowConnections] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [notifsState, setNotifsState] = useState({ email: true, push: false, message: true });
+  const [error, setError] = useState<string | null>(null);
 
   const ko = language === 'ko';
 
@@ -61,16 +62,24 @@ export default function SettingsPage() {
   );
 
   const saveSettings = async (patch: { language?: string; notiEmail?: boolean; notiPush?: boolean; notiMessage?: boolean }) => {
-    await updateSettings(patch);
+    try {
+      setError(null);
+      await updateSettings(patch);
+    } catch {
+      setError(ko ? '설정을 저장하지 못했습니다.' : 'Failed to save settings.');
+    }
   };
 
   const connectIntegration = async (provider: string) => {
     setBusyProvider(provider);
     try {
+      setError(null);
       const authorizeUrl = await fetchIntegrationAuthorizeUrl(provider);
       if (authorizeUrl) {
         window.location.assign(authorizeUrl);
       }
+    } catch {
+      setError(ko ? '연동 로그인 화면을 불러오지 못했습니다.' : 'Failed to open the login page.');
     } finally {
       setBusyProvider(null);
     }
@@ -79,9 +88,12 @@ export default function SettingsPage() {
   const removeIntegration = async (provider: string) => {
     setBusyProvider(provider);
     try {
+      setError(null);
       await disconnectIntegration(provider);
       setConnections(prev => ({ ...prev, [provider]: false }));
       setDisconnectConfirm(null);
+    } catch {
+      setError(ko ? '연결 해제에 실패했습니다.' : 'Failed to disconnect.');
     } finally {
       setBusyProvider(null);
     }
@@ -97,6 +109,11 @@ export default function SettingsPage() {
   return (
     <div className="px-8 py-8" style={{ background: '#050505', minHeight: '100%' }}>
       <div className="max-w-2xl mx-auto space-y-5">
+        {error && (
+          <div className="rounded-2xl px-4 py-3 text-sm text-red-300" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)' }}>
+            {error}
+          </div>
+        )}
         <div className="p-5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">{ko ? '언어' : 'Language'}</h3>
           <div className="flex gap-2">

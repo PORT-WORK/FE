@@ -181,13 +181,13 @@ export default function AIGeneratePage() {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs text-violet-300 mb-4" style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.2)' }}>
                 <Sparkles size={12} />
-                AI portfolio generation
+                포트폴리오 제작
               </div>
               <h2 className="text-2xl font-black text-white">포트폴리오 만들기</h2>
               <p className="text-sm text-zinc-600 mt-1.5">프로젝트와 Notion 글을 선택하면 backend가 JSON을 만들고 PPTX로 변환합니다.</p>
             </div>
             <button onClick={() => navigate('/portfolio')} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-zinc-400 hover:text-white transition-colors" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-              Back to archive <ChevronRight size={11} />
+              선택 <ChevronRight size={11} />
             </button>
           </div>
 
@@ -203,7 +203,7 @@ export default function AIGeneratePage() {
             <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Selected source</p>
+                  <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">선택된 소스</p>
                   <p className="text-sm text-zinc-300 mt-1">포트폴리오 안의 프로젝트와 Notion 글을 모아서 AI 입력으로 보냅니다.</p>
                 </div>
                 <button
@@ -236,8 +236,8 @@ export default function AIGeneratePage() {
                 <Sparkles size={26} className="text-white" />
               </div>
             </div>
-            <h2 className="text-2xl font-black text-white text-center">{done ? 'Portfolio generated' : 'Generating portfolio'}</h2>
-            <p className="text-sm text-zinc-600 mt-1.5 text-center">{done ? 'Your PPTX file has been downloaded.' : 'AI is assembling the JSON layout and exporting the deck.'}</p>
+            <h2 className="text-2xl font-black text-white text-center">{done ? '포트폴리오가 생성되었습니다' : '포트폴리오를 만드는 중'}</h2>
+            <p className="text-sm text-zinc-600 mt-1.5 text-center">{done ? 'PPTX 파일이 다운로드되었습니다.' : 'AI가 JSON 레이아웃을 만들고 PPTX로 내보냅니다.'}</p>
           </div>
 
           <div className="rounded-2xl p-5 mb-5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>

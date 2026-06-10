@@ -4,6 +4,26 @@ import { FileText, Plus, Search, Presentation, Sparkles } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { listMyPortfolios, type PortfolioSummary } from '../../api/contentApi';
 
+function EmptyState({ ko, onAction }: { ko: boolean; onAction: () => void }) {
+  return (
+    <div className="rounded-3xl p-12 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}>
+        <Presentation size={24} className="text-violet-400" />
+      </div>
+      <p className="text-lg font-semibold text-white mb-2">{ko ? '저장된 포트폴리오가 없습니다' : 'No saved portfolios yet.'}</p>
+      <p className="text-sm text-zinc-600 max-w-md mx-auto">{ko ? '프로젝트 안의 글을 선택해 포트폴리오를 제작하면 여기에 보입니다.' : 'Select project posts to build a portfolio and store it here.'}</p>
+      <button
+        onClick={onAction}
+        className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
+        style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+      >
+        <Sparkles size={14} />
+        {ko ? '포트폴리오 제작' : 'Create portfolio'}
+      </button>
+    </div>
+  );
+}
+
 export default function PortfolioPage() {
   const navigate = useNavigate();
   const { language } = useApp();
@@ -12,7 +32,7 @@ export default function PortfolioPage() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    void listMyPortfolios().then(setFiles);
+    void listMyPortfolios().then(setFiles).catch(() => setFiles([]));
   }, []);
 
   const filtered = useMemo(
@@ -22,6 +42,8 @@ export default function PortfolioPage() {
       ),
     [files, search],
   );
+
+  const openGenerate = () => navigate('/generate');
 
   return (
     <div className="h-full flex" style={{ background: '#050505' }}>
@@ -38,10 +60,10 @@ export default function PortfolioPage() {
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
               />
             </div>
-            <div className="text-xs text-zinc-600">{filtered.length} files</div>
+            <div className="text-xs text-zinc-600">{filtered.length} {ko ? '개 파일' : 'files'}</div>
           </div>
           <button
-            onClick={() => navigate('/workspace')}
+            onClick={openGenerate}
             className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl"
             style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
           >
@@ -51,20 +73,7 @@ export default function PortfolioPage() {
         </div>
 
         {filtered.length === 0 ? (
-          <div className="rounded-3xl p-12 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.08)' }}>
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.08)' }}>
-              <Presentation size={24} className="text-violet-400" />
-            </div>
-            <p className="text-sm text-zinc-300 mb-1">{ko ? '저장된 포트폴리오가 없습니다' : 'No saved portfolios yet.'}</p>
-            <p className="text-xs text-zinc-700 mb-5">{ko ? '프로젝트에서 포트폴리오를 제작하면 여기에 표시됩니다.' : 'Create a portfolio from a project to store it here.'}</p>
-            <button
-              onClick={() => navigate('/workspace')}
-              className="px-5 py-2.5 rounded-xl text-xs font-medium text-violet-400 transition-all hover:bg-violet-500/10"
-              style={{ border: '1px solid rgba(124,58,237,0.3)' }}
-            >
-              {ko ? '프로젝트로 이동' : 'Go to project'}
-            </button>
-          </div>
+          <EmptyState ko={ko} onAction={openGenerate} />
         ) : (
           <div className="grid grid-cols-2 gap-4">
             {filtered.map(file => (
@@ -82,7 +91,7 @@ export default function PortfolioPage() {
                   <p className="text-xs text-zinc-500 mb-3">{file.jobRole}</p>
                   <div className="flex items-center gap-2 text-xs text-zinc-600">
                     <Sparkles size={12} />
-                    {ko ? '발행된 결과물' : 'Published result'}
+                    {ko ? '내보낸 결과물' : 'Published result'}
                   </div>
                 </div>
               </button>

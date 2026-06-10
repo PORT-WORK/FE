@@ -33,12 +33,14 @@ export default function ExplorePage() {
   const [sortIdx, setSortIdx] = useState(0);
   const [followOnly, setFollowOnly] = useState(false);
   const [loading, setLoading] = useState(true);
-  const sortOptions = ko ? ['최신순', '인기순', '조회순'] : ['Latest', 'Popular', 'Most Viewed'];
+  const sortOptions = ko ? ['최신', '인기', '조회수'] : ['Latest', 'Popular', 'Most Viewed'];
 
   useEffect(() => {
     let alive = true;
     void listExploreUsers().then(data => {
       if (alive) setUsers(data as any[]);
+    }).catch(() => {
+      if (alive) setUsers([]);
     });
     const timer = setTimeout(() => setLoading(false), 500);
     return () => {
@@ -151,15 +153,17 @@ export default function ExplorePage() {
         {loading ? (
           Array.from({ length: 6 }).map((_, idx) => <SkeletonCard key={idx} />)
         ) : sorted.length === 0 ? (
-          <div className="col-span-3 flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <Search size={24} className="text-zinc-700" />
+          <div className="col-span-3 flex items-center justify-center py-20">
+            <div className="max-w-md w-full rounded-3xl p-8 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl" style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)' }}>
+                <Search size={24} className="text-violet-400" />
+              </div>
+              <p className="text-lg font-semibold text-white mb-2">{ko ? '탐색 결과가 없습니다' : 'No results found'}</p>
+              <p className="text-sm text-zinc-600 max-w-sm mx-auto mb-6">{ko ? '다른 검색어나 필터를 시도해 보세요.' : 'Try different keywords or reset filters.'}</p>
+              <button onClick={() => { setSearch(''); setActiveRole('All'); setActiveStack(''); setFollowOnly(false); }} className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
+                {ko ? '필터 초기화' : 'Reset filters'}
+              </button>
             </div>
-            <p className="text-sm font-medium text-zinc-400 mb-1">{ko ? '검색 결과가 없습니다' : 'No results found'}</p>
-            <p className="text-xs text-zinc-700 mb-5">{ko ? '다른 키워드를 사용하거나 필터를 초기화해보세요.' : 'Try different keywords or reset filters.'}</p>
-            <button onClick={() => { setSearch(''); setActiveRole('All'); setActiveStack(''); setFollowOnly(false); }} className="px-4 py-2 rounded-xl text-xs font-medium transition-all" style={{ border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa' }}>
-              {ko ? '필터 초기화' : 'Reset filters'}
-            </button>
           </div>
         ) : (
           sorted.map(user => (
