@@ -1,47 +1,29 @@
 import { useState } from 'react';
-import { TrendingUp, Users, Eye, Briefcase, ChevronDown, TrendingDown, Trophy } from 'lucide-react';
-
-const PERIODS = ['7d', '30d', '90d'];
-
-const STATS = [
-  { label: 'Views', values: ['14,291', '3,840', '9,120'], deltas: ['+12%', '+5%', '+28%'], ups: [true, true, true], icon: <Eye size={16} />, color: 'rgba(124,58,237,0.1)', border: 'rgba(124,58,237,0.2)', iconColor: '#a78bfa' },
-  { label: 'Visitors', values: ['3,847', '1,023', '2,640'], deltas: ['+8%', '+2%', '+19%'], ups: [true, true, true], icon: <Users size={16} />, color: 'rgba(37,99,235,0.1)', border: 'rgba(37,99,235,0.2)', iconColor: '#60a5fa' },
-  { label: 'Inquiries', values: ['127', '34', '89'], deltas: ['+23%', '-4%', '+11%'], ups: [true, false, true], icon: <Briefcase size={16} />, color: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.2)', iconColor: '#34d399' },
-  { label: 'Bookmarks', values: ['489', '132', '310'], deltas: ['+15%', '+7%', '+22%'], ups: [true, true, true], icon: <TrendingUp size={16} />, color: 'rgba(202,138,4,0.1)', border: 'rgba(202,138,4,0.2)', iconColor: '#fbbf24' },
-];
-
-const POPULAR = [
-  { rank: 1, name: 'Portfolio Revamp', views: 5840, pct: 100 },
-  { rank: 2, name: 'AI Recommendation System', views: 3210, pct: 55 },
-  { rank: 3, name: 'Design System Case Study', views: 1840, pct: 31 },
-];
-
-const SOURCES = [
-  { src: 'Direct', pct: 38 },
-  { src: 'GitHub', pct: 27 },
-  { src: 'LinkedIn', pct: 18 },
-  { src: 'Google', pct: 10 },
-  { src: 'Other', pct: 7 },
-];
+import { ArrowRight, BarChart3, Database, EyeOff, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { useApp } from '../../contexts/AppContext';
 
 export default function AnalyticsPage() {
-  const [period, setPeriod] = useState(1);
+  const [period, setPeriod] = useState<'7d' | '30d' | '90d'>('30d');
+  const navigate = useNavigate();
+  const { language } = useApp();
+  const ko = language === 'ko';
 
   return (
     <div className="px-8 py-8 overflow-y-auto" style={{ background: '#050505', minHeight: '100%' }}>
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-white mb-1">Analytics</h2>
-            <p className="text-sm text-zinc-600">Simple overview of portfolio traffic and engagement.</p>
+            <h2 className="text-xl font-bold text-white mb-1">{ko ? '분석' : 'Analytics'}</h2>
+            <p className="text-sm text-zinc-600">{ko ? '아직 분석 데이터가 없습니다.' : 'No analytics data is available yet.'}</p>
           </div>
           <div className="flex items-center rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-            {PERIODS.map((label, idx) => (
+            {(['7d', '30d', '90d'] as const).map((label) => (
               <button
                 key={label}
-                onClick={() => setPeriod(idx)}
+                onClick={() => setPeriod(label)}
                 className="px-3.5 py-2 text-xs font-medium transition-all"
-                style={{ background: period === idx ? 'rgba(124,58,237,0.2)' : 'transparent', color: period === idx ? '#a78bfa' : '#71717a', borderRight: idx < PERIODS.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
+                style={{ background: period === label ? 'rgba(124,58,237,0.2)' : 'transparent', color: period === label ? '#a78bfa' : '#71717a', borderRight: label !== '90d' ? '1px solid rgba(255,255,255,0.06)' : 'none' }}
               >
                 {label}
               </button>
@@ -49,88 +31,27 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          {STATS.map(stat => {
-            const value = stat.values[period];
-            const delta = stat.deltas[period];
-            const up = stat.ups[period];
-            return (
-              <div key={stat.label} className="p-5 rounded-2xl" style={{ background: stat.color, border: `1px solid ${stat.border}` }}>
-                <div className="flex items-start justify-between mb-3">
-                  <p className="text-xs text-zinc-500">{stat.label}</p>
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ color: stat.iconColor, background: 'rgba(0,0,0,0.2)' }}>{stat.icon}</div>
-                </div>
-                <p className="text-2xl font-black text-white mb-2">{value}</p>
-                <div className="flex items-center gap-1.5">
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: up ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: up ? '#34d399' : '#f87171' }}>
-                    {up ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-                    {delta}
-                  </div>
-                  <span className="text-[10px] text-zinc-700">vs previous period</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          <div className="col-span-2 p-5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold text-white">Visits trend</p>
-              <span className="text-xs text-zinc-600">{PERIODS[period]}</span>
-            </div>
-            <div className="space-y-3">
-              {[72, 58, 80, 66, 90, 86, 95].map((value, idx) => (
-                <div key={idx} className="flex items-center gap-3">
-                  <span className="text-[10px] text-zinc-700 w-8">{idx + 1}</span>
-                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                    <div className="h-full rounded-full" style={{ width: `${value}%`, background: 'linear-gradient(90deg,#7c3aed,#2563eb)' }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+        <div className="rounded-3xl p-10 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl" style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)' }}>
+            <Database size={26} className="text-violet-400" />
           </div>
-
-          <div className="p-5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <p className="text-sm font-semibold text-white mb-4">Traffic sources</p>
-            <div className="space-y-3">
-              {SOURCES.map(source => (
-                <div key={source.src}>
-                  <div className="flex justify-between text-xs text-zinc-400 mb-1.5">
-                    <span>{source.src}</span>
-                    <span className="text-zinc-500">{source.pct}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                    <div className="h-full rounded-full" style={{ width: `${source.pct}%`, background: 'linear-gradient(90deg,#7c3aed,#2563eb)' }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+          <p className="text-lg font-semibold text-white mb-2">{ko ? '분석 데이터 없음' : 'No analytics data yet'}</p>
+          <p className="text-sm text-zinc-600 max-w-xl mx-auto mb-6">
+            {ko
+              ? '현재 백엔드에 공개된 분석 API가 없어서 숫자를 임의로 보여주지 않습니다. 데이터가 준비되면 이 화면에 실제 DB 결과를 붙일 수 있습니다.'
+              : 'The backend does not currently expose a public analytics API, so we are not showing placeholder numbers here.'}
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <button onClick={() => navigate('/portfolio')} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
+              {ko ? '포트폴리오로 이동' : 'Go to portfolio'} <ArrowRight size={14} />
+            </button>
+            <button className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-zinc-400" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+              <RefreshCw size={14} />{ko ? '새로고침' : 'Refresh'}
+            </button>
           </div>
-        </div>
-
-        <div className="p-5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="flex items-center gap-2 mb-4">
-            <Trophy size={14} className="text-yellow-400" />
-            <p className="text-sm font-semibold text-white">Top projects</p>
-          </div>
-          <div className="space-y-3">
-            {POPULAR.map(project => (
-              <div key={project.rank} className="flex items-center gap-4">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold" style={{ background: project.rank === 1 ? 'rgba(234,179,8,0.15)' : 'rgba(148,163,184,0.1)', color: project.rank === 1 ? '#fbbf24' : '#94a3b8' }}>
-                  {project.rank}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-zinc-300 truncate mb-1.5">{project.name}</p>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                      <div className="h-full rounded-full" style={{ width: `${project.pct}%`, background: 'linear-gradient(90deg,#7c3aed,#2563eb)' }} />
-                    </div>
-                    <span className="text-[10px] text-zinc-600 flex-shrink-0 flex items-center gap-1"><Eye size={9} />{project.views.toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="mt-8 flex items-center justify-center gap-2 text-xs text-zinc-700">
+            <EyeOff size={12} />
+            {ko ? '실데이터가 준비되면 카드와 차트가 활성화됩니다.' : 'Charts will appear once real data is wired.'}
           </div>
         </div>
       </div>
