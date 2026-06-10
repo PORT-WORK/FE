@@ -1,41 +1,95 @@
-import { useState } from 'react';
-import { Check, Github, FileText, Figma, ExternalLink, Lock, Loader2, X, ChevronRight } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Check, ChevronRight, ExternalLink, Figma, FileText, Github, Loader2, Lock, Plus, X } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
+import {
+  connectIntegration,
+  disconnectIntegration,
+  fetchCurrentUser,
+  fetchIntegrations,
+  fetchSettings,
+  updateCurrentUser,
+  updateSettings,
+  type IntegrationConnection,
+} from '../../api/contentApi';
 
 type ConnectState = 'idle' | 'connecting' | 'done';
 
-const INTEGRATIONS = [
-  { key: 'github', name: 'GitHub', desc: 'Repo and commit sync', icon: <Github size={16} />, inputLabel: 'GitHub username', inputPlaceholder: 'github.com/username', steps: ['Connect your GitHub account', 'Request repository access', 'Import project history'] },
-  { key: 'notion', name: 'Notion', desc: 'Import documents and pages', icon: <FileText size={16} />, inputLabel: 'Notion workspace URL', inputPlaceholder: 'notion.so/workspace', steps: ['Connect your workspace', 'Grant page access', 'Import content'] },
-  { key: 'figma', name: 'Figma', desc: 'Bring in design files', icon: <Figma size={16} />, inputLabel: 'Figma file URL', inputPlaceholder: 'figma.com/file/...', steps: ['Connect Figma', 'Request file access', 'Import frames'] },
-  { key: 'velog', name: 'Velog', desc: 'Sync blog posts', icon: <ExternalLink size={16} />, inputLabel: 'Velog username', inputPlaceholder: 'velog.io/@username', steps: ['Verify account', 'Enable RSS sync', 'Import posts'] },
-];
+const INTEGRATION_META = [
+  { key: 'github', name: 'GitHub', desc: 'Repo and commit sync', icon: <Github size={16} /> },
+  { key: 'notion', name: 'Notion', desc: 'Import documents and pages', icon: <FileText size={16} /> },
+  { key: 'figma', name: 'Figma', desc: 'Bring in design files', icon: <Figma size={16} /> },
+  { key: 'velog', name: 'Velog', desc: 'Sync blog posts', icon: <ExternalLink size={16} /> },
+] as const;
 
 export default function SettingsPage() {
-  const { language, setLanguage, t, notifs, setNotifs, privacy, setPrivacy, connections, setConnections } = useApp();
-  const [connectModal, setConnectModal] = useState<{ key: string; step: ConnectState; input: string } | null>(null);
+  const { language, setLanguage, t, notifs, setNotifs, privacy, setPrivacy } = useApp();
+  const [connectModal, setConnectModal] = useState<{ key: string; step: ConnectState; code: string; workspaceUrl: string } | null>(null);
   const [disconnectConfirm, setDisconnectConfirm] = useState<string | null>(null);
+  const [connections, setConnections] = useState<Record<string, boolean>>({});
+  const [integrationRows, setIntegrationRows] = useState<IntegrationConnection[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      const [settings, currentUser, rows] = await Promise.all([fetchSettings(), fetchCurrentUser(), fetchIntegrations()]);
+      if (!alive) return;
+      setLanguage(settings.language === 'EN' ? 'en' : 'ko');
+      setNotifs({ email: settings.notiEmail, push: settings.notiPush, message: settings.notiMessage });
+      setPrivacy(prev => ({ ...prev, showEmail: currentUser.isEmailPublic, public: prev.public }));
+      setIntegrationRows(rows);
+      const map: Record<string, boolean> = {};
+      rows.forEach(row => {
+        map[row.provider.toLowerCase()] = true;
+      });
+      setConnections(map);
+    };
+    void load();
+    return () => {
+      alive = false;
+    };
+  }, [setLanguage, setNotifs, setPrivacy]);
+
+  const integration = useMemo(() => {
+    return connectModal ? INTEGRATION_META.find(item => item.key === connectModal.key) ?? null : null;
+  }, [connectModal]);
 
   const openConnect = (key: string) => {
-    setConnectModal({ key, step: 'idle', input: '' });
+    setConnectModal({ key, step: 'idle', code: '', workspaceUrl: '' });
     setDisconnectConfirm(null);
   };
 
-  const startConnect = () => {
+  const startConnect = async () => {
     if (!connectModal) return;
     setConnectModal(prev => (prev ? { ...prev, step: 'connecting' } : null));
-    setTimeout(() => {
+    setBusy(true);
+    try {
+      await connectIntegration(connectModal.key, connectModal.code || 'manual-code', connectModal.workspaceUrl || undefined);
+      const rows = await fetchIntegrations();
+      setIntegrationRows(rows);
+      setConnections(prev => ({ ...prev, [connectModal.key]: true }));
       setConnectModal(prev => (prev ? { ...prev, step: 'done' } : null));
-      setConnections({ ...connections, [connectModal.key]: true });
-    }, 1200);
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const confirmDisconnect = (key: string) => {
-    setConnections({ ...connections, [key]: false });
-    setDisconnectConfirm(null);
+  const confirmDisconnect = async (key: string) => {
+    setBusy(true);
+    try {
+      await disconnectIntegration(key);
+      const rows = await fetchIntegrations();
+      setIntegrationRows(rows);
+      setConnections(prev => ({ ...prev, [key]: false }));
+      setDisconnectConfirm(null);
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const integration = connectModal ? INTEGRATIONS.find(item => item.key === connectModal.key) ?? null : null;
+  const saveSettings = async (patch: { language?: string; notiEmail?: boolean; notiPush?: boolean; notiMessage?: boolean }) => {
+    await updateSettings(patch);
+  };
 
   return (
     <div className="px-8 py-8" style={{ background: '#050505', minHeight: '100%' }}>
@@ -48,7 +102,10 @@ export default function SettingsPage() {
             {([['ko', '한국어'], ['en', 'English']] as const).map(([key, label]) => (
               <button
                 key={key}
-                onClick={() => setLanguage(key)}
+                onClick={async () => {
+                  setLanguage(key);
+                  await saveSettings({ language: key.toUpperCase() });
+                }}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all"
                 style={{ background: language === key ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.03)', border: `1px solid ${language === key ? 'rgba(124,58,237,0.25)' : 'rgba(255,255,255,0.07)'}`, color: language === key ? '#a78bfa' : '#71717a' }}
               >
@@ -65,33 +122,36 @@ export default function SettingsPage() {
             <span className="text-[10px] text-zinc-600">{Object.values(connections).filter(Boolean).length} connected</span>
           </div>
           <div className="space-y-2">
-            {INTEGRATIONS.map(item => (
-              <div key={item.key} className="flex items-center gap-3 p-3.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-zinc-400" style={{ background: 'rgba(255,255,255,0.05)' }}>{item.icon}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-zinc-200">{item.name}</p>
-                  <p className="text-xs text-zinc-600">{item.desc}</p>
+            {INTEGRATION_META.map(item => {
+              const connected = Boolean(connections[item.key]);
+              return (
+                <div key={item.key} className="flex items-center gap-3 p-3.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-zinc-400" style={{ background: 'rgba(255,255,255,0.05)' }}>{item.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-zinc-200">{item.name}</p>
+                    <p className="text-xs text-zinc-600">{item.desc}</p>
+                  </div>
+                  <div className="flex items-center gap-2.5 flex-shrink-0">
+                    {connected && (
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" style={{ boxShadow: '0 0 6px rgba(16,185,129,0.8)' }} />
+                        <span className="text-[10px] text-emerald-500">Connected</span>
+                      </div>
+                    )}
+                    {connected
+                      ? disconnectConfirm === item.key
+                        ? (
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => void confirmDisconnect(item.key)} className="text-[10px] px-2.5 py-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-all">Remove</button>
+                            <button onClick={() => setDisconnectConfirm(null)} className="text-[10px] px-2.5 py-1.5 rounded-lg text-zinc-600 hover:bg-white/[0.05] transition-all">Cancel</button>
+                          </div>
+                        )
+                        : <button onClick={() => setDisconnectConfirm(item.key)} className="text-xs px-3 py-1.5 rounded-lg transition-all" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a' }}>Disconnect</button>
+                      : <button onClick={() => openConnect(item.key)} className="text-xs px-3 py-1.5 rounded-lg transition-all" style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.25)', color: '#a78bfa' }}>Connect</button>}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2.5 flex-shrink-0">
-                  {connections[item.key] && (
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" style={{ boxShadow: '0 0 6px rgba(16,185,129,0.8)' }} />
-                      <span className="text-[10px] text-emerald-500">Connected</span>
-                    </div>
-                  )}
-                  {connections[item.key]
-                    ? disconnectConfirm === item.key
-                      ? (
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => confirmDisconnect(item.key)} className="text-[10px] px-2.5 py-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-all">Remove</button>
-                          <button onClick={() => setDisconnectConfirm(null)} className="text-[10px] px-2.5 py-1.5 rounded-lg text-zinc-600 hover:bg-white/[0.05] transition-all">Cancel</button>
-                        </div>
-                      )
-                      : <button onClick={() => setDisconnectConfirm(item.key)} className="text-xs px-3 py-1.5 rounded-lg transition-all" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: '#71717a' }}>Disconnect</button>
-                    : <button onClick={() => openConnect(item.key)} className="text-xs px-3 py-1.5 rounded-lg transition-all" style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.25)', color: '#a78bfa' }}>Connect</button>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="flex items-center gap-2 mt-3 p-3 rounded-xl text-xs text-zinc-600" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)' }}>
             <Lock size={11} className="text-zinc-600 flex-shrink-0" />
@@ -113,7 +173,11 @@ export default function SettingsPage() {
                   <p className="text-xs text-zinc-600 mt-0.5">{desc}</p>
                 </div>
                 <button
-                  onClick={() => setNotifs({ ...notifs, [key]: !notifs[key] })}
+                  onClick={async () => {
+                    const next = { ...notifs, [key]: !notifs[key] };
+                    setNotifs(next);
+                    await saveSettings({ notiEmail: next.email, notiPush: next.push, notiMessage: next.message });
+                  }}
                   className="w-10 h-6 rounded-full transition-all"
                   style={{ background: notifs[key] ? 'linear-gradient(135deg,#7c3aed,#2563eb)' : 'rgba(255,255,255,0.1)' }}
                 >
@@ -141,7 +205,15 @@ export default function SettingsPage() {
                 <p className="text-sm text-zinc-300">Show email</p>
                 <p className="text-xs text-zinc-600 mt-0.5">Display email on profile.</p>
               </div>
-              <button onClick={() => setPrivacy({ ...privacy, showEmail: !privacy.showEmail })} className="w-10 h-6 rounded-full transition-all" style={{ background: privacy.showEmail ? 'linear-gradient(135deg,#7c3aed,#2563eb)' : 'rgba(255,255,255,0.1)' }}>
+              <button
+                onClick={async () => {
+                  const next = !privacy.showEmail;
+                  setPrivacy({ ...privacy, showEmail: next });
+                  await updateCurrentUser({ isEmailPublic: next });
+                }}
+                className="w-10 h-6 rounded-full transition-all"
+                style={{ background: privacy.showEmail ? 'linear-gradient(135deg,#7c3aed,#2563eb)' : 'rgba(255,255,255,0.1)' }}
+              >
                 <div className="w-4 h-4 rounded-full bg-white transition-all" style={{ transform: `translateX(${privacy.showEmail ? '18px' : '2px'})` }} />
               </button>
             </div>
@@ -175,24 +247,25 @@ export default function SettingsPage() {
               {connectModal.step === 'idle' && (
                 <>
                   <div className="space-y-2.5 mb-6">
-                    {integration.steps.map((step, idx) => (
-                      <div key={step} className="flex items-center gap-3">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>{idx + 1}</div>
-                        <p className="text-xs text-zinc-400">{step}</p>
-                      </div>
-                    ))}
+                    <div className="text-xs text-zinc-500 mb-3">Enter the OAuth code and workspace URL returned by the provider.</div>
+                    <div className="space-y-3">
+                      <input
+                        value={connectModal.code}
+                        onChange={e => setConnectModal(prev => (prev ? { ...prev, code: e.target.value } : null))}
+                        placeholder="Authorization code"
+                        className="w-full px-3.5 py-2.5 text-sm text-zinc-300 placeholder-zinc-700 rounded-xl focus:outline-none transition-all"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      />
+                      <input
+                        value={connectModal.workspaceUrl}
+                        onChange={e => setConnectModal(prev => (prev ? { ...prev, workspaceUrl: e.target.value } : null))}
+                        placeholder="Workspace URL"
+                        className="w-full px-3.5 py-2.5 text-sm text-zinc-300 placeholder-zinc-700 rounded-xl focus:outline-none transition-all"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      />
+                    </div>
                   </div>
-                  <div className="mb-6">
-                    <label className="block text-xs font-medium text-zinc-500 mb-2">{integration.inputLabel}</label>
-                    <input
-                      value={connectModal.input}
-                      onChange={e => setConnectModal(prev => (prev ? { ...prev, input: e.target.value } : null))}
-                      placeholder={integration.inputPlaceholder}
-                      className="w-full px-3.5 py-2.5 text-sm text-zinc-300 placeholder-zinc-700 rounded-xl focus:outline-none transition-all"
-                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                    />
-                  </div>
-                  <button onClick={startConnect} className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 20px rgba(124,58,237,0.3)' }}>
+                  <button onClick={() => void startConnect()} disabled={busy} className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 20px rgba(124,58,237,0.3)' }}>
                     Connect
                   </button>
                 </>
