@@ -127,13 +127,17 @@ export default function ExplorePage() {
           sorted.map(user => (
             <div key={user.id} onClick={() => navigate(`/explore/${user.id}`)} className="rounded-2xl cursor-pointer transition-all duration-300 hover:-translate-y-1 group" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <div className="h-36 overflow-hidden rounded-t-2xl relative">
-                <img src={`https://images.unsplash.com/${user.thumbnail}?w=600&h=200&fit=crop&auto=format`} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                {user.thumbnail
+                  ? <img src={user.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  : <div className="w-full h-full" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.25), rgba(37,99,235,0.2))' }} />}
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.3))' }} />
               </div>
               <div className="p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0" style={{ boxShadow: '0 0 0 2px #070707, 0 0 0 3px rgba(124,58,237,0.3)' }}>
-                    <img src={`https://images.unsplash.com/${user.avatar}?w=80&h=80&fit=crop&crop=faces&auto=format`} alt="" className="w-full h-full object-cover object-top" />
+                    {user.avatar
+                      ? <img src={user.avatar} alt="" className="w-full h-full object-cover object-top" />
+                      : <div className="w-full h-full" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }} />}
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-white truncate">{user.name}</p>

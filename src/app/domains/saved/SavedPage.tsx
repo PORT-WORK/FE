@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Bookmark, Heart, ExternalLink, ChevronDown, Star } from 'lucide-react';
-import { exploreUsers } from '../../data/mockData';
+import { Bookmark, ChevronDown, ExternalLink, Heart, Star } from 'lucide-react';
+import { listExploreUsers } from '../../api/contentApi';
 
 const TABS = [
   { label: 'Saved', count: 12 },
@@ -15,12 +15,19 @@ export default function SavedPage() {
   const [tab, setTab] = useState(0);
   const [sortOpen, setSortOpen] = useState(false);
   const [sortIdx, setSortIdx] = useState(0);
+  const [items, setItems] = useState<any[]>([]);
   const navigate = useNavigate();
-  const rawItems = exploreUsers.slice(0, tab === 2 ? 4 : tab === 1 ? 5 : 3);
 
-  let items = [...rawItems];
-  if (sortIdx === 1) items.sort((a, b) => a.name.localeCompare(b.name));
-  if (sortIdx === 2) items.sort((a, b) => b.likes - a.likes);
+  useEffect(() => {
+    listExploreUsers().then(data => setItems(data.slice(0, tab === 2 ? 4 : tab === 1 ? 5 : 3)));
+  }, [tab]);
+
+  const displayItems = useMemo(() => {
+    const next = [...items];
+    if (sortIdx === 1) next.sort((a, b) => a.name.localeCompare(b.name));
+    if (sortIdx === 2) next.sort((a, b) => b.likes - a.likes);
+    return next;
+  }, [items, sortIdx]);
 
   return (
     <div className="px-8 py-8 overflow-y-auto" style={{ background: '#050505', minHeight: '100%' }} onClick={() => setSortOpen(false)}>
@@ -54,7 +61,7 @@ export default function SavedPage() {
           </div>
         </div>
 
-        {items.length === 0 ? (
+        {displayItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24">
             <div className="relative mb-6">
               <div className="w-20 h-20 rounded-3xl flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.15)' }}>
@@ -69,10 +76,12 @@ export default function SavedPage() {
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-4">
-            {items.map(user => (
+            {displayItems.map(user => (
               <div key={user.id} className="rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5 cursor-pointer group" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} onClick={() => navigate(`/explore/${user.id}`)}>
                 <div className="h-28 overflow-hidden relative">
-                  <img src={`https://images.unsplash.com/${user.thumbnail}?w=400&h=180&fit=crop&auto=format`} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="w-full h-full flex items-center justify-center text-zinc-700" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                    <Bookmark size={28} />
+                  </div>
                 </div>
                 <div className="p-4">
                   <div className="flex items-start justify-between mb-2">
@@ -87,7 +96,7 @@ export default function SavedPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5 mb-3">
-                    {user.skills.slice(0, 3).map((skill: string) => <span key={skill} className="px-2 py-0.5 text-[10px] text-zinc-600 rounded-md" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>{skill}</span>)}
+                    {(user.skills || []).slice(0, 3).map((skill: string) => <span key={skill} className="px-2 py-0.5 text-[10px] text-zinc-600 rounded-md" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>{skill}</span>)}
                   </div>
                   <button onClick={e => { e.stopPropagation(); navigate(`/explore/${user.id}`); }} className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-violet-400 transition-colors">
                     <ExternalLink size={11} />View
