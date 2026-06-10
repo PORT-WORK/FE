@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Edit3,
   ExternalLink,
   Github,
+  Globe,
   Image,
   Mic,
   MoreHorizontal,
@@ -14,7 +15,6 @@ import {
   Trash2,
   Twitter,
   X,
-  Globe,
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { listMessages, markMessageRead, sendMessage, type ConversationCard } from '../../api/contentApi';
@@ -35,7 +35,13 @@ interface ChatMsg {
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-const MAX_INPUT = 500;
+
+function formatDateKey(value?: string | null) {
+  if (!value) return 'Today';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Today';
+  return date.toLocaleDateString();
+}
 
 function DateSeparator({ label }: { label: string }) {
   return (
@@ -47,11 +53,17 @@ function DateSeparator({ label }: { label: string }) {
   );
 }
 
-function seedChats(card?: ConversationCard | null): ChatMsg[] {
+function buildInitialChats(card?: ConversationCard | null): ChatMsg[] {
   if (!card) return [];
   return [
-    { id: uid(), from: 'them', text: `Latest message from ${card.user}: ${card.lastMsg}`, time: card.time || 'Now', date: 'Today', type: 'text' },
-    { id: uid(), from: 'me', text: 'Thanks. I will reply with more details.', time: 'Just now', date: 'Today', type: 'text' },
+    {
+      id: `seed-${card.id}`,
+      from: 'them',
+      text: card.lastMsg,
+      time: card.time || 'Now',
+      date: formatDateKey(card.createdAt),
+      type: 'text',
+    },
   ];
 }
 
@@ -63,11 +75,10 @@ export default function MessagesPage() {
   const [input, setInput] = useState('');
   const [chats, setChats] = useState<ChatMsg[]>([]);
   const [showProfile, setShowProfile] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
-  const [menuMsgId, setMenuMsgId] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
-  const [recSec, setRecSec] = useState(0);
   const [recordingError, setRecordingError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,19 +91,34 @@ export default function MessagesPage() {
 
   useEffect(() => {
     let alive = true;
-    listMessages().then(data => {
-      if (!alive) return;
-      setConversations(data);
-      if (data[0]) setActive(data[0].id);
-    });
+    void listMessages()
+      .then(data => {
+        if (!alive) return;
+        setConversations(data);
+        setLoadError(null);
+        setActive(data[0]?.id ?? '');
+      })
+      .catch(() => {
+        if (!alive) return;
+        setConversations([]);
+        setActive('');
+        setChats([]);
+        setLoadError('메시지를 불러오지 못했습니다.');
+      });
+
     return () => {
       alive = false;
     };
   }, []);
 
+  const activeCard = useMemo(
+    () => conversations.find(item => item.id === active) || null,
+    [active, conversations],
+  );
+
   useEffect(() => {
-    setChats(seedChats(conversations.find(item => item.id === active)));
-  }, [active, conversations]);
+    setChats(buildInitialChats(activeCard));
+  }, [activeCard]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -103,11 +129,9 @@ export default function MessagesPage() {
       if (recTimer.current) clearInterval(recTimer.current);
       return;
     }
-    setRecSec(0);
     recSecRef.current = 0;
     recTimer.current = setInterval(() => {
       recSecRef.current += 1;
-      setRecSec(recSecRef.current);
     }, 1000);
     return () => {
       if (recTimer.current) clearInterval(recTimer.current);
@@ -119,14 +143,23 @@ export default function MessagesPage() {
     streamRef.current?.getTracks().forEach(track => track.stop());
   }, []);
 
-  const activeCard = conversations.find(item => item.id === active) || null;
+  useEffect(() => {
+    if (activeCard) {
+      void markMessageRead(activeCard.id).catch(() => undefined);
+    }
+  }, [activeCard?.id]);
 
   const send = async () => {
     if (!input.trim() || !activeCard) return;
     const text = input.trim();
     setInput('');
     setChats(prev => [...prev, { id: uid(), from: 'me', text, time: 'Just now', type: 'text' }]);
-    await sendMessage(activeCard.userId, text);
+    try {
+      await sendMessage(activeCard.userId, text);
+      setLoadError(null);
+    } catch {
+      setLoadError('메시지를 전송하지 못했습니다.');
+    }
   };
 
   const startRecording = async () => {
@@ -161,14 +194,13 @@ export default function MessagesPage() {
         stream.getTracks().forEach(track => track.stop());
         streamRef.current = null;
         recorderRef.current = null;
-        setRecSec(0);
         recSecRef.current = 0;
       };
 
       recorder.start();
       setRecording(true);
     } catch {
-      setRecordingError('Microphone permission is required.');
+      setRecordingError('마이크 권한이 필요합니다.');
       setRecording(false);
     }
   };
@@ -207,7 +239,6 @@ export default function MessagesPage() {
 
   const deleteMsg = (id: string) => {
     setChats(prev => prev.filter(msg => msg.id !== id));
-    setMenuMsgId(null);
   };
 
   const renderedChats: Array<ChatMsg | { _sep: string; id: string }> = [];
@@ -221,33 +252,32 @@ export default function MessagesPage() {
     renderedChats.push(msg);
   });
 
-  const charPct = (input.length / MAX_INPUT) * 100;
-
-  useEffect(() => {
-    if (activeCard) {
-      void markMessageRead(activeCard.id);
-    }
-  }, [activeCard?.id]);
-
   return (
-    <div className="flex h-full overflow-hidden relative" style={{ background: '#050505' }} onClick={() => setMenuMsgId(null)}>
+    <div className="flex h-full overflow-hidden relative" style={{ background: '#050505' }}>
       <div className="flex-shrink-0 flex flex-col" style={{ width: '260px', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="p-4">
-          <h2 className="text-sm font-bold text-white mb-3">{t('msg_title')}</h2>
           <div className="relative">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
-            <input placeholder={t('msg_search')} className="w-full pl-8 pr-3 py-2 text-xs text-zinc-300 placeholder-zinc-700 rounded-xl focus:outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }} />
+            <input
+              placeholder={t('msg_search')}
+              className="w-full pl-8 pr-3 py-2 text-xs text-zinc-300 placeholder-zinc-700 rounded-xl focus:outline-none"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+            />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-2">
+          {loadError && (
+            <div className="px-3 pb-2">
+              <div className="rounded-2xl px-3 py-2 text-xs text-red-300" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)' }}>
+                {loadError}
+              </div>
+            </div>
+          )}
           {conversations.length === 0 ? (
             <div className="h-full flex items-center justify-center px-4">
               <div className="w-full rounded-3xl p-5 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div className="mx-auto mb-4 w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.18), rgba(37,99,235,0.18))' }}>
-                  <MessagePlaceholderIcon />
-                </div>
-                <p className="text-sm font-semibold text-white">대화가 없습니다</p>
-                <p className="text-xs text-zinc-600 mt-1">사람이 없으면 메시지 목록도 비어 있는 상태로 보여줍니다.</p>
+                <p className="text-sm font-semibold text-white">대화를 시작할 사람이 없습니다</p>
+                <p className="text-xs text-zinc-600 mt-1">연결된 대화가 없으면 메시지 목록이 비어 보입니다.</p>
               </div>
             </div>
           ) : conversations.map(item => (
@@ -277,31 +307,30 @@ export default function MessagesPage() {
         </div>
       </div>
 
-        <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {activeCard && (
           <div className="flex-shrink-0 flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <button className="flex items-center gap-3 hover:opacity-80 transition-opacity" onClick={() => setShowProfile(prev => !prev)}>
-            {activeCard?.avatar
-              ? <img src={activeCard.avatar} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-violet-500/30" />
-              : <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-violet-500/30" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>{activeCard?.user?.[0] || '?'}</div>}
-            <div className="text-left">
-              <p className="text-sm font-semibold text-white">{activeCard?.user || 'Message'}</p>
-              <p className="text-xs text-zinc-600">{activeCard?.role || 'Portfolio contact'} <span className="text-violet-400 hover:underline cursor-pointer">View profile</span></p>
-            </div>
-          </button>
-          <button className="p-2 text-zinc-600 hover:text-zinc-300 rounded-lg hover:bg-white/[0.04] transition-colors">
-            <MoreHorizontal size={15} />
-          </button>
-        </div>
+            <button className="flex items-center gap-3 hover:opacity-80 transition-opacity" onClick={() => setShowProfile(prev => !prev)}>
+              {activeCard.avatar
+                ? <img src={activeCard.avatar} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-violet-500/30" />
+                : <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-violet-500/30" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>{activeCard.user[0] || '?'}</div>}
+              <div className="text-left">
+                <p className="text-sm font-semibold text-white">{activeCard.user}</p>
+                <p className="text-xs text-zinc-600">{activeCard.role}</p>
+              </div>
+            </button>
+            <button className="p-2 text-zinc-600 hover:text-zinc-300 rounded-lg hover:bg-white/[0.04] transition-colors">
+              <MoreHorizontal size={15} />
+            </button>
+          </div>
+        )}
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2" onClick={() => setMenuMsgId(null)}>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
           {!activeCard ? (
             <div className="h-full min-h-[420px] flex items-center justify-center">
               <div className="max-w-sm w-full rounded-[28px] p-8 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.12)' }}>
-                  <ExternalLink size={22} className="text-violet-300" />
-                </div>
                 <p className="text-lg font-bold text-white">대화를 시작할 사람이 없습니다</p>
-                <p className="text-sm text-zinc-600 mt-2">연결된 사용자가 생기면 이 화면에서 바로 메시지, 파일, 음성 메시지를 보낼 수 있습니다.</p>
+                <p className="text-sm text-zinc-600 mt-2">연결된 사람이 없으면 바로 메시지를 보낼 수 없습니다.</p>
               </div>
             </div>
           ) : renderedChats.map(item => {
@@ -345,12 +374,8 @@ export default function MessagesPage() {
                       )}
                     </div>
                   )}
-                  {msg.type === 'voice' && msg.fileUrl && (
-                    <audio controls src={msg.fileUrl} className="mt-2 w-full max-w-[280px]" />
-                  )}
-                  {msg.type === 'image' && msg.fileUrl && (
-                    <img src={msg.fileUrl} alt={msg.fileName || ''} className="mt-2 rounded-2xl max-w-[280px]" />
-                  )}
+                  {msg.type === 'voice' && msg.fileUrl && <audio controls src={msg.fileUrl} className="mt-2 w-full max-w-[280px]" />}
+                  {msg.type === 'image' && msg.fileUrl && <img src={msg.fileUrl} alt={msg.fileName || ''} className="mt-2 rounded-2xl max-w-[280px]" />}
                 </div>
               </div>
             );
@@ -370,10 +395,10 @@ export default function MessagesPage() {
           <div ref={bottomRef} />
         </div>
 
-        <div className="flex-shrink-0 px-6 pt-2 pb-1" onClick={() => setMenuMsgId(null)}>
+        <div className="flex-shrink-0 px-6 pt-2 pb-1">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-center gap-2 overflow-x-auto pb-2">
-              {[ 'Reply fast', 'Summarize project', 'Ask for feedback' ].map(prompt => (
+              {['Reply fast', 'Summarize project', 'Ask for feedback'].map(prompt => (
                 <button
                   key={prompt}
                   onClick={() => setInput(prompt)}
@@ -387,7 +412,7 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        <div className="flex-shrink-0 px-6 pb-4" onClick={() => setMenuMsgId(null)}>
+        <div className="flex-shrink-0 px-6 pb-4">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-end gap-3 p-3 rounded-2xl transition-all" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <button onClick={() => imgInputRef.current?.click()} className="flex-shrink-0 p-2 rounded-xl text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04] transition-colors">
@@ -399,7 +424,24 @@ export default function MessagesPage() {
               <button onClick={recording ? stopRecording : startRecording} className={`flex-shrink-0 p-2 rounded-xl transition-colors ${recording ? 'text-red-400 hover:bg-red-500/10' : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04]'}`}>
                 {recording ? <Square size={14} /> : <Mic size={14} />}
               </button>
-              <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }} placeholder={t('msg_search')} rows={1} className="flex-1 bg-transparent text-sm text-zinc-300 placeholder-zinc-700 outline-none resize-none" onInput={e => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 120)}px`; }} />
+              <textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    void send();
+                  }
+                }}
+                placeholder={t('msg_placeholder')}
+                rows={3}
+                className="flex-1 min-h-[76px] bg-transparent text-sm text-zinc-300 placeholder-zinc-700 outline-none resize-none"
+                onInput={e => {
+                  const el = e.target as HTMLTextAreaElement;
+                  el.style.height = 'auto';
+                  el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+                }}
+              />
               <button onClick={() => void send()} disabled={!input.trim()} className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all" style={{ background: input.trim() ? 'linear-gradient(135deg,#7c3aed,#2563eb)' : 'rgba(255,255,255,0.05)', boxShadow: input.trim() ? '0 0 14px rgba(124,58,237,0.4)' : 'none' }}>
                 <Send size={13} className={input.trim() ? 'text-white' : 'text-zinc-700'} />
               </button>
@@ -407,10 +449,6 @@ export default function MessagesPage() {
               <input ref={fileInputRef} type="file" className="hidden" onChange={e => handleFile(e, 'file')} />
             </div>
             {recordingError && <p className="mt-2 text-xs text-red-400">{recordingError}</p>}
-            <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-700">
-              <span>{charPct.toFixed(0)}%</span>
-              <span>{recording ? `Recording ${recSec}s` : 'Attachments supported locally'}</span>
-            </div>
           </div>
         </div>
       </div>
@@ -446,23 +484,6 @@ export default function MessagesPage() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function MessagePlaceholderIcon() {
-  return (
-    <div className="relative">
-      <div className="absolute inset-0 rounded-full blur-xl" style={{ background: 'rgba(124,58,237,0.35)' }} />
-      <MessageBubble />
-    </div>
-  );
-}
-
-function MessageBubble() {
-  return (
-    <div className="relative w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.06)' }}>
-      <span className="block w-3 h-3 rounded-full" style={{ border: '1.5px solid rgba(196,181,253,0.95)' }} />
     </div>
   );
 }

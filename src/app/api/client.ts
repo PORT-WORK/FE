@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 
 const rawBaseURL = import.meta.env.VITE_API_BASE_URL?.trim();
 const baseURL = rawBaseURL
@@ -35,8 +35,11 @@ export async function apiRequest<T>(config: AxiosRequestConfig, fallback: () => 
     const { data } = await apiClient.request<T>(config);
     return unwrap(data);
   } catch (error) {
-    const err = error as AxiosError;
-    if (err.response || err.request) return fallback();
     throw error;
   }
+}
+
+export async function apiRequestStrict<T>(config: AxiosRequestConfig): Promise<T> {
+  const { data } = await apiClient.request<T>(config);
+  return unwrap(data);
 }

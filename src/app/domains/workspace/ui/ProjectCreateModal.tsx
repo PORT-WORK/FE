@@ -13,15 +13,15 @@ const DEFAULT_CATEGORIES = ['트러블슈팅', '맡은 역할', '사용 기술',
 
 export default function ProjectCreateModal({ open, portfolioId, onClose, onCreated }: Props) {
   const [name, setName] = useState('');
-  const [role, setRole] = useState('Frontend Developer');
+  const [role, setRole] = useState('');
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [summary, setSummary] = useState('');
-  const [skills, setSkills] = useState('React, TypeScript, Node.js');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(['트러블슈팅', '사용 기술']);
+  const [skills, setSkills] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canSubmit = useMemo(() => name.trim().length > 0, [name]);
+  const canSubmit = useMemo(() => name.trim().length > 0 && portfolioId > 0, [name, portfolioId]);
 
   if (!open) return null;
 
@@ -35,11 +35,11 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
 
   const reset = () => {
     setName('');
-    setRole('Frontend Developer');
+    setRole('');
     setYear(String(new Date().getFullYear()));
     setSummary('');
-    setSkills('React, TypeScript, Node.js');
-    setSelectedCategories(['트러블슈팅', '사용 기술']);
+    setSkills('');
+    setSelectedCategories([]);
     setError(null);
   };
 
@@ -47,22 +47,24 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
     if (!canSubmit || busy) return;
     setBusy(true);
     setError(null);
+
     try {
       await createPortfolioProject(portfolioId, {
         name: name.trim(),
-        role: role.trim(),
-        summary: [summary.trim(), selectedCategories.length ? `Categories: ${selectedCategories.join(', ')}` : '']
-          .filter(Boolean)
-          .join('\n\n'),
+        role: role.trim() || undefined,
+        summary: [
+          summary.trim(),
+          selectedCategories.length ? `Categories: ${selectedCategories.join(', ')}` : '',
+        ].filter(Boolean).join('\n\n') || undefined,
         startDate: year.trim() ? `${year}-01-01` : undefined,
         endDate: year.trim() ? `${year}-12-31` : undefined,
-        skills,
+        skills: skills.trim() || undefined,
       });
       onCreated?.();
       reset();
       onClose();
     } catch {
-      setError('프로젝트를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.');
+      setError('프로젝트를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       setBusy(false);
     }
@@ -79,10 +81,10 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] text-violet-300 mb-2" style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.18)' }}>
               <Sparkles size={11} />
-              New project
+              Project
             </div>
             <p className="text-lg font-black text-white">새 프로젝트</p>
-            <p className="text-xs text-zinc-500 mt-1">기존 포트폴리오 입력 화면을 프로젝트 생성 흐름에 그대로 적용했습니다.</p>
+            <p className="text-xs text-zinc-500 mt-1">프로젝트 안에서 노션 글을 정리할 수 있도록 정보를 입력해 주세요.</p>
           </div>
           <button onClick={onClose} className="p-2 text-zinc-600 hover:text-zinc-300 rounded-xl hover:bg-white/[0.05] transition-colors">
             <X size={16} />

@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, apiRequestStrict } from './client';
 
 export type Article = {
   id: string;
@@ -21,6 +21,7 @@ export type ConversationCard = {
   role: string;
   lastMsg: string;
   time: string;
+  createdAt: string;
   unread: number;
   avatar: string;
 };
@@ -234,6 +235,7 @@ export async function listMessages(): Promise<ConversationCard[]> {
     role: profile.location || 'Portfolio contact',
     lastMsg: item.content,
     time: formatTime(item.createdAt),
+    createdAt: item.createdAt,
     unread: item.isRead ? 0 : 1,
     avatar: profile.profileImageUrl || '',
   }));
@@ -272,7 +274,7 @@ export async function listCurrentUser() {
 }
 
 export async function fetchCurrentUser() {
-  return listCurrentUser();
+  return apiRequestStrict<UserProfile>({ url: '/users/me', method: 'GET' });
 }
 
 export async function updateCurrentUser(payload: {
@@ -284,21 +286,7 @@ export async function updateCurrentUser(payload: {
   language?: string | null;
   isEmailPublic?: boolean;
 }) {
-  return apiRequest<UserProfile>(
-    { url: '/users/me', method: 'PUT', data: payload },
-    async () => ({
-      id: 0,
-      email: '',
-      name: payload.name || 'Guest',
-      profileImageUrl: payload.profileImageUrl || null,
-      tier: 'FREE',
-      location: payload.location || null,
-      experienceYears: payload.experienceYears ?? null,
-      bio: payload.bio || null,
-      language: payload.language || 'KO',
-      isEmailPublic: payload.isEmailPublic ?? false,
-    }),
-  );
+  return apiRequestStrict<UserProfile>({ url: '/users/me', method: 'PUT', data: payload });
 }
 
 export async function fetchPublicProfile(userId: number) {
@@ -309,14 +297,11 @@ export async function fetchPublicProfile(userId: number) {
 }
 
 export async function fetchSettings() {
-  return apiRequest(
-    { url: '/users/me/settings', method: 'GET' },
-    async () => ({ language: 'KO', notiEmail: true, notiPush: false, notiMessage: true }),
-  );
+  return apiRequestStrict<SettingsProfile>({ url: '/users/me/settings', method: 'GET' });
 }
 
 export async function updateSettings(settings: { language?: string; notiEmail?: boolean; notiPush?: boolean; notiMessage?: boolean }) {
-  return apiRequest({ url: '/users/me/settings', method: 'PUT', data: settings }, async () => settings);
+  return apiRequestStrict<SettingsProfile>({ url: '/users/me/settings', method: 'PUT', data: settings });
 }
 
 export async function fetchNotifications() {
@@ -332,10 +317,7 @@ export async function markNotificationRead(notificationId: string | number) {
 }
 
 export async function fetchIntegrations() {
-  return apiRequest<IntegrationConnection[]>(
-    { url: '/integrations', method: 'GET' },
-    async () => [],
-  );
+  return apiRequestStrict<IntegrationConnection[]>({ url: '/integrations', method: 'GET' });
 }
 
 export async function connectIntegration(provider: string, code: string, workspaceUrl?: string) {
@@ -346,17 +328,11 @@ export async function connectIntegration(provider: string, code: string, workspa
 }
 
 export async function fetchIntegrationAuthorizeUrl(provider: string) {
-  return apiRequest<string>(
-    { url: `/integrations/${provider.toUpperCase()}/authorize-url`, method: 'GET' },
-    async () => '',
-  );
+  return apiRequestStrict<string>({ url: `/integrations/${provider.toUpperCase()}/authorize-url`, method: 'GET' });
 }
 
 export async function disconnectIntegration(provider: string) {
-  return apiRequest(
-    { url: `/integrations/${provider.toUpperCase()}`, method: 'DELETE' },
-    async () => undefined,
-  );
+  return apiRequestStrict<void>({ url: `/integrations/${provider.toUpperCase()}`, method: 'DELETE' });
 }
 
 export async function fetchIntegrationPreview(provider: string, resourceId?: string) {
@@ -367,10 +343,7 @@ export async function fetchIntegrationPreview(provider: string, resourceId?: str
 }
 
 export async function listMyPortfolios() {
-  return apiRequest<PortfolioSummary[]>(
-    { url: '/portfolios/me', method: 'GET' },
-    async () => [],
-  );
+  return apiRequestStrict<PortfolioSummary[]>({ url: '/portfolios/me', method: 'GET' });
 }
 
 export async function fetchPortfolioDetail(portfolioId: number) {
@@ -395,10 +368,7 @@ export async function fetchPortfolioDetail(portfolioId: number) {
 }
 
 export async function listPortfolioProjects(portfolioId: number) {
-  return apiRequest<ProjectItem[]>(
-    { url: `/portfolios/${portfolioId}/projects`, method: 'GET' },
-    async () => [],
-  );
+  return apiRequestStrict<ProjectItem[]>({ url: `/portfolios/${portfolioId}/projects`, method: 'GET' });
 }
 
 export async function createPortfolioProject(
@@ -412,22 +382,7 @@ export async function createPortfolioProject(
     skills?: string;
   },
 ) {
-  return apiRequest<ProjectItem>(
-    { url: `/portfolios/${portfolioId}/projects`, method: 'POST', data: payload },
-    async () => ({
-      id: Date.now(),
-      portfolioId,
-      name: payload.name,
-      role: payload.role || '',
-      summary: payload.summary || null,
-      thumbnailUrl: null,
-      skills: (payload.skills || '').split(',').map(item => item.trim()).filter(Boolean),
-      isSynced: false,
-      startDate: payload.startDate || null,
-      endDate: payload.endDate || null,
-      orderIndex: 0,
-    }),
-  );
+  return apiRequestStrict<ProjectItem>({ url: `/portfolios/${portfolioId}/projects`, method: 'POST', data: payload });
 }
 
 export async function updatePortfolioProject(
@@ -442,63 +397,24 @@ export async function updatePortfolioProject(
     skills?: string;
   },
 ) {
-  return apiRequest<ProjectItem>(
-    { url: `/portfolios/${portfolioId}/projects/${projectId}`, method: 'PUT', data: payload },
-    async () => ({
-      id: projectId,
-      portfolioId,
-      name: payload.name,
-      role: payload.role || '',
-      summary: payload.summary || null,
-      thumbnailUrl: null,
-      skills: (payload.skills || '').split(',').map(item => item.trim()).filter(Boolean),
-      isSynced: false,
-      startDate: payload.startDate || null,
-      endDate: payload.endDate || null,
-      orderIndex: 0,
-    }),
-  );
+  return apiRequestStrict<ProjectItem>({ url: `/portfolios/${portfolioId}/projects/${projectId}`, method: 'PUT', data: payload });
 }
 
 export async function deletePortfolioProject(portfolioId: number, projectId: number) {
-  return apiRequest(
-    { url: `/portfolios/${portfolioId}/projects/${projectId}`, method: 'DELETE' },
-    async () => undefined,
-  );
+  return apiRequestStrict<void>({ url: `/portfolios/${portfolioId}/projects/${projectId}`, method: 'DELETE' });
 }
 
 export async function exportPortfolioPptx(portfolioId: number, sourceText = '') {
   const hasSource = Boolean(sourceText.trim());
-  return apiRequest<Blob>(
+  return apiRequestStrict<Blob>(
     hasSource
       ? { url: `/portfolios/${portfolioId}/export/pptx`, method: 'POST', data: { sourceText }, responseType: 'blob' }
       : { url: `/portfolios/${portfolioId}/export/pptx`, method: 'GET', responseType: 'blob' },
-    async () => new Blob([JSON.stringify({ portfolioId, sourceText, exportedAt: new Date().toISOString() })], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }),
   );
 }
 
 export async function fetchPortfolioData(portfolioId: number) {
-  return apiRequest<PortfolioDataResponse>(
-    { url: `/ai/portfolios/${portfolioId}/data`, method: 'GET' },
-    async () => ({
-      portfolio: {
-        id: portfolioId,
-        userId: 0,
-        title: '',
-        jobRole: '',
-        thumbnailUrl: null,
-        summary: null,
-        skills: [],
-        templateId: null,
-        customDomain: null,
-        isPublic: false,
-        viewCount: 0,
-        likeCount: 0,
-        bookmarkCount: 0,
-      },
-      projects: [],
-    }),
-  );
+  return apiRequestStrict<PortfolioDataResponse>({ url: `/ai/portfolios/${portfolioId}/data`, method: 'GET' });
 }
 
 export async function listDocumentBlocks(documentId: number) {
