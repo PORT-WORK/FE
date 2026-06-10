@@ -1,246 +1,296 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { Send, Sparkles, ChevronDown, Copy, Check, RefreshCw, Zap, Plus, X } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
+import { ArrowLeft, Plus, Download, Trash2, Type, Heading1, Heading2, Heading3, Quote, Code2, Image, Minus, CheckSquare, Database, Save, Sparkles } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
+import {
+  createDocumentBlock,
+  deleteDocumentBlock,
+  exportPortfolioPptx,
+  listDocumentBlocks,
+  reorderDocumentBlocks,
+  updateDocumentBlock,
+} from '../../api/contentApi';
 
-interface Msg { id: string; role: 'ai' | 'user'; text: string; code?: string; }
-interface Session { id: string; title: string; time: string; msgs: Msg[]; }
+type BlockType = 'h1' | 'h2' | 'h3' | 'p' | 'quote' | 'code' | 'check' | 'image' | 'divider' | 'database';
+
+type Block = {
+  id: string;
+  type: BlockType;
+  content: string;
+  checked?: boolean;
+  serverId?: number;
+};
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-const PROJECTS = [
-  { id: 'p1', label: 'Portfolio Revamp' },
-  { id: 'p2', label: 'AI Recommendation System' },
+const BLOCK_TYPES: Array<{ type: BlockType; label: string; icon: JSX.Element }> = [
+  { type: 'h1', label: 'Heading 1', icon: <Heading1 size={14} /> },
+  { type: 'h2', label: 'Heading 2', icon: <Heading2 size={14} /> },
+  { type: 'h3', label: 'Heading 3', icon: <Heading3 size={14} /> },
+  { type: 'p', label: 'Text', icon: <Type size={14} /> },
+  { type: 'quote', label: 'Quote', icon: <Quote size={14} /> },
+  { type: 'code', label: 'Code', icon: <Code2 size={14} /> },
+  { type: 'check', label: 'Checklist', icon: <CheckSquare size={14} /> },
+  { type: 'image', label: 'Image', icon: <Image size={14} /> },
+  { type: 'database', label: 'Database', icon: <Database size={14} /> },
+  { type: 'divider', label: 'Divider', icon: <Minus size={14} /> },
 ];
 
-const QUICK_PROMPTS = [
-  'Write a strong hero section',
-  'Summarize my project impact',
-  'Explain the tech stack clearly',
-  'Create a results section',
-  'Draft a lesson learned section',
-];
-
-function initialSession(title: string, time: string): Session {
-  return { id: uid(), title, time, msgs: [{ id: uid(), role: 'ai', text: 'Hi, I can help you build portfolio content. Ask me anything about sections, wording, or structure.' }] };
+function createBlock(type: BlockType): Block {
+  return { id: uid(), type, content: '' };
 }
 
-const INITIAL_SESSIONS: Session[] = [
-  initialSession('Portfolio intro', 'Now'),
-  initialSession('Results section', '1h ago'),
-];
+function FieldRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[10px] uppercase tracking-wider text-zinc-500">{label}</p>
+      {children}
+    </div>
+  );
+}
 
-function getAIResponse(prompt: string): { text: string; code?: string } {
-  return {
-    text: `Draft for: ${prompt}`,
-    code: `- Goal: ${prompt}\n- Add metrics, process, and outcome\n- Keep the tone concise and specific`,
-  };
+function BlockEditor({
+  block,
+  onChange,
+  onDelete,
+  onToggleDone,
+}: {
+  block: Block;
+  onChange: (id: string, value: string) => void;
+  onDelete: (id: string) => void;
+  onToggleDone: (id: string) => void;
+}) {
+  if (block.type === 'divider') {
+    return (
+      <div className="flex items-center gap-3 py-3">
+        <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
+        <button onClick={() => onDelete(block.id)} className="text-zinc-700 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
+        <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
+      </div>
+    );
+  }
+
+  if (block.type === 'image') {
+    return (
+      <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs text-zinc-500">Image URL</span>
+          <button onClick={() => onDelete(block.id)} className="text-zinc-700 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
+        </div>
+        <input
+          value={block.content}
+          onChange={e => onChange(block.id, e.target.value)}
+          placeholder="Paste image URL"
+          className="w-full px-3 py-2 text-sm rounded-xl text-zinc-200 outline-none"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+        />
+        {block.content && <img src={block.content} alt="" className="mt-3 rounded-xl max-h-64 object-cover w-full" />}
+      </div>
+    );
+  }
+
+  if (block.type === 'check') {
+    return (
+      <div className="flex items-start gap-3">
+        <button
+          onClick={() => onToggleDone(block.id)}
+          className="mt-2 w-4 h-4 rounded border flex items-center justify-center"
+          style={{ background: block.checked ? 'linear-gradient(135deg,#7c3aed,#2563eb)' : 'transparent', borderColor: 'rgba(255,255,255,0.15)' }}
+        >
+          {block.checked && <CheckSquare size={10} className="text-white" />}
+        </button>
+        <div className="flex-1">
+          <textarea
+            value={block.content}
+            onChange={e => onChange(block.id, e.target.value)}
+            placeholder="Checklist item"
+            className="w-full bg-transparent outline-none resize-none text-zinc-200 placeholder-zinc-700 text-sm"
+            rows={1}
+          />
+        </div>
+        <button onClick={() => onDelete(block.id)} className="text-zinc-700 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-zinc-500 capitalize">{block.type}</span>
+        <button onClick={() => onDelete(block.id)} className="text-zinc-700 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
+      </div>
+      <textarea
+        value={block.content}
+        onChange={e => onChange(block.id, e.target.value)}
+        placeholder="Write content..."
+        className="w-full bg-transparent outline-none resize-none text-zinc-200 placeholder-zinc-700"
+        rows={block.type === 'code' ? 5 : 2}
+        style={{
+          fontSize: block.type === 'h1' ? '2rem' : block.type === 'h2' ? '1.5rem' : block.type === 'h3' ? '1.25rem' : '0.95rem',
+          fontWeight: block.type.startsWith('h') ? 800 : 400,
+          fontFamily: block.type === 'code' ? 'monospace' : 'inherit',
+        }}
+      />
+    </div>
+  );
 }
 
 export default function WorkspacePage() {
-  const { t } = useApp();
   const navigate = useNavigate();
-  const [sessions, setSessions] = useState<Session[]>(INITIAL_SESSIONS);
-  const [activeSessionId, setActiveSessionId] = useState(INITIAL_SESSIONS[0].id);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [activeProject, setActiveProject] = useState(PROJECTS[0]);
-  const [projOpen, setProjOpen] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const [params] = useSearchParams();
+  const { language } = useApp();
+  const ko = language === 'ko';
+  const documentId = Number(params.get('documentId') || (location.state as any)?.documentId || 0);
 
-  const activeSession = sessions.find(session => session.id === activeSessionId) || sessions[0];
-  const msgs = activeSession?.msgs || [];
+  const [sourceType] = useState<'notion'>('notion');
+  const [emoji, setEmoji] = useState('✨');
+  const [title, setTitle] = useState('Untitled');
+  const [category, setCategory] = useState<'project' | 'portfolio' | 'troubleshooting'>('project');
+  const [bannerUrl, setBannerUrl] = useState('');
+  const [databaseName, setDatabaseName] = useState('Project notes');
+  const [databaseProperties, setDatabaseProperties] = useState('Status, Priority, Owner');
+  const [tags, setTags] = useState('React, TypeScript');
+  const [blocks, setBlocks] = useState<Block[]>([
+    { id: uid(), type: 'h1', content: 'Write your article title here' },
+    { id: uid(), type: 'p', content: 'Start with the summary, then add the problem, solution, and result.' },
+  ]);
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs, activeSessionId]);
-
-  const updateMsgs = (sessionId: string, updater: (messages: Msg[]) => Msg[]) => {
-    setSessions(prev => prev.map(session => (session.id === sessionId ? { ...session, msgs: updater(session.msgs) } : session)));
-  };
-
-  const send = (text?: string) => {
-    const q = (text || input).trim();
-    if (!q || loading) return;
-    setInput('');
-    updateMsgs(activeSession.id, messages => [...messages, { id: uid(), role: 'user', text: q }]);
-    if (activeSession.msgs.length === 1) {
-      setSessions(prev => prev.map(session => (session.id === activeSession.id ? { ...session, title: q.slice(0, 20) + (q.length > 20 ? '...' : '') } : session)));
-    }
-    setLoading(true);
-    setTimeout(() => {
-      const response = getAIResponse(q);
-      updateMsgs(activeSession.id, messages => [...messages, { id: uid(), role: 'ai', text: response.text, code: response.code }]);
-      setLoading(false);
-    }, 900);
-  };
-
-  const addSession = () => {
-    const session = initialSession('New chat', 'Now');
-    setSessions(prev => [session, ...prev]);
-    setActiveSessionId(session.id);
-    setInput('');
-  };
-
-  const removeSession = (id: string, event: React.MouseEvent) => {
-    event.stopPropagation();
-    setSessions(prev => {
-      const next = prev.filter(session => session.id !== id);
-      if (activeSessionId === id && next.length > 0) setActiveSessionId(next[0].id);
-      return next.length > 0 ? next : [initialSession('New chat', 'Now')];
+  useEffect(() => {
+    if (!documentId) return;
+    let alive = true;
+    listDocumentBlocks(documentId).then(data => {
+      if (!alive || !Array.isArray(data) || data.length === 0) return;
+      setBlocks(data.map((item: any) => ({
+        id: String(item.id),
+        serverId: Number(item.id),
+        type: (item.type || 'p').toLowerCase(),
+        content: item.content?.text || item.content?.value || item.content || '',
+        checked: item.checked,
+      })));
     });
+    return () => {
+      alive = false;
+    };
+  }, [documentId]);
+
+  const updateBlock = (id: string, value: string) => setBlocks(prev => prev.map(block => (block.id === id ? { ...block, content: value } : block)));
+  const toggleDone = (id: string) => setBlocks(prev => prev.map(block => (block.id === id ? { ...block, checked: !block.checked } : block)));
+  const addBlock = (type: BlockType) => setBlocks(prev => [...prev, createBlock(type)]);
+  const removeBlock = (id: string) => setBlocks(prev => prev.filter(block => block.id !== id));
+
+  const publish = async () => {
+    if (!documentId) return;
+    setBusy(true);
+    try {
+      const existing = await listDocumentBlocks(documentId);
+      const existingIds = new Set((existing || []).map((item: any) => String(item.id)));
+      for (const block of blocks) {
+        if (block.serverId) {
+          await updateDocumentBlock(documentId, block.serverId, { type: block.type, content: block.content, checked: block.checked ?? false });
+        } else {
+          const created = await createDocumentBlock(documentId, { type: block.type, content: block.content, checked: block.checked ?? false });
+          if ((created as any)?.id) block.serverId = Number((created as any).id);
+        }
+      }
+      for (const item of existing || []) {
+        if (!blocks.some(block => String(block.serverId) === String((item as any).id)) && !existingIds.has(String((item as any).id))) {
+          await deleteDocumentBlock(documentId, Number((item as any).id));
+        }
+      }
+      await reorderDocumentBlocks(documentId, blocks.map((block, orderIndex) => ({ blockId: block.serverId || Number(block.id), orderIndex })));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const copyCode = (msgId: string, code: string) => {
-    navigator.clipboard.writeText(code).catch(() => {});
-    setCopiedId(msgId);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const regenerate = () => {
-    const lastUser = [...msgs].reverse().find(message => message.role === 'user');
-    if (!lastUser) return;
-    updateMsgs(activeSession.id, messages => messages.slice(0, -1));
-    setLoading(true);
-    setTimeout(() => {
-      const response = getAIResponse(lastUser.text);
-      updateMsgs(activeSession.id, messages => [...messages, { id: uid(), role: 'ai', text: response.text, code: response.code }]);
-      setLoading(false);
-    }, 900);
+  const exportPptx = async () => {
+    const sourceText = [
+      `Emoji: ${emoji}`,
+      `Title: ${title}`,
+      `Category: ${category}`,
+      `Banner: ${bannerUrl}`,
+      `Database: ${databaseName}`,
+      `Properties: ${databaseProperties}`,
+      `Tags: ${tags}`,
+      ...blocks.filter(block => block.content.trim()).map(block => `[${block.type}] ${block.content}`),
+    ].join('\n\n');
+    await exportPortfolioPptx(Number((location.state as any)?.portfolioId || 1), sourceText);
   };
 
   return (
-    <div className="flex h-full overflow-hidden" style={{ background: '#050505' }}>
-      <div className="flex-shrink-0 flex flex-col overflow-hidden" style={{ width: '220px', borderRight: '1px solid rgba(255,255,255,0.06)', background: '#080808' }}>
-        <div className="flex-shrink-0 flex items-center justify-between px-3 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider">Sessions</span>
-          <button onClick={addSession} className="w-6 h-6 rounded-lg flex items-center justify-center text-zinc-600 hover:text-violet-400 hover:bg-violet-500/10 transition-all" title="New chat">
-            <Plus size={12} />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto py-2 px-1.5 space-y-0.5">
-          {sessions.map(session => (
-            <button
-              key={session.id}
-              onClick={() => setActiveSessionId(session.id)}
-              className="w-full flex items-start justify-between gap-2 px-2.5 py-2.5 rounded-xl text-left transition-all group/sess"
-              style={{ background: activeSessionId === session.id ? 'rgba(124,58,237,0.12)' : 'transparent', border: `1px solid ${activeSessionId === session.id ? 'rgba(124,58,237,0.2)' : 'transparent'}` }}
-            >
-              <div className="min-w-0 flex-1">
-                <p className={`text-xs truncate ${activeSessionId === session.id ? 'text-violet-300 font-medium' : 'text-zinc-400'}`}>{session.title}</p>
-                <p className="text-[10px] text-zinc-700 mt-0.5">{session.time}</p>
-              </div>
-              <button onClick={event => removeSession(session.id, event)} className="opacity-0 group-hover/sess:opacity-100 flex-shrink-0 p-0.5 rounded text-zinc-700 hover:text-zinc-400 transition-all mt-0.5">
-                <X size={10} />
-              </button>
-            </button>
-          ))}
-        </div>
-      </div>
-
+    <div className="h-full flex" style={{ background: '#050505' }}>
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-shrink-0 flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-2 py-1 rounded-xl" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}>
-              <Sparkles size={13} className="text-violet-400" />
-              <span className="text-xs font-semibold text-violet-300">AI Workspace</span>
-            </div>
-            <div className="relative" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setProjOpen(prev => !prev)} className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs text-zinc-400 hover:text-white transition-colors" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                {activeProject.label}<ChevronDown size={11} className="text-zinc-600" />
-              </button>
-              {projOpen && (
-                <div className="absolute top-full left-0 mt-1 rounded-xl shadow-xl z-50 overflow-hidden" style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', minWidth: '200px' }}>
-                  {PROJECTS.map(project => (
-                    <button key={project.id} onClick={() => { setActiveProject(project); setProjOpen(false); }} className="w-full text-left px-3 py-2.5 text-xs text-zinc-300 hover:bg-white/[0.06] transition-colors flex items-center gap-2">
-                      <span>{project.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-1 overflow-x-auto max-w-[340px]">
-            {sessions.slice(0, 4).map(session => (
-              <div key={session.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg flex-shrink-0 cursor-pointer transition-all" style={{ background: activeSessionId === session.id ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${activeSessionId === session.id ? 'rgba(124,58,237,0.25)' : 'rgba(255,255,255,0.06)'}` }} onClick={() => setActiveSessionId(session.id)}>
-                <span className={`text-[10px] max-w-[80px] truncate ${activeSessionId === session.id ? 'text-violet-300' : 'text-zinc-500'}`}>{session.title}</span>
-                <button onClick={event => removeSession(session.id, event)} className="text-zinc-700 hover:text-zinc-400 transition-colors"><X size={9} /></button>
-              </div>
-            ))}
-            <button onClick={addSession} className="p-1.5 rounded-lg text-zinc-700 hover:text-violet-400 hover:bg-violet-500/10 transition-all flex-shrink-0">
-              <Plus size={11} />
+        <div className="flex-shrink-0 h-14 flex items-center justify-between px-6" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <button onClick={() => navigate('/portfolio')} className="flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
+            <ArrowLeft size={14} />
+            {ko ? '포트폴리오로 돌아가기' : 'Back to portfolio'}
+          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={publish} disabled={!documentId || busy} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white rounded-xl disabled:opacity-40" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
+              <Save size={12} />
+              {ko ? '발행' : 'Publish'}
+            </button>
+            <button onClick={exportPptx} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-400 rounded-xl hover:text-white hover:bg-white/[0.05] transition-colors">
+              <Download size={12} />
+              PPTX
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6" onClick={() => setProjOpen(false)}>
-          <div className="max-w-3xl mx-auto space-y-6">
-            {msgs.map((msg, idx) => (
-              <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                {msg.role === 'ai' && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 12px rgba(124,58,237,0.4)' }}>
-                    <Sparkles size={14} className="text-white" />
-                  </div>
-                )}
-                <div className={`flex-1 space-y-2 ${msg.role === 'user' ? 'flex flex-col items-end' : ''}`}>
-                  <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${msg.role === 'ai' ? 'text-zinc-300 rounded-tl-sm' : 'text-white rounded-tr-sm'}`} style={{ background: msg.role === 'ai' ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg,rgba(124,58,237,0.3),rgba(37,99,235,0.3))', border: `1px solid ${msg.role === 'ai' ? 'rgba(255,255,255,0.06)' : 'rgba(124,58,237,0.3)'}`, maxWidth: '85%', display: 'inline-block' }}>
-                    {msg.text}
-                  </div>
-                  {msg.code && (
-                    <div className="rounded-2xl overflow-hidden w-full" style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.07)' }}>
-                      <div className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
-                        <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Generated notes</span>
-                        <div className="flex items-center gap-2">
-                          {idx === msgs.length - 1 && msg.role === 'ai' && (
-                            <button onClick={regenerate} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] text-zinc-600 hover:text-zinc-300 transition-colors">
-                              <RefreshCw size={10} />Regenerate
-                            </button>
-                          )}
-                          <button onClick={() => copyCode(msg.id, msg.code!)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] transition-all" style={{ background: copiedId === msg.id ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)', color: copiedId === msg.id ? '#34d399' : '#71717a' }}>
-                            {copiedId === msg.id ? <><Check size={10} />Copied</> : <><Copy size={10} />Copy</>}
-                          </button>
-                        </div>
-                      </div>
-                      <pre className="px-4 py-4 text-xs text-zinc-400 leading-relaxed overflow-x-auto whitespace-pre-wrap font-mono">{msg.code}</pre>
-                    </div>
-                  )}
+        <div className="flex-1 overflow-y-auto px-8 py-8">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="rounded-3xl p-6 space-y-5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-14">
+                  <input value={emoji} onChange={e => setEmoji(e.target.value.slice(0, 2))} className="w-full px-3 py-2 text-center rounded-xl text-lg bg-transparent text-zinc-200 outline-none" style={{ border: '1px solid rgba(255,255,255,0.08)' }} />
                 </div>
-              </div>
-            ))}
-            {loading && (
-              <div className="flex gap-3">
-                <div className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-                  <Sparkles size={14} className="text-white" />
-                </div>
-                <div className="px-4 py-3 rounded-2xl rounded-tl-sm" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div className="flex items-center gap-1.5">
-                    {[0, 1, 2].map(item => <div key={item} className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: `${item * 0.15}s` }} />)}
+                <div className="flex-1">
+                  <input value={title} onChange={e => setTitle(e.target.value)} placeholder={ko ? '제목 없음' : 'Untitled'} className="w-full bg-transparent text-3xl font-black text-white outline-none" />
+                  <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
+                    <span>{sourceType === 'notion' ? 'Notion' : 'Notion'}</span>
+                    <span>•</span>
+                    <select value={category} onChange={e => setCategory(e.target.value as typeof category)} className="bg-transparent outline-none">
+                      <option value="project">{ko ? '프로젝트' : 'Project'}</option>
+                      <option value="portfolio">{ko ? '포트폴리오' : 'Portfolio'}</option>
+                      <option value="troubleshooting">{ko ? '트러블슈팅' : 'Troubleshooting'}</option>
+                    </select>
                   </div>
                 </div>
               </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-        </div>
 
-        <div className="flex-shrink-0 px-6 pt-2 pb-1" onClick={() => setProjOpen(false)}>
-          <div className="max-w-3xl mx-auto">
-            <div className="flex items-center gap-2 overflow-x-auto pb-2">
-              {QUICK_PROMPTS.map(prompt => (
-                <button key={prompt} onClick={() => send(prompt)} className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-zinc-500 hover:text-white transition-all" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(124,58,237,0.2)' }}>
-                  <span>AI</span>{prompt}
-                </button>
-              ))}
+              <div className="grid grid-cols-2 gap-4">
+                <FieldRow label={ko ? '배너' : 'Banner'}>
+                  <input value={bannerUrl} onChange={e => setBannerUrl(e.target.value)} placeholder="https://" className="w-full px-3 py-2.5 text-sm rounded-xl text-zinc-200 outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                </FieldRow>
+                <FieldRow label={ko ? '데이터베이스' : 'Database'}>
+                  <input value={databaseName} onChange={e => setDatabaseName(e.target.value)} className="w-full px-3 py-2.5 text-sm rounded-xl text-zinc-200 outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                </FieldRow>
+                <FieldRow label={ko ? '속성' : 'Properties'}>
+                  <input value={databaseProperties} onChange={e => setDatabaseProperties(e.target.value)} className="w-full px-3 py-2.5 text-sm rounded-xl text-zinc-200 outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                </FieldRow>
+                <FieldRow label={ko ? '태그' : 'Tags'}>
+                  <input value={tags} onChange={e => setTags(e.target.value)} className="w-full px-3 py-2.5 text-sm rounded-xl text-zinc-200 outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                </FieldRow>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="flex-shrink-0 px-6 pb-4" onClick={() => setProjOpen(false)}>
-          <div className="max-w-3xl mx-auto">
-            <div className="flex items-end gap-3 p-3 rounded-2xl transition-all" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <Zap size={14} className="text-zinc-700 flex-shrink-0 mb-2.5 ml-1" />
-              <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} placeholder={t('workspace_placeholder')} rows={1} className="flex-1 bg-transparent text-sm text-zinc-300 placeholder-zinc-700 outline-none resize-none" onInput={e => { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 120)}px`; }} />
-              <button onClick={() => send()} disabled={!input.trim() || loading} className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all" style={{ background: input.trim() && !loading ? 'linear-gradient(135deg,#7c3aed,#2563eb)' : 'rgba(255,255,255,0.05)', boxShadow: input.trim() && !loading ? '0 0 14px rgba(124,58,237,0.4)' : 'none' }}>
-                <Send size={13} className={input.trim() && !loading ? 'text-white' : 'text-zinc-700'} />
+            <div className="space-y-4">
+              {blocks.map(block => (
+                <BlockEditor key={block.id} block={block} onChange={updateBlock} onDelete={removeBlock} onToggleDone={toggleDone} />
+              ))}
+              <div className="flex flex-wrap gap-2">
+                {BLOCK_TYPES.map(item => (
+                  <button key={item.type} onClick={() => addBlock(item.type)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-zinc-400 hover:text-white transition-colors" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    {item.icon}
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => addBlock('p')} className="w-full py-4 rounded-2xl text-sm text-zinc-600 hover:text-zinc-300 transition-colors" style={{ border: '1px dashed rgba(255,255,255,0.08)' }}>
+                <Plus size={14} className="inline mr-2" />
+                {ko ? '새 블록 추가' : 'Add new block'}
               </button>
             </div>
           </div>

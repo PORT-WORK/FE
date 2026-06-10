@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, ExternalLink, Figma, FileText, Github, Loader2, Lock, Check } from 'lucide-react';
+import { ChevronRight, Check, FileText, Figma, Github, Loader2, Lock } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import {
   disconnectIntegration,
@@ -15,7 +15,6 @@ const INTEGRATION_META = [
   { key: 'github', name: { ko: 'GitHub', en: 'GitHub' }, desc: { ko: '저장소 및 커밋 동기화', en: 'Repo and commit sync' }, icon: <Github size={16} /> },
   { key: 'notion', name: { ko: 'Notion', en: 'Notion' }, desc: { ko: '문서와 페이지 가져오기', en: 'Import documents and pages' }, icon: <FileText size={16} /> },
   { key: 'figma', name: { ko: 'Figma', en: 'Figma' }, desc: { ko: '디자인 파일 연결', en: 'Bring in design files' }, icon: <Figma size={16} /> },
-  { key: 'tistory', name: { ko: 'Tistory', en: 'Tistory' }, desc: { ko: '블로그 글 동기화', en: 'Sync blog posts' }, icon: <ExternalLink size={16} /> },
 ] as const;
 
 export default function SettingsPage() {
@@ -31,20 +30,17 @@ export default function SettingsPage() {
     const load = async () => {
       const [settings, currentUser, rows] = await Promise.all([fetchSettings(), fetchCurrentUser(), fetchIntegrations()]);
       if (!alive) return;
-
       setLanguage(settings.language === 'EN' ? 'en' : 'ko');
       const nextNotifs = { email: settings.notiEmail, push: settings.notiPush, message: settings.notiMessage };
       setNotifs(nextNotifs);
       setNotifsState(nextNotifs);
       setPrivacy({ public: privacy.public, showEmail: currentUser.isEmailPublic });
-
       const nextConnections: Record<string, boolean> = {};
       rows.forEach(row => {
         nextConnections[row.provider.toLowerCase()] = true;
       });
       setConnections(nextConnections);
     };
-
     void load();
     return () => {
       alive = false;
@@ -61,9 +57,7 @@ export default function SettingsPage() {
     setBusyProvider(provider);
     try {
       const authorizeUrl = await fetchIntegrationAuthorizeUrl(provider);
-      if (authorizeUrl) {
-        window.open(authorizeUrl, '_blank', 'popup,width=540,height=720');
-      }
+      if (authorizeUrl) window.open(authorizeUrl, '_blank', 'popup,width=540,height=720');
     } finally {
       setBusyProvider(null);
     }
@@ -73,7 +67,6 @@ export default function SettingsPage() {
     setBusyProvider(provider);
     try {
       await disconnectIntegration(provider);
-      const rows = await fetchIntegrations();
       setConnections(prev => ({ ...prev, [provider]: false }));
       setDisconnectConfirm(null);
     } finally {

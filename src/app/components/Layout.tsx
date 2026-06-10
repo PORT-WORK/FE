@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router';
-import { Home, Compass, Briefcase, LayoutTemplate, MessageSquare, User, Bookmark, Settings, Sparkles, Github, CheckCircle2, Cpu, ChevronRight, Bell, BarChart2, Eye, X, Heart, MessageCircle, UserPlus, AtSign, CreditCard, Zap, Check } from 'lucide-react';
+import { Home, Compass, Briefcase, LayoutTemplate, MessageSquare, User, Bookmark, Settings, Sparkles, Github, CheckCircle2, Cpu, ChevronRight, Bell, BarChart2, X, Heart, MessageCircle, UserPlus, AtSign, CreditCard, Zap, Check } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { fetchNotifications, fetchUnreadNotificationCount, markNotificationRead } from '../api/contentApi';
 
@@ -87,7 +87,9 @@ export default function Layout() {
     }
   }, [isLoggedIn, location.pathname, navigate]);
 
-  const title = t(PAGE_TITLE_KEYS[location.pathname] ?? 'nav_home');
+  const title = location.pathname === '/workspace'
+    ? (language === 'ko' ? '프로젝트' : 'Project')
+    : t(PAGE_TITLE_KEYS[location.pathname] ?? 'nav_home');
   const unreadCount = apiUnreadCount ?? notifications.filter(n => !n.read && !readIds.has(String(n.id))).length;
   const aiLabel = isLoggedIn ? t('ai_count_user').replace('{{n}}', String(aiCount)) : t('ai_count_guest').replace('{{n}}', String(aiCount));
 
@@ -127,7 +129,7 @@ export default function Layout() {
               {({ isActive }) => (
                 <>
                   <Icon size={15} className={isActive ? 'text-violet-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
-                  <span className="flex-1">{t(key)}</span>
+                  <span className="flex-1">{key === 'nav_workspace' ? (language === 'ko' ? '프로젝트' : 'Project') : t(key)}</span>
                   {badge && !isActive && <span className="w-4 h-4 rounded-full bg-violet-600 text-[10px] text-white flex items-center justify-center">{badge}</span>}
                   {isActive && <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />}
                 </>
@@ -223,10 +225,6 @@ export default function Layout() {
               <CheckCircle2 size={11} />
               {t('header_saved')}
             </div>
-            <button onClick={() => navigate('/workspace')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-400 rounded-xl transition-all hover:text-white hover:bg-white/[0.06]">
-              <Eye size={13} />
-              {t('header_preview')}
-            </button>
             <button onClick={() => navigate('/generate')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white rounded-xl" style={{ background: 'linear-gradient(135deg, #7c3aed, #2563eb)', boxShadow: '0 0 16px rgba(124,58,237,0.3)' }}>
               <Sparkles size={12} />
               {t('ai_generate')}

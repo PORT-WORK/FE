@@ -4,14 +4,6 @@ import { Bookmark, ChevronDown, ExternalLink, Heart, Star } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { listExploreUsers } from '../../api/contentApi';
 
-const TABS = [
-  { label: 'Saved' },
-  { label: 'Liked' },
-  { label: 'Archived' },
-];
-
-const SORT_OPTIONS = ['Latest', 'A-Z', 'Popular'];
-
 export default function SavedPage() {
   const [tab, setTab] = useState(0);
   const [sortOpen, setSortOpen] = useState(false);
@@ -20,6 +12,9 @@ export default function SavedPage() {
   const navigate = useNavigate();
   const { language } = useApp();
   const ko = language === 'ko';
+
+  const tabs = ko ? ['저장됨', '좋아요', '보관됨'] : ['Saved', 'Liked', 'Archived'];
+  const sorts = ko ? ['최신순', '이름순', '인기순'] : ['Latest', 'A-Z', 'Popular'];
 
   useEffect(() => {
     listExploreUsers().then(data => setItems(data.slice(0, tab === 2 ? 4 : tab === 1 ? 5 : 3)));
@@ -35,23 +30,23 @@ export default function SavedPage() {
   return (
     <div className="px-8 py-8 overflow-y-auto" style={{ background: '#050505', minHeight: '100%' }} onClick={() => setSortOpen(false)}>
       <div className="max-w-4xl mx-auto">
-        <h2 className="text-xl font-bold text-white mb-5">Saved</h2>
+        <h2 className="text-xl font-bold text-white mb-5">{ko ? '저장됨' : 'Saved'}</h2>
         <div className="flex items-center justify-between mb-6">
           <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            {TABS.map((item, idx) => (
-              <button key={item.label} onClick={() => setTab(idx)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all" style={{ background: tab === idx ? 'rgba(255,255,255,0.08)' : 'transparent', color: tab === idx ? '#f4f4f5' : '#71717a' }}>
-                {item.label}
+            {tabs.map((item, idx) => (
+              <button key={item} onClick={() => setTab(idx)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all" style={{ background: tab === idx ? 'rgba(255,255,255,0.08)' : 'transparent', color: tab === idx ? '#f4f4f5' : '#71717a' }}>
+                {item}
               </button>
             ))}
           </div>
 
           <div className="relative" onClick={e => e.stopPropagation()}>
             <button onClick={() => setSortOpen(prev => !prev)} className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-zinc-400 transition-all" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              {SORT_OPTIONS[sortIdx]}<ChevronDown size={11} className="text-zinc-600" />
+              {sorts[sortIdx]}<ChevronDown size={11} className="text-zinc-600" />
             </button>
             {sortOpen && (
               <div className="absolute top-full right-0 mt-1 rounded-xl shadow-xl z-50 overflow-hidden" style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', minWidth: '140px' }}>
-                {SORT_OPTIONS.map((option, idx) => (
+                {sorts.map((option, idx) => (
                   <button key={option} onClick={() => { setSortIdx(idx); setSortOpen(false); }} className="w-full text-left px-3 py-2.5 text-xs transition-colors" style={{ color: sortIdx === idx ? '#a78bfa' : '#a1a1aa', background: sortIdx === idx ? 'rgba(124,58,237,0.06)' : 'transparent' }}>
                     {option}
                   </button>
@@ -99,7 +94,7 @@ export default function SavedPage() {
                     {(user.skills || []).slice(0, 3).map((skill: string) => <span key={skill} className="px-2 py-0.5 text-[10px] text-zinc-600 rounded-md" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>{skill}</span>)}
                   </div>
                   <button onClick={e => { e.stopPropagation(); navigate(`/explore/${user.id}`); }} className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-violet-400 transition-colors">
-                    <ExternalLink size={11} />View
+                    <ExternalLink size={11} />{ko ? '보기' : 'View'}
                   </button>
                 </div>
               </div>

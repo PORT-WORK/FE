@@ -444,3 +444,38 @@ export async function exportPortfolioPptx(portfolioId: number, sourceText = '') 
     async () => new Blob([JSON.stringify({ portfolioId, sourceText, exportedAt: new Date().toISOString() })], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }),
   );
 }
+
+export async function listDocumentBlocks(documentId: number) {
+  return apiRequest<any[]>(
+    { url: `/documents/${documentId}/blocks`, method: 'GET' },
+    async () => [],
+  );
+}
+
+export async function createDocumentBlock(documentId: number, payload: Record<string, unknown>) {
+  return apiRequest(
+    { url: `/documents/${documentId}/blocks`, method: 'POST', data: payload },
+    async () => payload,
+  );
+}
+
+export async function updateDocumentBlock(documentId: number, blockId: number, payload: Record<string, unknown>) {
+  return apiRequest(
+    { url: `/documents/${documentId}/blocks/${blockId}`, method: 'PUT', data: payload },
+    async () => payload,
+  );
+}
+
+export async function deleteDocumentBlock(documentId: number, blockId: number) {
+  return apiRequest(
+    { url: `/documents/${documentId}/blocks/${blockId}`, method: 'DELETE' },
+    async () => undefined,
+  );
+}
+
+export async function reorderDocumentBlocks(documentId: number, payload: Array<Record<string, unknown>>) {
+  return apiRequest(
+    { url: `/documents/${documentId}/blocks/order`, method: 'PUT', data: payload },
+    async () => payload,
+  );
+}

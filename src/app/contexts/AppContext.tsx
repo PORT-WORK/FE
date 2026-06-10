@@ -263,7 +263,7 @@ const defaultState = {
   payModal: false,
   notifs: { email: true, push: false, message: true },
   privacy: { public: true, showEmail: false },
-  connections: { github: true, notion: false, figma: false, velog: false, tistory: false },
+  connections: { github: true, notion: false, figma: false, velog: false },
 };
 
 const AppContext = createContext<AppContextValue | null>(null);

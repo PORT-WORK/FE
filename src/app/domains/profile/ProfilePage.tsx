@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Camera, Edit3, ExternalLink, Figma, Github, LogOut, Plus, Trash2, X, BookOpen } from 'lucide-react';
+import { Camera, Edit3, Figma, Github, LogOut, Plus, Trash2, X, BookOpen } from 'lucide-react';
 import { fetchCurrentUser, updateCurrentUser, type UserProfile } from '../../api/contentApi';
 import { useApp } from '../../contexts/AppContext';
 
@@ -13,7 +13,6 @@ const DEFAULT_LINKS = [
   { icon: <Github size={14} />, label: 'GitHub', key: 'github' },
   { icon: <BookOpen size={14} />, label: 'Notion', key: 'notion' },
   { icon: <Figma size={14} />, label: 'Figma', key: 'figma' },
-  { icon: <ExternalLink size={14} />, label: 'Tistory', key: 'tistory' },
 ];
 
 function toDataUrl(file: File) {

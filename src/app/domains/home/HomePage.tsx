@@ -73,7 +73,7 @@ export default function HomePage() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleGenerate()}
                 placeholder={ko ? '배경과 강점을 입력해보세요...' : 'Describe your background and strengths...'}
-                className="flex-1 bg-transparent px-4 py-4 text-sm text-white placeholder-zinc-700 focus:outline-none"
+                className="flex-1 bg-transparent px-4 py-5 text-sm text-white placeholder-zinc-700 focus:outline-none"
               />
               <button
                 onClick={handleGenerate}
@@ -81,11 +81,6 @@ export default function HomePage() {
               >
                 {ko ? '생성' : 'Generate'} <ArrowRight size={14} />
               </button>
-            </div>
-            <div className="flex items-center justify-center gap-5 text-xs text-zinc-600">
-              <span className="flex items-center gap-1.5"><div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />14k portfolios created</span>
-              <span>4.9/5 rating</span>
-              <span>{ko ? '무료로 시작 가능' : 'Free to start'}</span>
             </div>
           </div>
         </div>
