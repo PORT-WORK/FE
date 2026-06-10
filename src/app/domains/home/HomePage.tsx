@@ -66,18 +66,18 @@ export default function HomePage() {
                 : 'Connect your work history, project data, and blog content. We turn it into a clean portfolio structure automatically.'}
             </p>
 
-            <div className="mx-auto mb-4 flex max-w-2xl items-center overflow-hidden rounded-2xl border border-white/10 bg-[#0d0d0d]">
+            <div className="mx-auto mb-4 flex min-h-[88px] max-w-2xl items-stretch overflow-hidden rounded-2xl border border-white/10 bg-[#0d0d0d]">
               <Sparkles size={16} className="ml-4 text-violet-400" />
               <input
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleGenerate()}
                 placeholder={ko ? '배경과 강점을 입력해보세요...' : 'Describe your background and strengths...'}
-                className="flex-1 bg-transparent px-4 py-5 text-sm text-white placeholder-zinc-700 focus:outline-none"
+                className="flex-1 bg-transparent px-4 py-8 text-sm text-white placeholder-zinc-700 focus:outline-none"
               />
               <button
                 onClick={handleGenerate}
-                className="m-1.5 flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white"
+                className="m-2 flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-5 py-4 text-sm font-semibold text-white"
               >
                 {ko ? '생성' : 'Generate'} <ArrowRight size={14} />
               </button>

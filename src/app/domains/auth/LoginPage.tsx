@@ -32,12 +32,16 @@ export default function LoginPage() {
           <p className="text-xs text-zinc-600 text-center mb-8">Sign in to sync your profile and AI usage.</p>
 
           <button onClick={() => handleLogin('kakao')} className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl text-sm font-bold mb-3 transition-all hover:scale-[1.01] active:scale-[0.99]" style={{ background: '#FEE500', color: '#191919' }}>
-            <Zap size={18} />
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/10 text-[11px] font-black">K</span>
             {t('login_kakao')}
           </button>
 
           <button onClick={() => handleLogin('google')} className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl text-sm font-semibold mb-6 transition-all hover:scale-[1.01] active:scale-[0.99]" style={{ background: 'white', color: '#1a1a1a', border: '1px solid rgba(0,0,0,0.1)' }}>
-            <Crown size={18} />
+            <span className="relative flex h-5 w-5 items-center justify-center rounded-full overflow-hidden" aria-hidden="true">
+              <span className="absolute inset-0 rounded-full" style={{ background: 'conic-gradient(#ea4335 0 25%, #fbbc05 25% 50%, #34a853 50% 75%, #4285f4 75% 100%)' }} />
+              <span className="absolute inset-1 rounded-full bg-white" />
+              <span className="relative text-[10px] font-black text-zinc-700">G</span>
+            </span>
             {t('login_google')}
           </button>
 
