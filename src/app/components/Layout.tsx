@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router';
 import { Home, Compass, Briefcase, LayoutTemplate, MessageSquare, User, Bookmark, Settings, Sparkles, Github, CheckCircle2, Cpu, ChevronRight, Bell, BarChart2, Eye, X, Heart, MessageCircle, UserPlus, AtSign, CreditCard, Zap, Check } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
@@ -30,14 +30,25 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
   '/portfolio/editor': 'publish',
 };
 
-const MOCK_NOTIFS = [
-  { id: '1', type: 'like', user: 'Sarah Lee', key: 'notif_like', time: '2m ago', read: false },
-  { id: '2', type: 'message', user: 'David Park', key: 'notif_message', time: '15m ago', read: false },
-  { id: '3', type: 'follow', user: 'Alice Choi', key: 'notif_follow', time: '1h ago', read: true },
-  { id: '4', type: 'comment', user: 'Jisoo Park', key: 'notif_comment', time: '3h ago', read: true },
+type NotifItem = {
+  id: string | number;
+  type?: string;
+  title?: string;
+  user?: string;
+  content?: string;
+  createdAt?: string;
+  time?: string;
+  read?: boolean;
+};
+
+const MOCK_NOTIFS: NotifItem[] = [
+  { id: '1', type: 'like', user: 'Sarah Lee', title: 'Sarah Lee', content: 'liked your project.', time: '2m ago', read: false },
+  { id: '2', type: 'message', user: 'David Park', title: 'David Park', content: 'sent a message.', time: '15m ago', read: false },
+  { id: '3', type: 'follow', user: 'Alice Choi', title: 'Alice Choi', content: 'started following you.', time: '1h ago', read: true },
+  { id: '4', type: 'comment', user: 'Jisoo Park', title: 'Jisoo Park', content: 'commented on your post.', time: '3h ago', read: true },
 ];
 
-const NOTIF_ICON: Record<string, React.ReactNode> = {
+const NOTIF_ICON: Record<string, ReactNode> = {
   like: <Heart size={13} className="text-red-400" />,
   message: <MessageCircle size={13} className="text-blue-400" />,
   follow: <UserPlus size={13} className="text-emerald-400" />,
@@ -47,28 +58,48 @@ const NOTIF_ICON: Record<string, React.ReactNode> = {
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { t, isLoggedIn, user, language, aiCount, aiLimit, payModal, setPayModal } = useApp();
+  const { t, isLoggedIn, user, language, aiCount, aiLimit, payModal, setPayModal, connections } = useApp();
   const [notifOpen, setNotifOpen] = useState(false);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
-  const [notifications, setNotifications] = useState(MOCK_NOTIFS);
+  const [notifications, setNotifications] = useState<NotifItem[]>(MOCK_NOTIFS);
   const [apiUnreadCount, setApiUnreadCount] = useState<number | null>(null);
+
+  const guestHome = !isLoggedIn && location.pathname === '/';
 
   useEffect(() => {
     let alive = true;
     fetchNotifications().then(data => {
       if (alive && Array.isArray(data) && data.length > 0) {
-        setNotifications(data as any);
+        setNotifications(data as NotifItem[]);
       }
     });
     fetchUnreadNotificationCount().then(count => {
       if (alive) setApiUnreadCount(Number(count) || 0);
     });
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
+  useEffect(() => {
+    if (!isLoggedIn && location.pathname !== '/' && location.pathname !== '/login') {
+      navigate('/login', { replace: true });
+    }
+  }, [isLoggedIn, location.pathname, navigate]);
+
   const title = t(PAGE_TITLE_KEYS[location.pathname] ?? 'nav_home');
-  const unreadCount = apiUnreadCount ?? notifications.filter((n: any) => !n.read && !readIds.has(String(n.id))).length;
+  const unreadCount = apiUnreadCount ?? notifications.filter(n => !n.read && !readIds.has(String(n.id))).length;
   const aiLabel = isLoggedIn ? t('ai_count_user').replace('{{n}}', String(aiCount)) : t('ai_count_guest').replace('{{n}}', String(aiCount));
+
+  if (guestHome) {
+    return (
+      <div className="min-h-screen overflow-hidden" style={{ background: '#050505' }}>
+        <main className="min-h-screen">
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: '#050505' }}>
@@ -108,8 +139,18 @@ export default function Layout() {
         <div className="px-3 pb-3 pt-2 flex-shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-zinc-600">
             <Github size={11} />
-            <span>{language === 'ko' ? 'GitHub sync' : 'GitHub synced'}</span>
+            <span>{language === 'ko' ? '연동 상태' : 'Integrations'}</span>
             <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          </div>
+          <div className="mt-1 space-y-1">
+            {Object.entries(connections)
+              .filter(([, connected]) => connected)
+              .map(([key]) => (
+                <div key={key} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] text-zinc-600">
+                  <span className="capitalize">{key}</span>
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                </div>
+              ))}
           </div>
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-zinc-700 cursor-pointer hover:bg-white/[0.04] transition-colors" onClick={() => setPayModal(true)}>
             <Cpu size={11} />
@@ -143,7 +184,7 @@ export default function Layout() {
             </div>
             <div className="px-6 py-4 mx-6 rounded-2xl mb-4" style={{ background: 'linear-gradient(135deg,rgba(124,58,237,0.12),rgba(37,99,235,0.08))', border: '1px solid rgba(124,58,237,0.25)' }}>
               <div className="flex items-end gap-1.5 mb-0.5">
-                <span className="text-3xl font-black text-white">$9.90</span>
+                <span className="text-3xl font-black text-white">$12.99</span>
                 <span className="text-sm text-zinc-500 mb-1">/month</span>
               </div>
               <p className="text-xs text-zinc-500">Monthly billing with a 20% discount on annual plans.</p>
@@ -207,16 +248,16 @@ export default function Layout() {
               <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <span className="text-sm font-bold text-white">{t('notif_title')}</span>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setReadIds(new Set(notifications.map((n: any) => String(n.id))))} className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors">{t('notif_mark_all')}</button>
+                  <button onClick={() => setReadIds(new Set(notifications.map(n => String(n.id))))} className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors">{t('notif_mark_all')}</button>
                   <button onClick={() => setNotifOpen(false)} className="p-1.5 rounded-lg text-zinc-600 hover:text-white hover:bg-white/[0.06] transition-colors"><X size={14} /></button>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto py-2">
-                {notifications.map((n: any) => {
+                {notifications.map(n => {
                   const isRead = n.read || readIds.has(String(n.id));
                   return (
                     <div
-                      key={n.id}
+                      key={String(n.id)}
                       className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-white/[0.02] cursor-pointer"
                       onClick={() => {
                         setReadIds(prev => new Set([...prev, String(n.id)]));
@@ -224,7 +265,7 @@ export default function Layout() {
                       }}
                     >
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                        {NOTIF_ICON[String(n.type).toLowerCase()] ?? <Bell size={13} className="text-zinc-500" />}
+                        {NOTIF_ICON[String(n.type || '').toLowerCase()] ?? <Bell size={13} className="text-zinc-500" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`text-xs leading-relaxed ${isRead ? 'text-zinc-600' : 'text-zinc-300'}`}>

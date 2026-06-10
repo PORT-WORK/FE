@@ -313,6 +313,13 @@ export async function connectIntegration(provider: string, code: string, workspa
   );
 }
 
+export async function fetchIntegrationAuthorizeUrl(provider: string) {
+  return apiRequest<string>(
+    { url: `/integrations/${provider.toUpperCase()}/authorize-url`, method: 'GET' },
+    async () => '',
+  );
+}
+
 export async function disconnectIntegration(provider: string) {
   return apiRequest(
     { url: `/integrations/${provider.toUpperCase()}`, method: 'DELETE' },
