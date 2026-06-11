@@ -9,33 +9,111 @@ const baseURL = rawBaseURL
 
 const defaultUserId = Number(import.meta.env.VITE_USER_ID || 1);
 const backendOrigin = baseURL.replace(/\/api$/, '');
+const ACCESS_TOKEN_KEY = 'port-access-token';
+const REFRESH_TOKEN_KEY = 'port-refresh-token';
 
-let currentUserId = defaultUserId;
+let currentUserIdOverride: number | null = null;
+
+function safeWindow() {
+  return typeof window === 'undefined' ? null : window;
+}
+
+export const API_URL = backendOrigin;
+
+export function getAccessToken() {
+  const win = safeWindow();
+  if (!win) return '';
+  return win.localStorage.getItem(ACCESS_TOKEN_KEY) || '';
+}
+
+export function getRefreshToken() {
+  const win = safeWindow();
+  if (!win) return '';
+  return win.localStorage.getItem(REFRESH_TOKEN_KEY) || '';
+}
+
+export function setAccessToken(token: string) {
+  const win = safeWindow();
+  if (!win) return;
+  if (token) {
+    win.localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  } else {
+    win.localStorage.removeItem(ACCESS_TOKEN_KEY);
+  }
+}
+
+export function setRefreshToken(token: string) {
+  const win = safeWindow();
+  if (!win) return;
+  if (token) {
+    win.localStorage.setItem(REFRESH_TOKEN_KEY, token);
+  } else {
+    win.localStorage.removeItem(REFRESH_TOKEN_KEY);
+  }
+}
+
+export function clearAuthTokens() {
+  const win = safeWindow();
+  if (!win) return;
+  win.localStorage.removeItem(ACCESS_TOKEN_KEY);
+  win.localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+function decodeJwtPayload(token: string) {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    const decoded = atob(padded);
+    return JSON.parse(decoded) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
 
 export function getCurrentUserId() {
-  return currentUserId;
+  if (currentUserIdOverride && currentUserIdOverride > 0) {
+    return currentUserIdOverride;
+  }
+  const token = getAccessToken();
+  if (token) {
+    const payload = decodeJwtPayload(token);
+    const userId = Number(payload?.userId ?? payload?.sub ?? payload?.uid ?? 0);
+    if (Number.isFinite(userId) && userId > 0) {
+      return userId;
+    }
+  }
+  return defaultUserId;
 }
 
 export function setCurrentUserId(nextUserId: number) {
   if (Number.isFinite(nextUserId) && nextUserId > 0) {
-    currentUserId = nextUserId;
+    currentUserIdOverride = nextUserId;
   }
 }
 
 export function resetCurrentUserId() {
-  currentUserId = defaultUserId;
+  currentUserIdOverride = null;
 }
 
 export const apiClient = axios.create({
   baseURL,
   timeout: 10000,
-  withCredentials: true,
+  withCredentials: false,
 });
 
 apiClient.interceptors.request.use(config => {
-  const headers = config.headers ?? {};
+  const headers = { ...((config.headers ?? {}) as Record<string, string>) };
+  headers.Accept = headers.Accept ?? 'application/json';
   headers['Content-Type'] = headers['Content-Type'] ?? 'application/json';
-  headers['X-USER-ID'] = String(currentUserId);
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  } else {
+    delete headers.Authorization;
+  }
+  delete headers['X-USER-ID'];
   config.headers = headers;
   return config;
 });
@@ -80,24 +158,121 @@ function parseRealtimePayload(value: string) {
   }
 }
 
+type FetchEventSourceOptions = {
+  headers?: Record<string, string>;
+  signal?: AbortSignal;
+  onopen?: (response: Response) => void | Promise<void>;
+  onmessage?: (event: { event: string; data: string }) => void;
+  onerror?: (error: unknown) => void;
+  onclose?: () => void;
+};
+
+export function fetchEventSource(url: string, options: FetchEventSourceOptions = {}) {
+  const controller = new AbortController();
+  const onopen = options.onopen;
+  const onmessage = options.onmessage;
+  const onerror = options.onerror;
+  const onclose = options.onclose;
+  const signal = options.signal;
+
+  if (signal) {
+    if (signal.aborted) {
+      controller.abort();
+    } else {
+      signal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+  }
+
+  const run = async () => {
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: options.headers,
+        signal: controller.signal,
+      });
+      if (onopen) {
+        await onopen(response);
+      }
+      if (!response.ok || !response.body) {
+        throw new Error(`SSE request failed with status ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let eventName = 'message';
+      let dataLines: string[] = [];
+
+      const flush = () => {
+        if (dataLines.length > 0 && onmessage) {
+          onmessage({ event: eventName, data: dataLines.join('\n') });
+        }
+        eventName = 'message';
+        dataLines = [];
+      };
+
+      while (!controller.signal.aborted) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let index = buffer.indexOf('\n');
+        while (index >= 0) {
+          let line = buffer.slice(0, index);
+          buffer = buffer.slice(index + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line) {
+            flush();
+          } else if (!line.startsWith(':')) {
+            const separator = line.indexOf(':');
+            const field = separator >= 0 ? line.slice(0, separator) : line;
+            let raw = separator >= 0 ? line.slice(separator + 1) : '';
+            if (raw.startsWith(' ')) raw = raw.slice(1);
+            if (field === 'event') {
+              eventName = raw || 'message';
+            } else if (field === 'data') {
+              dataLines.push(raw);
+            }
+          }
+          index = buffer.indexOf('\n');
+        }
+      }
+      flush();
+      if (onclose) {
+        onclose();
+      }
+    } catch (error) {
+      if (!controller.signal.aborted && onerror) {
+        onerror(error);
+      }
+    }
+  };
+
+  void run();
+
+  return {
+    close() {
+      controller.abort();
+    },
+  };
+}
+
 export function subscribeRealtime(handler: RealtimeEventHandler) {
-  if (typeof window === 'undefined' || typeof EventSource === 'undefined') {
+  const accessToken = getAccessToken();
+  if (typeof window === 'undefined' || !accessToken) {
     return () => undefined;
   }
 
-  const url = `${backendOrigin}/api/realtime/stream?userId=${currentUserId}`;
-  const source = new EventSource(url, { withCredentials: true });
-
-  const bind = (type: string) => (event: MessageEvent<string>) => {
-    handler({ type, data: parseRealtimePayload(event.data) });
-  };
-
-  source.addEventListener('connected', bind('connected'));
-  source.addEventListener('message', bind('message'));
-  source.addEventListener('notification', bind('notification'));
-  source.addEventListener('heartbeat', bind('heartbeat'));
+  const stream = fetchEventSource(`${API_URL}/api/realtime/stream`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'text/event-stream',
+    },
+    onmessage: event => {
+      handler({ type: event.event, data: parseRealtimePayload(event.data) });
+    },
+  });
 
   return () => {
-    source.close();
+    stream.close();
   };
 }

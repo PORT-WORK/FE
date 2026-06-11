@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { buildOauthLoginUrl, resetCurrentUserId, setCurrentUserId } from '../api/client';
+import { buildOauthLoginUrl, clearAuthTokens, resetCurrentUserId, setCurrentUserId } from '../api/client';
 import { fetchCurrentUser, type UserProfile } from '../api/contentApi';
 
 export type Lang = 'ko' | 'en';
@@ -344,6 +344,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     resetCurrentUserId();
+    clearAuthTokens();
     localStorage.setItem(LOGOUT_FLAG_KEY, '1');
     setUser(null);
     setAiCount(0);

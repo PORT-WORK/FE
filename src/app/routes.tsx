@@ -11,7 +11,7 @@ import SavedPage from './domains/saved/SavedPage';
 import SettingsPage from './domains/settings/SettingsPage';
 import AnalyticsPage from './domains/analytics/AnalyticsPage';
 import AIGeneratePage from './domains/generate/AIGeneratePage';
-import EditorPage from './domains/portfolio/EditorPage';
+import ProjectEditorPage from './domains/project/ProjectEditorPage';
 import LoginPage from './domains/auth/LoginPage';
 import OAuthSuccessPage from './domains/auth/OAuthSuccessPage';
 import IntegrationCallbackPage from './domains/integrations/pages/IntegrationCallbackPage';
@@ -31,8 +31,8 @@ export const router = createBrowserRouter([
       { path: 'explore', Component: ExplorePage },
       { path: 'explore/:id', Component: ExploreDetailPage },
       { path: 'portfolio', Component: PortfolioPage },
-      { path: 'portfolio/editor', Component: EditorPage },
-      { path: 'project/editor', Component: EditorPage },
+      { path: 'portfolio/editor', Component: ProjectEditorPage },
+      { path: 'project/editor', Component: ProjectEditorPage },
       { path: 'workspace', Component: WorkspacePage },
       { path: 'messages', Component: MessagesPage },
       { path: 'profile', Component: ProfilePage },

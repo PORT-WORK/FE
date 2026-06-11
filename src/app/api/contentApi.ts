@@ -130,6 +130,7 @@ export type IntegrationConnection = {
 
 export type IntegrationPreview = {
   provider: string;
+  kind?: string;
   title: string;
   subtitle: string;
   url: string;
@@ -137,6 +138,19 @@ export type IntegrationPreview = {
   imageUrl: string;
   tags: string[];
   raw: unknown;
+};
+
+export type IntegrationSourceItem = {
+  provider: string;
+  resourceId: string;
+  kind: string;
+  title: string;
+  subtitle: string;
+  summary: string;
+  url: string | null;
+  imageUrl: string | null;
+  tags: string[];
+  raw: Record<string, unknown>;
 };
 
 export type UserProfile = {
@@ -167,6 +181,27 @@ export type SettingsProfile = {
   notiEmail: boolean;
   notiPush: boolean;
   notiMessage: boolean;
+};
+
+export type ProjectWritingSession = {
+  projectId: number;
+  portfolioId: number;
+  projectName: string;
+  role: string;
+  status: string;
+  progress: number;
+  sectionDrafts: Record<string, string>;
+  sectionStatuses: Record<string, string>;
+  sourceSnapshot: Record<string, unknown>;
+  selectedProvider: string | null;
+  selectedSourceIds: string[];
+  selectedProjectIds: number[];
+  selectedDocumentIds: number[];
+  documentText: string | null;
+  reviewedDocument: string | null;
+  presentationJson: string | null;
+  lastError: string | null;
+  lastSavedAt: string | null;
 };
 
 function asArray<T>(value: unknown): T[] {
@@ -324,7 +359,11 @@ export async function markNotificationRead(notificationId: string | number) {
 }
 
 export async function logoutAccount() {
-  return apiRequestStrict<void>({ url: '/auth/logout', method: 'DELETE' });
+  return apiRequestStrict<void>({ url: '/auth/logout', method: 'DELETE', withCredentials: true });
+}
+
+export async function refreshAuthToken() {
+  return apiRequestStrict<{ accessToken: string; refreshToken: string | null }>({ url: '/auth/refresh', method: 'POST', withCredentials: true });
 }
 
 export async function deleteCurrentUser() {
@@ -344,6 +383,10 @@ export async function connectIntegration(provider: string, code: string, workspa
 
 export async function fetchIntegrationAuthorizeUrl(provider: string) {
   return apiRequestStrict<string>({ url: `/integrations/${provider.toUpperCase()}/authorize-url`, method: 'GET' });
+}
+
+export async function fetchIntegrationSources(provider: string) {
+  return apiRequestStrict<IntegrationSourceItem[]>({ url: `/integrations/${provider.toUpperCase()}/sources`, method: 'GET' });
 }
 
 export async function disconnectIntegration(provider: string) {
@@ -430,6 +473,50 @@ export async function exportPortfolioPptx(portfolioId: number, sourceText = '') 
 
 export async function fetchPortfolioData(portfolioId: number) {
   return apiRequestStrict<PortfolioDataResponse>({ url: `/ai/portfolios/${portfolioId}/data`, method: 'GET' });
+}
+
+export async function fetchProjectWritingSession(projectId: number) {
+  return apiRequestStrict<ProjectWritingSession>({ url: `/projects/${projectId}/writing/session`, method: 'GET' });
+}
+
+export async function selectProjectWritingSources(
+  projectId: number,
+  payload: {
+    portfolioId: number;
+    projectIds?: number[];
+    documentIds?: number[];
+    provider?: string | null;
+    sourceIds?: string[];
+  },
+) {
+  return apiRequestStrict<ProjectWritingSession>({ url: `/projects/${projectId}/writing/sources`, method: 'POST', data: payload });
+}
+
+export async function saveProjectWritingDraft(
+  projectId: number,
+  payload: {
+    progress?: number;
+    sectionDrafts?: Record<string, string>;
+    sectionStatuses?: Record<string, string>;
+  },
+) {
+  return apiRequestStrict<ProjectWritingSession>({ url: `/projects/${projectId}/writing/draft`, method: 'PUT', data: payload });
+}
+
+export async function createProjectWritingDocument(projectId: number) {
+  return apiRequestStrict<ProjectWritingSession>({ url: `/projects/${projectId}/writing/document`, method: 'POST' });
+}
+
+export async function reviewProjectWritingDocument(projectId: number) {
+  return apiRequestStrict<ProjectWritingSession>({ url: `/projects/${projectId}/writing/review`, method: 'POST' });
+}
+
+export async function createProjectWritingPresentation(projectId: number) {
+  return apiRequestStrict<ProjectWritingSession>({ url: `/projects/${projectId}/writing/presentation`, method: 'POST' });
+}
+
+export async function exportProjectWritingPptx(projectId: number) {
+  return apiRequestStrict<Blob>({ url: `/projects/${projectId}/writing/export/pptx`, method: 'GET', responseType: 'blob' });
 }
 
 export async function listDocumentBlocks(documentId: number) {
