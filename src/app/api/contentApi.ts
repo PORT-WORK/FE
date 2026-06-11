@@ -327,6 +327,10 @@ export async function logoutAccount() {
   return apiRequestStrict<void>({ url: '/auth/logout', method: 'DELETE' });
 }
 
+export async function deleteCurrentUser() {
+  return apiRequestStrict<void>({ url: '/users/me', method: 'DELETE' });
+}
+
 export async function fetchIntegrations() {
   return apiRequestStrict<IntegrationConnection[]>({ url: '/integrations', method: 'GET' });
 }
