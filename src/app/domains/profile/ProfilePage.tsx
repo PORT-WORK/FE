@@ -1,16 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { BookOpen, Camera, Edit3, Figma, Github, LogOut, Plus, Trash2, X } from 'lucide-react';
+import { Camera, Edit3, Figma, Github, LogOut, Plus, Trash2, X } from 'lucide-react';
 import { fetchCurrentUser, logoutAccount, updateCurrentUser, type UserProfile } from '../../api/contentApi';
 import { useApp } from '../../contexts/AppContext';
 
-const CAREER: Array<{ company: string; role: string; period: string; desc: string }> = [];
+type CareerEntry = {
+  company: string;
+  role: string;
+  period: string;
+  desc: string;
+};
 
-const LINKS = [
-  { icon: <Github size={14} />, label: 'GitHub', key: 'github' },
-  { icon: <BookOpen size={14} />, label: 'Notion', key: 'notion' },
-  { icon: <Figma size={14} />, label: 'Figma', key: 'figma' },
-];
+type LinkEntry = {
+  key: 'github' | 'notion' | 'figma';
+  label: string;
+  url: string;
+  icon: JSX.Element;
+};
+
+type ProfileExtras = {
+  career: CareerEntry[];
+  links: LinkEntry[];
+  skills: string[];
+};
+
+const STORAGE_KEY = 'port-profile-extras';
+
+const EMPTY_EXTRAS: ProfileExtras = {
+  career: [],
+  links: [
+    { key: 'github', label: 'GitHub', url: '', icon: <Github size={14} /> },
+    { key: 'notion', label: 'Notion', url: '', icon: <Camera size={14} /> },
+    { key: 'figma', label: 'Figma', url: '', icon: <Figma size={14} /> },
+  ],
+  skills: [],
+};
 
 function toDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -19,6 +43,21 @@ function toDataUrl(file: File) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function loadExtras(): ProfileExtras {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return EMPTY_EXTRAS;
+    const parsed = JSON.parse(raw) as Partial<ProfileExtras>;
+    return {
+      career: Array.isArray(parsed.career) ? parsed.career : EMPTY_EXTRAS.career,
+      links: Array.isArray(parsed.links) ? parsed.links : EMPTY_EXTRAS.links,
+      skills: Array.isArray(parsed.skills) ? parsed.skills : EMPTY_EXTRAS.skills,
+    };
+  } catch {
+    return EMPTY_EXTRAS;
+  }
 }
 
 export default function ProfilePage() {
@@ -33,6 +72,9 @@ export default function ProfilePage() {
   const [avatarDraft, setAvatarDraft] = useState<string | null>(null);
   const [skills, setSkills] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState('');
+  const [career, setCareer] = useState<CareerEntry[]>([]);
+  const [links, setLinks] = useState<LinkEntry[]>(EMPTY_EXTRAS.links);
+  const [newCareer, setNewCareer] = useState<CareerEntry>({ company: '', role: '', period: '', desc: '' });
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -42,13 +84,21 @@ export default function ProfilePage() {
       if (!alive) return;
       setUser(profile);
       setAvatarDraft(profile.profileImageUrl);
-      setSkills(Array.isArray((profile as { skills?: string[] }).skills) ? ((profile as { skills?: string[] }).skills || []) : []);
+
+      const extras = loadExtras();
+      setSkills(extras.skills);
+      setCareer(extras.career);
+      setLinks(extras.links);
     });
 
     return () => {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ skills, career, links }));
+  }, [skills, career, links]);
 
   const displayName = user?.name || 'Profile';
   const initials = useMemo(() => displayName.slice(0, 1).toUpperCase(), [displayName]);
@@ -65,6 +115,22 @@ export default function ProfilePage() {
   };
 
   const removeSkill = (skill: string) => setSkills(prev => prev.filter(item => item !== skill));
+
+  const addCareer = () => {
+    if (!newCareer.company.trim() && !newCareer.role.trim() && !newCareer.period.trim() && !newCareer.desc.trim()) return;
+    setCareer(prev => [...prev, { ...newCareer }]);
+    setNewCareer({ company: '', role: '', period: '', desc: '' });
+  };
+
+  const updateCareer = (index: number, field: keyof CareerEntry, value: string) => {
+    setCareer(prev => prev.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)));
+  };
+
+  const removeCareer = (index: number) => setCareer(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+
+  const updateLink = (key: LinkEntry['key'], value: string) => {
+    setLinks(prev => prev.map(item => (item.key === key ? { ...item, url: value } : item)));
+  };
 
   const saveProfile = async () => {
     if (!user) return;
@@ -104,7 +170,7 @@ export default function ProfilePage() {
   const fieldLabels: Array<[string, string, keyof UserProfile]> = [
     ['이름', 'Name', 'name'],
     ['지역', 'Location', 'location'],
-    ['경력', 'Career years', 'experienceYears'],
+    ['경력 년수', 'Career years', 'experienceYears'],
     ['이메일', 'Email', 'email'],
   ];
 
@@ -236,9 +302,82 @@ export default function ProfilePage() {
           </div>
 
           <div className="p-5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">{ko ? '스킬' : 'Skills'}</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{ko ? '경력' : 'Career'}</h3>
+              {editing && (
+                <button onClick={addCareer} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-violet-300" style={{ border: '1px solid rgba(124,58,237,0.22)' }}>
+                  <Plus size={12} />
+                  {ko ? '추가' : 'Add'}
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              {career.length === 0 && !editing && <p className="text-xs text-zinc-600">{ko ? '등록된 경력이 없습니다.' : 'No career entries yet.'}</p>}
+              {career.map((item, index) => (
+                <div key={`${item.company}-${index}`} className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  {editing ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={item.company} onChange={e => updateCareer(index, 'company', e.target.value)} placeholder={ko ? '회사' : 'Company'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                      <input value={item.role} onChange={e => updateCareer(index, 'role', e.target.value)} placeholder={ko ? '역할' : 'Role'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                      <input value={item.period} onChange={e => updateCareer(index, 'period', e.target.value)} placeholder={ko ? '기간' : 'Period'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                      <button onClick={() => removeCareer(index)} className="px-3 py-2 rounded-xl text-xs text-red-400" style={{ border: '1px solid rgba(239,68,68,0.18)' }}>
+                        {ko ? '삭제' : 'Remove'}
+                      </button>
+                      <textarea value={item.desc} onChange={e => updateCareer(index, 'desc', e.target.value)} rows={3} placeholder={ko ? '설명' : 'Description'} className="col-span-2 px-3 py-2 rounded-xl text-sm text-white outline-none resize-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold text-white">{item.role || (ko ? '역할 없음' : 'No role')}</p>
+                      <p className="text-xs text-zinc-500 mt-1">{item.company} · {item.period}</p>
+                      <p className="text-xs text-zinc-600 mt-2 leading-relaxed">{item.desc}</p>
+                    </>
+                  )}
+                </div>
+              ))}
+              {editing && (
+                <div className="grid grid-cols-2 gap-2 p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <input value={newCareer.company} onChange={e => setNewCareer(prev => ({ ...prev, company: e.target.value }))} placeholder={ko ? '회사' : 'Company'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                  <input value={newCareer.role} onChange={e => setNewCareer(prev => ({ ...prev, role: e.target.value }))} placeholder={ko ? '역할' : 'Role'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                  <input value={newCareer.period} onChange={e => setNewCareer(prev => ({ ...prev, period: e.target.value }))} placeholder={ko ? '기간' : 'Period'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                  <button onClick={addCareer} className="px-3 py-2 rounded-xl text-xs text-violet-300" style={{ border: '1px solid rgba(124,58,237,0.22)' }}>
+                    {ko ? '추가' : 'Add'}
+                  </button>
+                  <textarea value={newCareer.desc} onChange={e => setNewCareer(prev => ({ ...prev, desc: e.target.value }))} rows={3} placeholder={ko ? '설명' : 'Description'} className="col-span-2 px-3 py-2 rounded-xl text-sm text-white outline-none resize-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="p-5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">{ko ? '연결' : 'Connections'}</h3>
+            <div className="space-y-3">
+              {links.map(link => (
+                <div key={link.key} className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-zinc-500">
+                    <span className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.04)' }}>{link.icon}</span>
+                    <span>{link.label}</span>
+                  </div>
+                  {editing ? (
+                    <input
+                      value={link.url}
+                      onChange={e => updateLink(link.key, e.target.value)}
+                      placeholder={ko ? 'URL 입력' : 'Enter URL'}
+                      className="w-full px-3 py-2 rounded-xl text-sm text-white outline-none"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    />
+                  ) : (
+                    <p className="text-xs text-zinc-600 break-all">{link.url || (ko ? '등록된 링크가 없습니다.' : 'No link yet.')}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">{ko ? '기술' : 'Skills'}</h3>
             <div className="flex flex-wrap gap-2 mb-3">
-              {skills.length === 0 && !editing && <p className="text-xs text-zinc-600">{ko ? '등록된 스킬이 없습니다.' : 'No skills yet.'}</p>}
+              {skills.length === 0 && !editing && <p className="text-xs text-zinc-600">{ko ? '등록된 기술이 없습니다.' : 'No skills yet.'}</p>}
               {skills.map(skill => (
                 <span key={skill} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-zinc-300 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   {skill}
@@ -251,7 +390,7 @@ export default function ProfilePage() {
                     value={newSkill}
                     onChange={e => setNewSkill(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && addSkill()}
-                    placeholder={ko ? '스킬 추가...' : 'Add skill...'}
+                    placeholder={ko ? '기술 추가...' : 'Add skill...'}
                     className="px-3 py-1.5 text-xs text-white rounded-xl focus:outline-none w-28"
                     style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
                   />
@@ -262,41 +401,6 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
-
-          <div className="p-5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">{ko ? '경력' : 'Career'}</h3>
-            {CAREER.length === 0 ? (
-              <p className="text-xs text-zinc-600">{ko ? '등록된 경력이 없습니다.' : 'No career entries yet.'}</p>
-            ) : (
-              <div className="space-y-4">
-                {CAREER.map((item, idx) => (
-                  <div key={item.company} className="flex gap-4">
-                    <div className="w-1.5 flex-shrink-0 flex flex-col items-center pt-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-                      {idx < CAREER.length - 1 && <div className="flex-1 w-px mt-1" style={{ background: 'rgba(255,255,255,0.07)' }} />}
-                    </div>
-                    <div className="pb-4">
-                      <p className="text-sm font-semibold text-white">{item.role}</p>
-                      <p className="text-xs text-zinc-500 mb-1">{item.company} · {item.period}</p>
-                      <p className="text-xs text-zinc-600 leading-relaxed">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="p-5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">{ko ? '연결' : 'Links'}</h3>
-            <div className="space-y-2.5">
-              {LINKS.map(link => (
-                <div key={link.key} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-zinc-500" style={{ background: 'rgba(255,255,255,0.04)' }}>{link.icon}</div>
-                  <span className="flex-1 text-xs text-zinc-500">{link.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -304,7 +408,7 @@ export default function ProfilePage() {
         <div className="fixed inset-0 z-[250] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)' }} onClick={() => setLogoutOpen(false)}>
           <div className="w-full max-w-sm rounded-3xl p-6" style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.08)' }} onClick={e => e.stopPropagation()}>
             <p className="text-lg font-black text-white">{ko ? '로그아웃 하시겠습니까?' : 'Do you want to log out?'}</p>
-            <p className="mt-2 text-sm text-zinc-600">{ko ? '확인하면 현재 세션을 종료하고 홈으로 돌아갑니다.' : 'This will end your session and return you to the home page.'}</p>
+            <p className="mt-2 text-sm text-zinc-600">{ko ? '확인하면 현재 세션이 종료되고 홈으로 이동합니다.' : 'This will end your session and return you to the home page.'}</p>
             <div className="mt-6 flex items-center gap-2">
               <button onClick={() => setLogoutOpen(false)} className="flex-1 py-3 rounded-2xl text-sm font-semibold text-zinc-300" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
                 {ko ? '취소' : 'Cancel'}

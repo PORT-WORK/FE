@@ -21,6 +21,7 @@ type NotifKey = 'email' | 'push' | 'message';
 
 export default function SettingsPage() {
   const { language, setLanguage, setNotifs, setPrivacy, connections, setConnections } = useApp();
+  const [profileName, setProfileName] = useState('PORT User');
   const [disconnectConfirm, setDisconnectConfirm] = useState<string | null>(null);
   const [busyProvider, setBusyProvider] = useState<string | null>(null);
   const [showConnections, setShowConnections] = useState(false);
@@ -36,7 +37,8 @@ export default function SettingsPage() {
       const [settings, currentUser, rows] = await Promise.all([fetchSettings(), fetchCurrentUser(), fetchIntegrations()]);
       if (!alive) return;
 
-      setLanguage(settings.language === 'EN' ? 'en' : 'ko');
+      setLanguage(settings.language === 'en' ? 'en' : 'ko');
+      setProfileName(currentUser.name || 'PORT User');
       const nextNotifs = { email: settings.notiEmail, push: settings.notiPush, message: settings.notiMessage };
       setNotifs(nextNotifs);
       setNotifsState(nextNotifs);
@@ -122,7 +124,7 @@ export default function SettingsPage() {
                 key={key}
                 onClick={async () => {
                   setLanguage(key);
-                  await saveSettings({ language: key.toUpperCase() });
+                  await saveSettings({ language: key });
                 }}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm transition-all"
                 style={{
@@ -233,7 +235,7 @@ export default function SettingsPage() {
                   const next = !showEmail;
                   setShowEmail(next);
                   setPrivacy(prev => ({ ...prev, showEmail: next }));
-                  await updateCurrentUser({ isEmailPublic: next });
+                  await updateCurrentUser({ name: profileName, isEmailPublic: next });
                 }}
                 className="w-10 h-6 rounded-full transition-all"
                 style={{ background: showEmail ? 'linear-gradient(135deg,#7c3aed,#2563eb)' : 'rgba(255,255,255,0.1)' }}

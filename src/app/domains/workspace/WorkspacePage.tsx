@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Plus } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import EmptyStatePanel from '../../components/EmptyStatePanel';
@@ -6,6 +7,7 @@ import { listMyPortfolios, listPortfolioProjects, type PortfolioSummary, type Pr
 import ProjectCreateModal from './ui/ProjectCreateModal';
 
 export default function WorkspacePage() {
+  const navigate = useNavigate();
   const { language } = useApp();
   const ko = language === 'ko';
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
@@ -72,7 +74,10 @@ export default function WorkspacePage() {
   );
 
   const openProjectCreate = () => {
-    if (!selectedPortfolioId) return;
+    if (!selectedPortfolioId) {
+      navigate('/portfolio');
+      return;
+    }
     setModalOpen(true);
   };
 
@@ -98,8 +103,7 @@ export default function WorkspacePage() {
         <div className="flex items-center justify-end mb-6">
           <button
             onClick={openProjectCreate}
-            disabled={!selectedPortfolioId}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
             style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 22px rgba(124,58,237,0.28)' }}
           >
             <Plus size={15} />
@@ -119,7 +123,7 @@ export default function WorkspacePage() {
             title={emptyTitle}
             description={ko ? '프로젝트를 만들 포트폴리오가 없습니다.' : 'There is no portfolio available for projects yet.'}
             actionLabel={ko ? '포트폴리오로 이동' : 'Go to portfolio'}
-            onAction={() => window.location.assign('/portfolio')}
+            onAction={() => navigate('/portfolio')}
             accent="blue"
           />
         ) : loading ? (
