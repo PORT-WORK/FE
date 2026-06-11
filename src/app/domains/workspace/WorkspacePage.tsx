@@ -96,6 +96,7 @@ export default function WorkspacePage() {
           if (selectedPortfolioId) {
             void listPortfolioProjects(selectedPortfolioId).then(setProjects).catch(() => undefined);
           }
+          navigate('/project/editor');
         }}
       />
 

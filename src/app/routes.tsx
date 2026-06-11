@@ -28,6 +28,7 @@ export const router = createBrowserRouter([
       { path: 'explore/:id', Component: ExploreDetailPage },
       { path: 'portfolio', Component: PortfolioPage },
       { path: 'portfolio/editor', Component: EditorPage },
+      { path: 'project/editor', Component: EditorPage },
       { path: 'workspace', Component: WorkspacePage },
       { path: 'messages', Component: MessagesPage },
       { path: 'profile', Component: ProfilePage },

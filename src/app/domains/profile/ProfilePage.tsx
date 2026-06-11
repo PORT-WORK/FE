@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { Camera, Edit3, Figma, Github, LogOut, Plus, Trash2, X } from 'lucide-react';
+import { Camera, Edit3, FileText, Figma, Github, LogOut, Plus, Trash2, X } from 'lucide-react';
 import { fetchCurrentUser, logoutAccount, updateCurrentUser, type UserProfile } from '../../api/contentApi';
 import { useApp } from '../../contexts/AppContext';
 
@@ -11,11 +11,12 @@ type CareerEntry = {
   desc: string;
 };
 
+type LinkKey = 'github' | 'notion' | 'figma';
+
 type LinkEntry = {
-  key: 'github' | 'notion' | 'figma';
+  key: LinkKey;
   label: string;
   url: string;
-  icon: JSX.Element;
 };
 
 type ProfileExtras = {
@@ -26,15 +27,46 @@ type ProfileExtras = {
 
 const STORAGE_KEY = 'port-profile-extras';
 
-const EMPTY_EXTRAS: ProfileExtras = {
+const LINK_META: Record<LinkKey, { label: string; icon: ReactNode }> = {
+  github: { label: 'GitHub', icon: <Github size={14} /> },
+  notion: { label: 'Notion', icon: <FileText size={14} /> },
+  figma: { label: 'Figma', icon: <Figma size={14} /> },
+};
+
+const DEFAULT_EXTRAS: ProfileExtras = {
   career: [],
   links: [
-    { key: 'github', label: 'GitHub', url: '', icon: <Github size={14} /> },
-    { key: 'notion', label: 'Notion', url: '', icon: <Camera size={14} /> },
-    { key: 'figma', label: 'Figma', url: '', icon: <Figma size={14} /> },
+    { key: 'github', label: LINK_META.github.label, url: '' },
+    { key: 'notion', label: LINK_META.notion.label, url: '' },
+    { key: 'figma', label: LINK_META.figma.label, url: '' },
   ],
   skills: [],
 };
+
+function readExtras(): ProfileExtras {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_EXTRAS;
+
+    const parsed = JSON.parse(raw) as Partial<ProfileExtras>;
+    const career = Array.isArray(parsed.career) ? parsed.career : [];
+    const skills = Array.isArray(parsed.skills) ? parsed.skills : [];
+    const links = Array.isArray(parsed.links)
+      ? parsed.links.map((item: Partial<LinkEntry>) => {
+          const key: LinkKey = item.key === 'notion' || item.key === 'figma' ? item.key : 'github';
+          return {
+            key,
+            label: item.label || LINK_META[key].label,
+            url: item.url || '',
+          };
+        })
+      : DEFAULT_EXTRAS.links;
+
+    return { career, links, skills };
+  } catch {
+    return DEFAULT_EXTRAS;
+  }
+}
 
 function toDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -45,35 +77,21 @@ function toDataUrl(file: File) {
   });
 }
 
-function loadExtras(): ProfileExtras {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return EMPTY_EXTRAS;
-    const parsed = JSON.parse(raw) as Partial<ProfileExtras>;
-    return {
-      career: Array.isArray(parsed.career) ? parsed.career : EMPTY_EXTRAS.career,
-      links: Array.isArray(parsed.links) ? parsed.links : EMPTY_EXTRAS.links,
-      skills: Array.isArray(parsed.skills) ? parsed.skills : EMPTY_EXTRAS.skills,
-    };
-  } catch {
-    return EMPTY_EXTRAS;
-  }
-}
-
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { logout, language } = useApp();
   const ko = language === 'ko';
+
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<UserProfile | null>(null);
   const [avatarDraft, setAvatarDraft] = useState<string | null>(null);
   const [skills, setSkills] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState('');
   const [career, setCareer] = useState<CareerEntry[]>([]);
-  const [links, setLinks] = useState<LinkEntry[]>(EMPTY_EXTRAS.links);
+  const [links, setLinks] = useState<LinkEntry[]>(DEFAULT_EXTRAS.links);
   const [newCareer, setNewCareer] = useState<CareerEntry>({ company: '', role: '', period: '', desc: '' });
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -85,7 +103,7 @@ export default function ProfilePage() {
       setUser(profile);
       setAvatarDraft(profile.profileImageUrl);
 
-      const extras = loadExtras();
+      const extras = readExtras();
       setSkills(extras.skills);
       setCareer(extras.career);
       setLinks(extras.links);
@@ -108,9 +126,9 @@ export default function ProfilePage() {
   };
 
   const addSkill = () => {
-    const skill = newSkill.trim();
-    if (!skill || skills.includes(skill)) return;
-    setSkills(prev => [...prev, skill]);
+    const next = newSkill.trim();
+    if (!next || skills.includes(next)) return;
+    setSkills(prev => [...prev, next]);
     setNewSkill('');
   };
 
@@ -128,7 +146,7 @@ export default function ProfilePage() {
 
   const removeCareer = (index: number) => setCareer(prev => prev.filter((_, itemIndex) => itemIndex !== index));
 
-  const updateLink = (key: LinkEntry['key'], value: string) => {
+  const updateLink = (key: LinkKey, value: string) => {
     setLinks(prev => prev.map(item => (item.key === key ? { ...item, url: value } : item)));
   };
 
@@ -160,7 +178,7 @@ export default function ProfilePage() {
     try {
       await logoutAccount();
     } catch {
-      // ignore logout API failures and clear the local session anyway
+      // ignore logout API failure and clear local session anyway
     } finally {
       logout();
       navigate('/', { replace: true });
@@ -169,8 +187,8 @@ export default function ProfilePage() {
 
   const fieldLabels: Array<[string, string, keyof UserProfile]> = [
     ['이름', 'Name', 'name'],
-    ['지역', 'Location', 'location'],
-    ['경력 년수', 'Career years', 'experienceYears'],
+    ['위치', 'Location', 'location'],
+    ['경력 연수', 'Career years', 'experienceYears'],
     ['이메일', 'Email', 'email'],
   ];
 
@@ -200,7 +218,7 @@ export default function ProfilePage() {
             }}
           >
             <Edit3 size={13} />
-            {editing ? (saving ? (ko ? '저장 중' : 'Saving...') : (ko ? '저장' : 'Save')) : (ko ? '편집' : 'Edit')}
+            {editing ? (saving ? (ko ? '저장 중...' : 'Saving...') : (ko ? '저장' : 'Save')) : (ko ? '편집' : 'Edit')}
           </button>
         </div>
 
@@ -212,7 +230,11 @@ export default function ProfilePage() {
 
         <div className="relative mb-6">
           <div className="h-32 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.3), rgba(37,99,235,0.3))' }}>
-            {editing && <button className="absolute top-2 right-2 p-2 rounded-lg bg-black/40 text-white"><Camera size={14} /></button>}
+            {editing && (
+              <button className="absolute top-2 right-2 p-2 rounded-lg bg-black/40 text-white">
+                <Camera size={14} />
+              </button>
+            )}
           </div>
           <div className="absolute -bottom-6 left-6">
             <div className="relative w-16 h-16 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 0 3px #050505' }}>
@@ -293,7 +315,11 @@ export default function ProfilePage() {
 
             {editing && (
               <div className="flex items-center gap-2 mt-4">
-                <button onClick={() => setAvatarDraft(null)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-red-400" style={{ border: '1px solid rgba(239,68,68,0.18)' }}>
+                <button
+                  onClick={() => setAvatarDraft(null)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-red-400"
+                  style={{ border: '1px solid rgba(239,68,68,0.18)' }}
+                >
                   <Trash2 size={12} />
                   {ko ? '사진 삭제' : 'Delete photo'}
                 </button>
@@ -319,7 +345,7 @@ export default function ProfilePage() {
                   {editing ? (
                     <div className="grid grid-cols-2 gap-2">
                       <input value={item.company} onChange={e => updateCareer(index, 'company', e.target.value)} placeholder={ko ? '회사' : 'Company'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
-                      <input value={item.role} onChange={e => updateCareer(index, 'role', e.target.value)} placeholder={ko ? '역할' : 'Role'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                      <input value={item.role} onChange={e => updateCareer(index, 'role', e.target.value)} placeholder={ko ? '직무' : 'Role'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
                       <input value={item.period} onChange={e => updateCareer(index, 'period', e.target.value)} placeholder={ko ? '기간' : 'Period'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
                       <button onClick={() => removeCareer(index)} className="px-3 py-2 rounded-xl text-xs text-red-400" style={{ border: '1px solid rgba(239,68,68,0.18)' }}>
                         {ko ? '삭제' : 'Remove'}
@@ -328,17 +354,18 @@ export default function ProfilePage() {
                     </div>
                   ) : (
                     <>
-                      <p className="text-sm font-semibold text-white">{item.role || (ko ? '역할 없음' : 'No role')}</p>
+                      <p className="text-sm font-semibold text-white">{item.role || (ko ? '직무 없음' : 'No role')}</p>
                       <p className="text-xs text-zinc-500 mt-1">{item.company} · {item.period}</p>
                       <p className="text-xs text-zinc-600 mt-2 leading-relaxed">{item.desc}</p>
                     </>
                   )}
                 </div>
               ))}
+
               {editing && (
                 <div className="grid grid-cols-2 gap-2 p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                   <input value={newCareer.company} onChange={e => setNewCareer(prev => ({ ...prev, company: e.target.value }))} placeholder={ko ? '회사' : 'Company'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
-                  <input value={newCareer.role} onChange={e => setNewCareer(prev => ({ ...prev, role: e.target.value }))} placeholder={ko ? '역할' : 'Role'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+                  <input value={newCareer.role} onChange={e => setNewCareer(prev => ({ ...prev, role: e.target.value }))} placeholder={ko ? '직무' : 'Role'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
                   <input value={newCareer.period} onChange={e => setNewCareer(prev => ({ ...prev, period: e.target.value }))} placeholder={ko ? '기간' : 'Period'} className="px-3 py-2 rounded-xl text-sm text-white outline-none" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
                   <button onClick={addCareer} className="px-3 py-2 rounded-xl text-xs text-violet-300" style={{ border: '1px solid rgba(124,58,237,0.22)' }}>
                     {ko ? '추가' : 'Add'}
@@ -355,7 +382,9 @@ export default function ProfilePage() {
               {links.map(link => (
                 <div key={link.key} className="space-y-2">
                   <div className="flex items-center gap-2 text-xs text-zinc-500">
-                    <span className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.04)' }}>{link.icon}</span>
+                    <span className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                      {LINK_META[link.key].icon}
+                    </span>
                     <span>{link.label}</span>
                   </div>
                   {editing ? (
@@ -367,7 +396,7 @@ export default function ProfilePage() {
                       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
                     />
                   ) : (
-                    <p className="text-xs text-zinc-600 break-all">{link.url || (ko ? '등록된 링크가 없습니다.' : 'No link yet.')}</p>
+                    <p className="text-xs text-zinc-600 break-all">{link.url || (ko ? '연결된 링크가 없습니다.' : 'No link yet.')}</p>
                   )}
                 </div>
               ))}
@@ -408,7 +437,7 @@ export default function ProfilePage() {
         <div className="fixed inset-0 z-[250] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)' }} onClick={() => setLogoutOpen(false)}>
           <div className="w-full max-w-sm rounded-3xl p-6" style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.08)' }} onClick={e => e.stopPropagation()}>
             <p className="text-lg font-black text-white">{ko ? '로그아웃 하시겠습니까?' : 'Do you want to log out?'}</p>
-            <p className="mt-2 text-sm text-zinc-600">{ko ? '확인하면 현재 세션이 종료되고 홈으로 이동합니다.' : 'This will end your session and return you to the home page.'}</p>
+            <p className="mt-2 text-sm text-zinc-600">{ko ? '확인하면 현재 세션이 종료되고 홈으로 돌아갑니다.' : 'This will end your session and return you to the home page.'}</p>
             <div className="mt-6 flex items-center gap-2">
               <button onClick={() => setLogoutOpen(false)} className="flex-1 py-3 rounded-2xl text-sm font-semibold text-zinc-300" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
                 {ko ? '취소' : 'Cancel'}
