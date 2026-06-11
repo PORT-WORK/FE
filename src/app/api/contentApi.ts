@@ -16,6 +16,7 @@ export type Article = {
 
 export type ConversationCard = {
   id: string;
+  latestMessageId: number;
   userId: number;
   user: string;
   role: string;
@@ -211,11 +212,15 @@ export async function listMessages(): Promise<ConversationCard[]> {
     await apiRequest({ url: '/messages/sent', method: 'GET' }, async () => []),
   );
   const latestByPeer = new Map<number, MessageItem>();
+  const unreadByPeer = new Map<number, number>();
   [...inbox, ...sent].forEach(item => {
     const peerId = item.senderId === currentUserId ? item.receiverId : item.senderId;
     const existing = latestByPeer.get(peerId);
     if (!existing || new Date(item.createdAt).getTime() >= new Date(existing.createdAt).getTime()) {
       latestByPeer.set(peerId, item);
+    }
+    if (!item.isRead && item.senderId !== currentUserId) {
+      unreadByPeer.set(peerId, (unreadByPeer.get(peerId) || 0) + 1);
     }
   });
   const peers = await Promise.all(
@@ -224,19 +229,21 @@ export async function listMessages(): Promise<ConversationCard[]> {
       const profile = await fetchPublicProfile(peerId);
       return {
         item,
+        peerId,
         profile,
       };
     }),
   );
-  return peers.map(({ item, profile }) => ({
-    id: String(item.id),
-    userId: item.senderId === currentUserId ? item.receiverId : item.senderId,
+  return peers.map(({ item, peerId, profile }) => ({
+    id: String(peerId),
+    latestMessageId: item.id,
+    userId: peerId,
     user: profile.name,
     role: profile.location || 'Portfolio contact',
     lastMsg: item.content,
     time: formatTime(item.createdAt),
     createdAt: item.createdAt,
-    unread: item.isRead ? 0 : 1,
+    unread: unreadByPeer.get(peerId) || 0,
     avatar: profile.profileImageUrl || '',
   }));
 }

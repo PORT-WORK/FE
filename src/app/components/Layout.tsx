@@ -3,6 +3,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router';
 import { Home, Compass, Briefcase, LayoutTemplate, MessageSquare, User, Bookmark, Settings, Sparkles, Github, CheckCircle2, Cpu, ChevronRight, Bell, BarChart2, X, Heart, MessageCircle, UserPlus, AtSign, CreditCard, Zap, Check } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { fetchNotifications, fetchUnreadNotificationCount, markNotificationRead } from '../api/contentApi';
+import { subscribeRealtime } from '../api/client';
 
 const NAV_ITEMS = [
   { icon: Home, key: 'nav_home', path: '/' },
@@ -85,20 +86,22 @@ export default function Layout() {
     };
 
     void loadNotifications();
-    const interval = window.setInterval(() => {
-      void loadNotifications();
-    }, 10000);
 
     const handleFocus = () => {
       void loadNotifications();
     };
 
     window.addEventListener('focus', handleFocus);
+    const unsubscribe = subscribeRealtime(event => {
+      if (event.type === 'message' || event.type === 'notification') {
+        void loadNotifications();
+      }
+    });
 
     return () => {
       alive = false;
-      window.clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
+      unsubscribe();
     };
   }, [authReady, isLoggedIn]);
 

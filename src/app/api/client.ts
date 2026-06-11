@@ -67,7 +67,7 @@ export function subscribeRealtime(handler: RealtimeEventHandler) {
     return () => undefined;
   }
 
-  const url = `${backendOrigin}/realtime/stream?userId=${currentUserId}`;
+  const url = `${backendOrigin}/api/realtime/stream?userId=${currentUserId}`;
   const source = new EventSource(url, { withCredentials: true });
 
   const bind = (type: string) => (event: MessageEvent<string>) => {

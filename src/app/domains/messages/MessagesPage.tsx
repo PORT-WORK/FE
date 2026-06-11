@@ -142,11 +142,29 @@ export default function MessagesPage() {
 
   useEffect(() => {
     const unsubscribe = subscribeRealtime(event => {
-      if (event.type !== 'message') return;
+      if (event.type !== 'message' && event.type !== 'notification') return;
+      if (event.type === 'notification') {
+        void reloadConversations(true).catch(() => undefined);
+        return;
+      }
       const payload = event.data as MessageItem;
       if (!payload || typeof payload !== 'object' || !('senderId' in payload)) return;
 
       void reloadConversations(true).catch(() => undefined);
+
+      if (activeCard && payload.senderId === currentUserId && payload.receiverId === activeCard.userId) {
+        setChats(prev => {
+          if (prev.some(msg => msg.id === String(payload.id))) return prev;
+          return [...prev, {
+            id: String(payload.id),
+            from: 'me',
+            text: payload.content,
+            time: 'Just now',
+            type: 'text',
+          }];
+        });
+        return;
+      }
 
       if (activeCard && payload.senderId === activeCard.userId && payload.receiverId === currentUserId) {
         setChats(prev => {
@@ -191,15 +209,14 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (activeCard) {
-      void markMessageRead(activeCard.id).catch(() => undefined);
+      void markMessageRead(activeCard.latestMessageId).catch(() => undefined);
     }
-  }, [activeCard?.id]);
+  }, [activeCard?.latestMessageId]);
 
   const send = async () => {
     if (!input.trim() || !activeCard) return;
     const text = input.trim();
     setInput('');
-    setChats(prev => [...prev, { id: uid(), from: 'me', text, time: 'Just now', type: 'text' }]);
     try {
       await sendMessage(activeCard.userId, text);
       setLoadError(null);
