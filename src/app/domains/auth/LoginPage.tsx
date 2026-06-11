@@ -1,9 +1,18 @@
-import { Sparkles, Zap, Crown } from 'lucide-react';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router';
+import { Sparkles } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { buildOauthLoginUrl } from '../../api/client';
 
 export default function LoginPage() {
-  const { t } = useApp();
+  const { t, isLoggedIn, authReady } = useApp();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (authReady && isLoggedIn) {
+      navigate('/', { replace: true });
+    }
+  }, [authReady, isLoggedIn, navigate]);
 
   const handleLogin = (provider: 'kakao' | 'google') => {
     window.location.assign(buildOauthLoginUrl(provider));
@@ -42,18 +51,6 @@ export default function LoginPage() {
             </span>
             {t('login_google')}
           </button>
-
-          <div className="space-y-2 mb-6">
-            <div className="flex items-center gap-2.5 p-3 rounded-xl" style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)' }}>
-              <Zap size={14} className="text-violet-400" />
-              <p className="text-xs text-violet-300">{t('login_ai_user')}</p>
-            </div>
-            <div className="flex items-center gap-2.5 p-3 rounded-xl" style={{ background: 'rgba(202,138,4,0.06)', border: '1px solid rgba(202,138,4,0.15)' }}>
-              <Crown size={14} className="text-yellow-500" />
-              <p className="text-xs text-yellow-600/80">{t('login_more')}</p>
-            </div>
-          </div>
-
         </div>
       </div>
     </div>

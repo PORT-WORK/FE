@@ -41,13 +41,6 @@ type NotifItem = {
   read?: boolean;
 };
 
-const MOCK_NOTIFS: NotifItem[] = [
-  { id: '1', type: 'like', user: 'Sarah Lee', title: 'Sarah Lee', content: 'liked your project.', time: '2m ago', read: false },
-  { id: '2', type: 'message', user: 'David Park', title: 'David Park', content: 'sent a message.', time: '15m ago', read: false },
-  { id: '3', type: 'follow', user: 'Alice Choi', title: 'Alice Choi', content: 'started following you.', time: '1h ago', read: true },
-  { id: '4', type: 'comment', user: 'Jisoo Park', title: 'Jisoo Park', content: 'commented on your post.', time: '3h ago', read: true },
-];
-
 const NOTIF_ICON: Record<string, ReactNode> = {
   like: <Heart size={13} className="text-red-400" />,
   message: <MessageCircle size={13} className="text-blue-400" />,
@@ -61,25 +54,53 @@ export default function Layout() {
   const { t, isLoggedIn, user, language, aiCount, aiLimit, payModal, setPayModal, connections, authReady } = useApp();
   const [notifOpen, setNotifOpen] = useState(false);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
-  const [notifications, setNotifications] = useState<NotifItem[]>(MOCK_NOTIFS);
+  const [notifications, setNotifications] = useState<NotifItem[]>([]);
   const [apiUnreadCount, setApiUnreadCount] = useState<number | null>(null);
 
   const publicHome = !isLoggedIn && location.pathname === '/';
 
   useEffect(() => {
+    if (!authReady || !isLoggedIn) {
+      setNotifications([]);
+      setApiUnreadCount(null);
+      return;
+    }
+
     let alive = true;
-    fetchNotifications().then(data => {
-      if (alive && Array.isArray(data) && data.length > 0) {
-        setNotifications(data as NotifItem[]);
+
+    const loadNotifications = async () => {
+      try {
+        const [items, count] = await Promise.all([
+          fetchNotifications(),
+          fetchUnreadNotificationCount(),
+        ]);
+        if (!alive) return;
+        setNotifications(Array.isArray(items) ? (items as NotifItem[]) : []);
+        setApiUnreadCount(Number(count) || 0);
+      } catch {
+        if (!alive) return;
+        setNotifications([]);
+        setApiUnreadCount(0);
       }
-    });
-    fetchUnreadNotificationCount().then(count => {
-      if (alive) setApiUnreadCount(Number(count) || 0);
-    });
+    };
+
+    void loadNotifications();
+    const interval = window.setInterval(() => {
+      void loadNotifications();
+    }, 10000);
+
+    const handleFocus = () => {
+      void loadNotifications();
+    };
+
+    window.addEventListener('focus', handleFocus);
+
     return () => {
       alive = false;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, [authReady, isLoggedIn]);
 
   useEffect(() => {
     if (authReady && !isLoggedIn && location.pathname !== '/' && location.pathname !== '/login' && location.pathname !== '/oauth/success') {
@@ -251,7 +272,14 @@ export default function Layout() {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto py-2">
-                {notifications.map(n => {
+                {notifications.length === 0 ? (
+                  <div className="flex h-full items-center justify-center px-6 text-center">
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-200">{language === 'ko' ? '알림이 없습니다' : 'No notifications'}</p>
+                      <p className="mt-2 text-xs text-zinc-600">{language === 'ko' ? '새 알림이 오면 여기에서 바로 확인할 수 있습니다.' : 'New notifications will appear here in real time.'}</p>
+                    </div>
+                  </div>
+                ) : notifications.map(n => {
                   const isRead = n.read || readIds.has(String(n.id));
                   return (
                     <div
