@@ -5,22 +5,23 @@ import { fetchCurrentUser } from '../../api/contentApi';
 
 export default function OAuthSuccessPage() {
   const navigate = useNavigate();
-  const [message, setMessage] = useState('로그인 정보를 확인하는 중입니다...');
+  const [message, setMessage] = useState('Signing in...');
 
   useEffect(() => {
     let alive = true;
+    localStorage.removeItem('port-auth-logged-out');
 
     void fetchCurrentUser()
       .then(() => {
         if (!alive) return;
-        setMessage('로그인이 완료되었습니다. 이동합니다...');
+        setMessage('Login complete. Redirecting...');
         setTimeout(() => {
           if (alive) navigate('/', { replace: true });
         }, 500);
       })
       .catch(() => {
         if (!alive) return;
-        setMessage('로그인에 실패했습니다. 다시 시도해주세요.');
+        setMessage('Login failed. Please try again.');
         setTimeout(() => {
           if (alive) navigate('/', { replace: true });
         }, 1200);
@@ -43,7 +44,7 @@ export default function OAuthSuccessPage() {
         >
           <CheckCircle2 size={24} className="text-white" />
         </div>
-        <h1 className="text-lg font-bold text-white">PORT 로그인</h1>
+        <h1 className="text-lg font-bold text-white">PORT Login</h1>
         <p className="mt-2 text-sm text-zinc-500">{message}</p>
         <div className="mt-6 inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-xs text-zinc-400">
           <Loader2 size={13} className="animate-spin" />

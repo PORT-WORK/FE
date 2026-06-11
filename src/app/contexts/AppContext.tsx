@@ -39,6 +39,7 @@ type AppContextValue = {
 };
 
 const STORAGE_KEY = 'port-app-state';
+const LOGOUT_FLAG_KEY = 'port-auth-logged-out';
 
 const translations: Record<Lang, Record<string, string>> = {
   ko: {
@@ -304,6 +305,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const wasLoggedOut = localStorage.getItem(LOGOUT_FLAG_KEY) === '1';
+    if (wasLoggedOut) {
+      setAuthReady(true);
+      return;
+    }
+
     let alive = true;
     void fetchCurrentUser()
       .then(profile => {
@@ -331,12 +338,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [language, user, aiCount, notifs, privacy, connections]);
 
   const login = (provider: 'kakao' | 'google') => {
+    localStorage.removeItem(LOGOUT_FLAG_KEY);
     window.location.assign(buildOauthLoginUrl(provider));
   };
 
   const logout = () => {
     resetCurrentUserId();
+    localStorage.setItem(LOGOUT_FLAG_KEY, '1');
     setUser(null);
+    setAiCount(0);
+    setPayModal(false);
   };
 
   const value = useMemo<AppContextValue>(() => ({

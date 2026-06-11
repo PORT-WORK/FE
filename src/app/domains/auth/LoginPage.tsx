@@ -15,6 +15,7 @@ export default function LoginPage() {
   }, [authReady, isLoggedIn, navigate]);
 
   const handleLogin = (provider: 'kakao' | 'google') => {
+    localStorage.removeItem('port-auth-logged-out');
     window.location.assign(buildOauthLoginUrl(provider));
   };
 
