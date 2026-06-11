@@ -76,9 +76,10 @@ export default function WorkspacePage() {
 
   const openProjectCreate = () => {
     if (!selectedPortfolioId) {
-      navigate('/portfolio');
+      setError(ko ? '프로젝트를 만들 포트폴리오가 없습니다.' : 'No portfolio is available for creating a project.');
       return;
     }
+    setError(null);
     setModalOpen(true);
   };
 
@@ -125,8 +126,8 @@ export default function WorkspacePage() {
             emoji="🗂️"
             title={emptyTitle}
             description={ko ? '프로젝트를 만들 포트폴리오가 없습니다.' : 'There is no portfolio available for projects yet.'}
-            actionLabel={ko ? '포트폴리오로 이동' : 'Go to portfolio'}
-            onAction={() => navigate('/portfolio')}
+            actionLabel={ko ? '새 프로젝트' : 'New project'}
+            onAction={openProjectCreate}
             accent="blue"
           />
         ) : loading ? (
