@@ -86,18 +86,16 @@ export default function SavedPage() {
         </div>
 
         {displayItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24">
-            <div className="relative mb-6">
-              <div className="w-20 h-20 rounded-3xl flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.15)' }}>
-                {tab === 0 ? <Bookmark size={32} className="text-violet-500 opacity-50" /> : tab === 1 ? <Heart size={32} className="text-red-500 opacity-50" /> : <Star size={32} className="text-yellow-500 opacity-50" />}
-              </div>
+          <div className="rounded-3xl p-10 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl" style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)' }}>
+              {tab === 0 ? <Bookmark size={26} className="text-violet-400" /> : tab === 1 ? <Heart size={26} className="text-red-400" /> : <Star size={26} className="text-yellow-400" />}
             </div>
-            <p className="text-sm font-medium text-zinc-400 mb-1">{ko ? '저장된 항목이 없습니다' : 'No saved items yet.'}</p>
-            <p className="text-xs text-zinc-700 mb-5">{ko ? '탐색에서 포트폴리오를 저장하면 여기 표시됩니다.' : 'Save a portfolio from Explore to see it here.'}</p>
+            <p className="text-lg font-semibold text-white mb-2">{ko ? '저장된 항목이 없습니다' : 'No saved items yet'}</p>
+            <p className="text-sm text-zinc-600 max-w-xl mx-auto mb-6">{ko ? '탐색에서 포트폴리오를 저장하면 여기 표시됩니다.' : 'Save a portfolio from Explore to see it here.'}</p>
             <button
               onClick={() => navigate('/explore')}
-              className="px-5 py-2.5 rounded-xl text-xs font-medium text-violet-400 transition-all hover:bg-violet-500/10"
-              style={{ border: '1px solid rgba(124,58,237,0.3)' }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-white"
+              style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
             >
               {ko ? '탐색으로 이동' : 'Go to Explore'}
             </button>
