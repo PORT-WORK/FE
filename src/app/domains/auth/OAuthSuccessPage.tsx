@@ -20,9 +20,9 @@ export default function OAuthSuccessPage() {
       })
       .catch(() => {
         if (!alive) return;
-        setMessage('로그인에 실패했습니다. 다시 시도해 주세요.');
+        setMessage('로그인에 실패했습니다. 다시 시도해주세요.');
         setTimeout(() => {
-          if (alive) navigate('/login', { replace: true });
+          if (alive) navigate('/', { replace: true });
         }, 1200);
       });
 
