@@ -316,6 +316,10 @@ export async function markNotificationRead(notificationId: string | number) {
   return apiRequest({ url: `/notifications/${notificationId}/read`, method: 'PUT' }, async () => undefined);
 }
 
+export async function logoutAccount() {
+  return apiRequestStrict<void>({ url: '/auth/logout', method: 'DELETE' });
+}
+
 export async function fetchIntegrations() {
   return apiRequestStrict<IntegrationConnection[]>({ url: '/integrations', method: 'GET' });
 }

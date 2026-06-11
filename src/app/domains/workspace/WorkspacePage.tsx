@@ -27,7 +27,7 @@ function EmptyState({
         className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl"
         style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)' }}
       >
-        <FileText size={24} className="text-violet-300" />
+        <span className="text-2xl">🗂️</span>
       </div>
       <p className="text-lg font-semibold text-white mb-2">{title}</p>
       <p className="text-sm text-zinc-600 max-w-lg mx-auto">{description}</p>

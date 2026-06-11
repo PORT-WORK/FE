@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+﻿import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Edit3,
@@ -17,7 +17,8 @@ import {
   X,
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
-import { listMessages, markMessageRead, sendMessage, type ConversationCard } from '../../api/contentApi';
+import { currentUserId, subscribeRealtime } from '../../api/client';
+import { listMessages, markMessageRead, sendMessage, type ConversationCard, type MessageItem } from '../../api/contentApi';
 
 type ChatType = 'text' | 'image' | 'file' | 'voice';
 
@@ -80,6 +81,7 @@ export default function MessagesPage() {
   const [editText, setEditText] = useState('');
   const [recording, setRecording] = useState(false);
   const [recordingError, setRecordingError] = useState<string | null>(null);
+  const activeConversationIdRef = useRef<string>('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
@@ -88,6 +90,15 @@ export default function MessagesPage() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+
+  const reloadConversations = async (keepActive = true) => {
+    const data = await listMessages();
+    setConversations(data);
+    setLoadError(null);
+    if (!keepActive) {
+      setActive(data[0]?.id ?? '');
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -117,7 +128,42 @@ export default function MessagesPage() {
   );
 
   useEffect(() => {
-    setChats(buildInitialChats(activeCard));
+    if (!activeCard) {
+      setChats([]);
+      activeConversationIdRef.current = '';
+      return;
+    }
+
+    if (activeConversationIdRef.current !== activeCard.id) {
+      activeConversationIdRef.current = activeCard.id;
+      setChats(buildInitialChats(activeCard));
+    }
+  }, [activeCard]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeRealtime(event => {
+      if (event.type !== 'message') return;
+      const payload = event.data as MessageItem;
+      if (!payload || typeof payload !== 'object' || !('senderId' in payload)) return;
+
+      void reloadConversations(true).catch(() => undefined);
+
+      if (activeCard && payload.senderId === activeCard.userId && payload.receiverId === currentUserId) {
+        setChats(prev => {
+          if (prev.some(msg => msg.id === String(payload.id))) return prev;
+          return [...prev, {
+            id: String(payload.id),
+            from: 'them',
+            text: payload.content,
+            time: 'Just now',
+            type: 'text',
+          }];
+        });
+        void markMessageRead(payload.id).catch(() => undefined);
+      }
+    });
+
+    return unsubscribe;
   }, [activeCard]);
 
   useEffect(() => {
@@ -252,6 +298,20 @@ export default function MessagesPage() {
     renderedChats.push(msg);
   });
 
+  if (conversations.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center px-6" style={{ background: '#050505' }}>
+        <div className="w-full max-w-md rounded-[28px] p-8 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)' }}>
+            <span className="text-2xl">💬</span>
+          </div>
+          <p className="text-lg font-bold text-white">대화를 시작할 사람이 없습니다</p>
+          <p className="text-sm text-zinc-600 mt-2">연결된 사람이 없으면 메시지 목록이 비어 보입니다.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full overflow-hidden relative" style={{ background: '#050505' }}>
       <div className="flex-shrink-0 flex flex-col" style={{ width: '260px', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
@@ -273,14 +333,7 @@ export default function MessagesPage() {
               </div>
             </div>
           )}
-          {conversations.length === 0 ? (
-            <div className="h-full flex items-center justify-center px-4">
-              <div className="w-full rounded-3xl p-5 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <p className="text-sm font-semibold text-white">대화를 시작할 사람이 없습니다</p>
-                <p className="text-xs text-zinc-600 mt-1">연결된 대화가 없으면 메시지 목록이 비어 보입니다.</p>
-              </div>
-            </div>
-          ) : conversations.map(item => (
+          {conversations.map(item => (
             <button
               key={item.id}
               onClick={() => { setActive(item.id); setShowProfile(false); }}
@@ -329,8 +382,8 @@ export default function MessagesPage() {
           {!activeCard ? (
             <div className="h-full min-h-[420px] flex items-center justify-center">
               <div className="max-w-sm w-full rounded-[28px] p-8 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <p className="text-lg font-bold text-white">대화를 시작할 사람이 없습니다</p>
-                <p className="text-sm text-zinc-600 mt-2">연결된 사람이 없으면 바로 메시지를 보낼 수 없습니다.</p>
+                <p className="text-lg font-bold text-white">??붾? ?쒖옉???щ엺???놁뒿?덈떎</p>
+                <p className="text-sm text-zinc-600 mt-2">?곌껐???щ엺???놁쑝硫?諛붾줈 硫붿떆吏瑜?蹂대궪 ???놁뒿?덈떎.</p>
               </div>
             </div>
           ) : renderedChats.map(item => {
@@ -470,3 +523,5 @@ export default function MessagesPage() {
     </div>
   );
 }
+
+

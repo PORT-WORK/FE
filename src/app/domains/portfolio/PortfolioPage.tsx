@@ -14,7 +14,7 @@ function EmptyState({ ko, onAction }: { ko: boolean; onAction: () => void }) {
         className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl"
         style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)' }}
       >
-        <FileText size={24} className="text-violet-300" />
+        <span className="text-2xl">📁</span>
       </div>
       <p className="text-lg font-semibold text-white mb-2">{ko ? '저장된 포트폴리오가 없습니다' : 'No saved portfolios yet.'}</p>
       <p className="text-sm text-zinc-600 max-w-md mx-auto">{ko ? '프로젝트 안의 글을 선택해 포트폴리오를 제작하면 여기에 보입니다.' : 'Select project posts to build a portfolio and store it here.'}</p>

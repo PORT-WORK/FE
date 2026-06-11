@@ -275,6 +275,9 @@ export default function Layout() {
                 {notifications.length === 0 ? (
                   <div className="flex h-full items-center justify-center px-6 text-center">
                     <div>
+                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)' }}>
+                        <span className="text-xl">🔔</span>
+                      </div>
                       <p className="text-sm font-semibold text-zinc-200">{language === 'ko' ? '알림이 없습니다' : 'No notifications'}</p>
                       <p className="mt-2 text-xs text-zinc-600">{language === 'ko' ? '새 알림이 오면 여기에서 바로 확인할 수 있습니다.' : 'New notifications will appear here in real time.'}</p>
                     </div>
