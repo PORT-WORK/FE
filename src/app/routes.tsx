@@ -14,9 +14,13 @@ import AIGeneratePage from './domains/generate/AIGeneratePage';
 import EditorPage from './domains/portfolio/EditorPage';
 import LoginPage from './domains/auth/LoginPage';
 import OAuthSuccessPage from './domains/auth/OAuthSuccessPage';
+import IntegrationCallbackPage from './domains/integrations/pages/IntegrationCallbackPage';
 
 export const router = createBrowserRouter([
   { path: '/oauth/success', Component: OAuthSuccessPage },
+  { path: '/integrations/github/callback', element: <IntegrationCallbackPage provider="github" /> },
+  { path: '/integrations/notion/callback', element: <IntegrationCallbackPage provider="notion" /> },
+  { path: '/integrations/figma/callback', element: <IntegrationCallbackPage provider="figma" /> },
   // Login page (no layout)
   { path: '/login', Component: LoginPage },
   {
