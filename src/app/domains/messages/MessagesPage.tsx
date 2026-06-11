@@ -17,7 +17,8 @@ import {
   X,
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
-import { currentUserId, subscribeRealtime } from '../../api/client';
+import EmptyStatePanel from '../../components/EmptyStatePanel';
+import { getCurrentUserId, subscribeRealtime } from '../../api/client';
 import { listMessages, markMessageRead, sendMessage, type ConversationCard, type MessageItem } from '../../api/contentApi';
 
 type ChatType = 'text' | 'image' | 'file' | 'voice';
@@ -69,7 +70,8 @@ function buildInitialChats(card?: ConversationCard | null): ChatMsg[] {
 }
 
 export default function MessagesPage() {
-  const { t } = useApp();
+  const { t, language } = useApp();
+  const ko = language === 'ko';
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<ConversationCard[]>([]);
   const [active, setActive] = useState<string>('');
@@ -151,6 +153,8 @@ export default function MessagesPage() {
       if (!payload || typeof payload !== 'object' || !('senderId' in payload)) return;
 
       void reloadConversations(true).catch(() => undefined);
+
+      const currentUserId = getCurrentUserId();
 
       if (activeCard && payload.senderId === currentUserId && payload.receiverId === activeCard.userId) {
         setChats(prev => {
@@ -318,12 +322,13 @@ export default function MessagesPage() {
   if (conversations.length === 0) {
     return (
       <div className="flex h-full items-center justify-center px-6" style={{ background: '#050505' }}>
-        <div className="w-full max-w-md rounded-[28px] p-8 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)' }}>
-            <span className="text-2xl">💬</span>
-          </div>
-          <p className="text-lg font-bold text-white">대화를 시작할 사람이 없습니다</p>
-          <p className="text-sm text-zinc-600 mt-2">연결된 사람이 없으면 메시지 목록이 비어 보입니다.</p>
+        <div className="w-full max-w-2xl">
+          <EmptyStatePanel
+            emoji="💬"
+            title={ko ? '대화를 시작할 사람이 없습니다' : 'No one to start a conversation with'}
+            description={ko ? '연결된 사람이 없으면 메시지 목록이 비어 보입니다.' : 'When there are no connections, the inbox stays empty.'}
+            accent="violet"
+          />
         </div>
       </div>
     );

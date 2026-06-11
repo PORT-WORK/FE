@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Bookmark, ChevronDown, ExternalLink, Heart, Star } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
+import EmptyStatePanel from '../../components/EmptyStatePanel';
 import { listExploreUsers } from '../../api/contentApi';
 
 type SortKey = 'latest' | 'name' | 'popular';
@@ -86,20 +87,14 @@ export default function SavedPage() {
         </div>
 
         {displayItems.length === 0 ? (
-          <div className="rounded-3xl p-10 text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl" style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)' }}>
-              {tab === 0 ? <Bookmark size={26} className="text-violet-400" /> : tab === 1 ? <Heart size={26} className="text-red-400" /> : <Star size={26} className="text-yellow-400" />}
-            </div>
-            <p className="text-lg font-semibold text-white mb-2">{ko ? '저장된 항목이 없습니다' : 'No saved items yet'}</p>
-            <p className="text-sm text-zinc-600 max-w-xl mx-auto mb-6">{ko ? '탐색에서 포트폴리오를 저장하면 여기 표시됩니다.' : 'Save a portfolio from Explore to see it here.'}</p>
-            <button
-              onClick={() => navigate('/explore')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-white"
-              style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-            >
-              {ko ? '탐색으로 이동' : 'Go to Explore'}
-            </button>
-          </div>
+          <EmptyStatePanel
+            emoji={tab === 0 ? '🔖' : tab === 1 ? '❤️' : '⭐'}
+            title={ko ? '저장된 항목이 없습니다' : 'No saved items yet'}
+            description={ko ? '탐색에서 포트폴리오를 저장하면 여기 표시됩니다.' : 'Save a portfolio from Explore to see it here.'}
+            actionLabel={ko ? '탐색으로 이동' : 'Go to Explore'}
+            onAction={() => navigate('/explore')}
+            accent={tab === 1 ? 'rose' : tab === 2 ? 'amber' : 'violet'}
+          />
         ) : (
           <div className="grid grid-cols-3 gap-4">
             {displayItems.map(user => (

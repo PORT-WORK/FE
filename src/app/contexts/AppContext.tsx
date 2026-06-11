@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { buildOauthLoginUrl } from '../api/client';
+import { buildOauthLoginUrl, resetCurrentUserId, setCurrentUserId } from '../api/client';
 import { fetchCurrentUser, type UserProfile } from '../api/contentApi';
 
 export type Lang = 'ko' | 'en';
@@ -309,6 +309,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .then(profile => {
         if (!alive) return;
         const nextUser = mapProfileToUser(profile);
+        setCurrentUserId(profile.id);
         setUser(nextUser);
         setAiCount((value) => Math.max(value, 1));
       })
@@ -333,7 +334,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     window.location.assign(buildOauthLoginUrl(provider));
   };
 
-  const logout = () => setUser(null);
+  const logout = () => {
+    resetCurrentUserId();
+    setUser(null);
+  };
 
   const value = useMemo<AppContextValue>(() => ({
     language,

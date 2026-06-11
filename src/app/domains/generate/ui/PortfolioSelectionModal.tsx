@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronUp, FileText, Sparkles, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, FileText, X } from 'lucide-react';
 import { fetchPortfolioData, type PortfolioDataResponse } from '../../../api/contentApi';
 
 type Selection = {
@@ -26,6 +26,27 @@ function getDocumentContent(blocks: PortfolioDataResponse['projects'][number]['d
     .filter(Boolean)
     .join('\n');
 }
+
+const SECTION = {
+  project: {
+    title: 'PROJECT',
+    accent: 'text-cyan-300',
+    border: 'rgba(34,211,238,0.35)',
+    bg: 'rgba(34,211,238,0.10)',
+  },
+  posts: {
+    title: 'POSTS',
+    accent: 'text-violet-300',
+    border: 'rgba(124,58,237,0.35)',
+    bg: 'rgba(124,58,237,0.10)',
+  },
+  selected: {
+    title: 'SELECTED',
+    accent: 'text-emerald-300',
+    border: 'rgba(16,185,129,0.35)',
+    bg: 'rgba(16,185,129,0.10)',
+  },
+} as const;
 
 export default function PortfolioSelectionModal({ open, portfolioId, onClose, onConfirm }: Props) {
   const [portfolioData, setPortfolioData] = useState<PortfolioDataResponse | null>(null);
@@ -87,17 +108,13 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
   );
 
   const toggleProject = (projectId: number) => {
-    setSelectedProjectIds(prev => (
-      prev.includes(projectId) ? prev.filter(item => item !== projectId) : [...prev, projectId]
-    ));
+    setSelectedProjectIds(prev => (prev.includes(projectId) ? prev.filter(item => item !== projectId) : [...prev, projectId]));
     setSelectedArticleIds([]);
   };
 
   const toggleDocument = (documentId: number) => {
     const id = String(documentId);
-    setSelectedArticleIds(prev => (
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    ));
+    setSelectedArticleIds(prev => (prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]));
   };
 
   const moveDocument = (documentId: number, direction: -1 | 1) => {
@@ -126,18 +143,18 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
   return (
     <div
       className="fixed inset-0 z-[350] flex items-center justify-center px-4"
-      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)' }}
+      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(12px)' }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-6xl rounded-[28px] overflow-hidden shadow-2xl"
-        style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.08)' }}
+        className="w-full max-w-6xl rounded-[30px] overflow-hidden shadow-2xl"
+        style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.08)' }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="flex items-start justify-between px-7 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div>
             <p className="text-lg font-black text-white">포트폴리오 만들기</p>
-            <p className="text-xs text-zinc-500 mt-1">프로젝트와 글을 선택한 뒤 AI 포트폴리오 생성 파이프라인으로 넘깁니다.</p>
+            <p className="text-xs text-zinc-500 mt-1">프로젝트와 글을 순서대로 골라 PPTX로 보낼 대상을 선택합니다.</p>
           </div>
           <button
             onClick={onClose}
@@ -147,49 +164,50 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
           </button>
         </div>
 
-        <div className="grid grid-cols-[260px_1fr_300px] gap-0 min-h-[640px]">
-          <div className="p-4" style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="grid grid-cols-[280px_1fr_330px] gap-0 min-h-[660px]">
+          <section className="p-4" style={{ borderRight: '1px solid rgba(255,255,255,0.06)', background: 'linear-gradient(180deg, rgba(34,211,238,0.06), rgba(255,255,255,0.01))' }}>
             <div className="flex items-center justify-between mb-3">
-              <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-600">Project</div>
-              <span className="text-[10px] text-zinc-700">{loading ? 'Loading...' : `${projects.length}`}</span>
+              <span className={`text-[10px] uppercase tracking-[0.28em] ${SECTION.project.accent}`}>{SECTION.project.title}</span>
+              <span className="text-[10px] text-zinc-500">{loading ? '...' : projects.length}</span>
             </div>
-            <div className="space-y-2 overflow-y-auto max-h-[570px] pr-1">
+            <div className="space-y-2 overflow-y-auto max-h-[600px] pr-1">
               {projects.map(project => {
                 const active = selectedProjectIds.includes(project.id);
                 return (
                   <button
                     key={project.id}
                     onClick={() => toggleProject(project.id)}
-                    className="w-full flex items-start gap-3 rounded-2xl p-3 text-left transition-colors"
+                    className="w-full flex items-start gap-3 rounded-2xl p-3 text-left transition-all duration-200"
                     style={{
-                      background: active ? 'rgba(37,99,235,0.12)' : 'rgba(255,255,255,0.03)',
-                      border: `1px solid ${active ? 'rgba(37,99,235,0.22)' : 'rgba(255,255,255,0.06)'}`,
+                      background: active ? SECTION.project.bg : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${active ? SECTION.project.border : 'rgba(255,255,255,0.06)'}`,
+                      boxShadow: active ? '0 0 0 1px rgba(34,211,238,0.08)' : 'none',
                     }}
                   >
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                      {active ? <Check size={14} className="text-violet-300" /> : String(project.name).slice(0, 1).toUpperCase()}
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                      {active ? <Check size={14} className="text-cyan-300" /> : String(project.name).slice(0, 1).toUpperCase()}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{project.name}</p>
-                      <p className="text-[11px] text-zinc-500 truncate">{project.role || 'Project role'}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-white truncate">{project.name}</p>
+                      <p className="text-[11px] text-zinc-400 truncate">{project.role || 'Project role'}</p>
                     </div>
                   </button>
                 );
               })}
               {projects.length === 0 && !loading && (
-                <div className="rounded-2xl p-4 text-center text-xs text-zinc-700" style={{ border: '1px dashed rgba(255,255,255,0.08)' }}>
+                <div className="rounded-2xl p-4 text-center text-xs text-zinc-400" style={{ border: `1px dashed ${SECTION.project.border}`, background: 'rgba(255,255,255,0.01)' }}>
                   프로젝트가 없습니다.
                 </div>
               )}
             </div>
-          </div>
+          </section>
 
-          <div className="p-4" style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+          <section className="p-4" style={{ borderRight: '1px solid rgba(255,255,255,0.06)', background: 'linear-gradient(180deg, rgba(124,58,237,0.06), rgba(255,255,255,0.01))' }}>
             <div className="flex items-center justify-between mb-3">
-              <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-600">Posts</div>
-              <span className="text-[10px] text-zinc-700">{documents.length}</span>
+              <span className={`text-[10px] uppercase tracking-[0.28em] ${SECTION.posts.accent}`}>{SECTION.posts.title}</span>
+              <span className="text-[10px] text-zinc-500">{documents.length}</span>
             </div>
-            <div className="space-y-2 overflow-y-auto max-h-[570px] pr-1">
+            <div className="space-y-2 overflow-y-auto max-h-[600px] pr-1">
               {documents.map(item => {
                 const id = String(item.document.id);
                 const active = selectedArticleIds.includes(id);
@@ -200,20 +218,21 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
                   <button
                     key={id}
                     onClick={() => toggleDocument(item.document.id)}
-                    className="w-full flex items-start gap-3 rounded-2xl p-3 text-left transition-colors"
+                    className="w-full flex items-start gap-3 rounded-2xl p-3 text-left transition-all duration-200"
                     style={{
-                      background: active ? 'rgba(124,58,237,0.10)' : 'rgba(255,255,255,0.03)',
-                      border: `1px solid ${active ? 'rgba(124,58,237,0.20)' : 'rgba(255,255,255,0.06)'}`,
+                      background: active ? SECTION.posts.bg : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${active ? SECTION.posts.border : 'rgba(255,255,255,0.06)'}`,
+                      boxShadow: active ? '0 0 0 1px rgba(124,58,237,0.08)' : 'none',
                     }}
                   >
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold" style={{ background: 'rgba(255,255,255,0.06)' }}>
                       <FileText size={14} className={active ? 'text-violet-300' : 'text-zinc-500'} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-white leading-snug">{item.document.title}</p>
-                      <p className="text-[10px] text-zinc-500 mt-1 truncate">
+                      <p className="text-sm font-semibold text-white leading-snug">{item.document.title}</p>
+                      <p className="text-[10px] text-zinc-400 mt-1 truncate">
                         {item.project.name}
-                        {blockText ? ` · ${blockText.slice(0, 40)}` : ''}
+                        {blockText ? ` · ${blockText.slice(0, 60)}` : ''}
                       </p>
                     </div>
                     {active && (
@@ -223,7 +242,7 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
                             e.stopPropagation();
                             moveDocument(item.document.id, -1);
                           }}
-                          className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.05]"
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.05]"
                         >
                           <ChevronUp size={12} />
                         </button>
@@ -232,7 +251,7 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
                             e.stopPropagation();
                             moveDocument(item.document.id, 1);
                           }}
-                          className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.05]"
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.05]"
                         >
                           <ChevronDown size={12} />
                         </button>
@@ -243,68 +262,58 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
                 );
               })}
               {documents.length === 0 && !loading && (
-                <div className="rounded-2xl p-4 text-center text-xs text-zinc-700" style={{ border: '1px dashed rgba(255,255,255,0.08)' }}>
+                <div className="rounded-2xl p-4 text-center text-xs text-zinc-400" style={{ border: `1px dashed ${SECTION.posts.border}`, background: 'rgba(255,255,255,0.01)' }}>
                   선택 가능한 글이 없습니다.
                 </div>
               )}
             </div>
-          </div>
+          </section>
 
-          <div className="p-4 flex flex-col" style={{ background: 'rgba(255,255,255,0.015)' }}>
+          <section className="p-4 flex flex-col" style={{ background: 'linear-gradient(180deg, rgba(16,185,129,0.06), rgba(255,255,255,0.01))' }}>
             <div className="flex items-center justify-between mb-3">
-              <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-600">Selected</div>
-              <span className="text-[10px] text-zinc-700">{selectedDocuments.length}</span>
+              <span className={`text-[10px] uppercase tracking-[0.28em] ${SECTION.selected.accent}`}>{SECTION.selected.title}</span>
+              <span className="text-[10px] text-zinc-500">{selectedDocuments.length}</span>
             </div>
 
-            <div className="flex-1 rounded-[22px] p-4 overflow-y-auto" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="flex-1 rounded-[22px] p-4 overflow-y-auto" style={{ background: 'rgba(0,0,0,0.22)', border: `1px solid ${SECTION.selected.border}` }}>
               <div className="space-y-2">
                 {selectedDocuments.map((item, index) => (
-                  <div key={String(item.document.id)} className="rounded-2xl p-3 flex items-start gap-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold text-violet-300" style={{ background: 'rgba(124,58,237,0.12)' }}>
+                  <div key={String(item.document.id)} className="rounded-2xl p-3 flex items-start gap-3" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${SECTION.selected.border}` }}>
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold text-emerald-300" style={{ background: SECTION.selected.bg }}>
                       {index + 1}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-white truncate">{item.document.title}</p>
-                      <p className="text-[11px] text-zinc-500 mt-1 truncate">{item.project.name}</p>
+                      <p className="text-sm font-semibold text-white truncate">{item.document.title}</p>
+                      <p className="text-[11px] text-zinc-400 mt-1 truncate">{item.project.name}</p>
                     </div>
                   </div>
                 ))}
                 {selectedDocuments.length === 0 && (
-                  <div className="rounded-2xl p-4 text-center text-xs text-zinc-700" style={{ border: '1px dashed rgba(255,255,255,0.08)' }}>
-                    글을 선택하면 여기서 순서가 정리됩니다.
+                  <div className="rounded-2xl p-4 text-center text-xs text-zinc-400" style={{ border: `1px dashed ${SECTION.selected.border}`, background: 'rgba(255,255,255,0.01)' }}>
+                    글을 선택하면 여기 순서가 정리됩니다.
                   </div>
                 )}
               </div>
-            </div>
-
-            <div className="mt-4 rounded-2xl p-4" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.18)' }}>
-              <div className="flex items-center gap-2">
-                <Sparkles size={13} className="text-violet-300" />
-                <p className="text-xs font-semibold text-violet-300">AI pipeline</p>
-              </div>
-              <p className="text-[11px] text-zinc-400 mt-1">
-                선택한 프로젝트와 글을 sourceText로 변환한 뒤 backend exportPortfolioPptx API로 PPTX를 생성합니다.
-              </p>
             </div>
 
             <div className="mt-4 flex items-center gap-2">
               <button
                 onClick={confirm}
                 disabled={!portfolioId || selectedArticleIds.length === 0}
-                className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white disabled:opacity-40"
+                className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 24px rgba(124,58,237,0.32)' }}
               >
                 선택
               </button>
               <button
                 onClick={onClose}
-                className="px-4 py-3 rounded-2xl text-sm font-semibold text-zinc-400"
+                className="px-4 py-3 rounded-2xl text-sm font-semibold text-zinc-300"
                 style={{ border: '1px solid rgba(255,255,255,0.08)' }}
               >
                 닫기
               </button>
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { apiRequest, apiRequestStrict } from './client';
+import { apiRequest, apiRequestStrict, getCurrentUserId } from './client';
 
 export type Article = {
   id: string;
@@ -204,7 +204,7 @@ export async function listExploreUsers() {
 }
 
 export async function listMessages(): Promise<ConversationCard[]> {
-  const currentUserId = Number(import.meta.env.VITE_USER_ID || 1);
+  const currentUserId = getCurrentUserId();
   const inbox = asArray<MessageItem>(
     await apiRequest({ url: '/messages/inbox', method: 'GET' }, async () => []),
   );

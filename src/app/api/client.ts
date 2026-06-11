@@ -7,19 +7,37 @@ const baseURL = rawBaseURL
     : `${rawBaseURL.replace(/\/$/, '')}/api`
   : 'http://localhost:8080/api';
 
-const userId = String(import.meta.env.VITE_USER_ID || 1);
+const defaultUserId = Number(import.meta.env.VITE_USER_ID || 1);
 const backendOrigin = baseURL.replace(/\/api$/, '');
 
-export const currentUserId = Number(userId);
+let currentUserId = defaultUserId;
+
+export function getCurrentUserId() {
+  return currentUserId;
+}
+
+export function setCurrentUserId(nextUserId: number) {
+  if (Number.isFinite(nextUserId) && nextUserId > 0) {
+    currentUserId = nextUserId;
+  }
+}
+
+export function resetCurrentUserId() {
+  currentUserId = defaultUserId;
+}
 
 export const apiClient = axios.create({
   baseURL,
   timeout: 10000,
   withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-    'X-USER-ID': userId,
-  },
+});
+
+apiClient.interceptors.request.use(config => {
+  const headers = config.headers ?? {};
+  headers['Content-Type'] = headers['Content-Type'] ?? 'application/json';
+  headers['X-USER-ID'] = String(currentUserId);
+  config.headers = headers;
+  return config;
 });
 
 export function buildOauthLoginUrl(provider: 'kakao' | 'google') {

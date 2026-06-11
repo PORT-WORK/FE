@@ -204,19 +204,28 @@ export default function Layout() {
             <div className="px-6 pt-6 pb-4 flex items-start justify-between">
               <div>
                 <p className="text-xs font-semibold text-violet-400 uppercase tracking-wider">PORT PRO</p>
-                <p className="text-xl font-black text-white mt-1">Unlimited AI portfolio generation</p>
+                <p className="text-xl font-black text-white mt-1">
+                  {language === 'ko' ? '무제한 AI 포트폴리오 생성' : 'Unlimited AI portfolio generation'}
+                </p>
               </div>
               <button onClick={() => setPayModal(false)} className="p-2 text-zinc-700 hover:text-zinc-400 rounded-xl hover:bg-white/[0.06] transition-colors"><X size={15} /></button>
             </div>
             <div className="px-6 py-4 mx-6 rounded-2xl mb-4" style={{ background: 'linear-gradient(135deg,rgba(124,58,237,0.12),rgba(37,99,235,0.08))', border: '1px solid rgba(124,58,237,0.25)' }}>
               <div className="flex items-end gap-1.5 mb-0.5">
                 <span className="text-3xl font-black text-white">$12.99</span>
-                <span className="text-sm text-zinc-500 mb-1">/month</span>
+                <span className="text-sm text-zinc-500 mb-1">{language === 'ko' ? '/월' : '/month'}</span>
               </div>
-              <p className="text-xs text-zinc-500">Monthly billing with a 20% discount on annual plans.</p>
+              <p className="text-xs text-zinc-500">
+                {language === 'ko'
+                  ? '연간 결제 시 20% 할인됩니다.'
+                  : 'Monthly billing with a 20% discount on annual plans.'}
+              </p>
             </div>
             <div className="px-6 pb-4 space-y-2.5">
-              {['Unlimited AI creation', 'Custom themes and templates', 'GitHub, Notion, and Figma integrations', 'Message and voice features', 'Priority support'].map(f => (
+              {language === 'ko'
+                ? ['무제한 AI 생성', '맞춤 테마와 템플릿', 'GitHub, Notion, Figma 연동', '메시지 및 음성 기능', '우선 지원']
+                : ['Unlimited AI creation', 'Custom themes and templates', 'GitHub, Notion, and Figma integrations', 'Message and voice features', 'Priority support']
+              .map(f => (
                 <div key={f} className="flex items-center gap-2.5">
                   <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(124,58,237,0.2)' }}>
                     <Check size={9} className="text-violet-400" />
@@ -227,10 +236,12 @@ export default function Layout() {
             </div>
             <div className="px-6 pb-6 space-y-2.5 mt-2">
               <button onClick={() => setPayModal(false)} className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 flex items-center justify-center gap-2" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 20px rgba(124,58,237,0.35)' }}>
-                <CreditCard size={15} />Start subscription
+                <CreditCard size={15} />
+                {language === 'ko' ? '구독 시작' : 'Start subscription'}
               </button>
               <button onClick={() => setPayModal(false)} className="w-full py-2.5 rounded-xl text-xs font-medium text-zinc-500 transition-all hover:text-zinc-300" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
-                <Zap size={11} className="inline mr-1.5" />Annual billing saves 20%
+                <Zap size={11} className="inline mr-1.5" />
+                {language === 'ko' ? '연간 결제 시 20% 절약' : 'Annual billing saves 20%'}
               </button>
             </div>
           </div>

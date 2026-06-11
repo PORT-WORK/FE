@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { FileText, Plus, Search, Sparkles } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
+import EmptyStatePanel from '../../components/EmptyStatePanel';
 import { listMyPortfolios, type PortfolioSummary } from '../../api/contentApi';
 
 function EmptyState({ ko, onAction }: { ko: boolean; onAction: () => void }) {
@@ -85,7 +86,14 @@ export default function PortfolioPage() {
         )}
 
         {filtered.length === 0 ? (
-          <EmptyState ko={ko} onAction={openGenerate} />
+          <EmptyStatePanel
+            emoji="📁"
+            title={ko ? '저장된 포트폴리오가 없습니다' : 'No saved portfolios yet.'}
+            description={ko ? '프로젝트 안의 글을 선택해 포트폴리오를 제작하면 여기에 보입니다.' : 'Select project posts to build a portfolio and store it here.'}
+            actionLabel={ko ? '포트폴리오 제작' : 'Create portfolio'}
+            onAction={openGenerate}
+            accent="violet"
+          />
         ) : (
           <div className="grid grid-cols-2 gap-4">
             {filtered.map(file => (
