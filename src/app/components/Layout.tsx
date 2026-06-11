@@ -64,7 +64,7 @@ export default function Layout() {
   const [notifications, setNotifications] = useState<NotifItem[]>(MOCK_NOTIFS);
   const [apiUnreadCount, setApiUnreadCount] = useState<number | null>(null);
 
-  const guestHome = !isLoggedIn && location.pathname === '/';
+  const publicHome = !isLoggedIn && location.pathname === '/';
 
   useEffect(() => {
     let alive = true;
@@ -91,9 +91,9 @@ export default function Layout() {
     ? (language === 'ko' ? '프로젝트' : 'Project')
     : t(PAGE_TITLE_KEYS[location.pathname] ?? 'nav_home');
   const unreadCount = apiUnreadCount ?? notifications.filter(n => !n.read && !readIds.has(String(n.id))).length;
-  const aiLabel = isLoggedIn ? t('ai_count_user').replace('{{n}}', String(aiCount)) : t('ai_count_guest').replace('{{n}}', String(aiCount));
+  const aiLabel = isLoggedIn ? t('ai_count_user').replace('{{n}}', String(aiCount)) : '로그인이 필요합니다';
 
-  if (guestHome) {
+  if (publicHome) {
     return (
       <div className="min-h-screen overflow-hidden" style={{ background: '#050505' }}>
         <main className="min-h-screen">
@@ -154,10 +154,10 @@ export default function Layout() {
                 </div>
               ))}
           </div>
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-zinc-700 cursor-pointer hover:bg-white/[0.04] transition-colors" onClick={() => setPayModal(true)}>
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${isLoggedIn ? 'text-zinc-700 cursor-pointer hover:bg-white/[0.04]' : 'text-zinc-500 opacity-70 cursor-default'}`} onClick={() => { if (isLoggedIn) setPayModal(true); }}>
             <Cpu size={11} />
             <span>{aiLabel}</span>
-            {aiCount >= aiLimit && <span className="ml-auto text-[9px] text-violet-400 font-semibold">PRO</span>}
+            {isLoggedIn && aiCount >= aiLimit && <span className="ml-auto text-[9px] text-violet-400 font-semibold">PRO</span>}
           </div>
           <button
             onClick={() => navigate(isLoggedIn ? '/profile' : '/login')}

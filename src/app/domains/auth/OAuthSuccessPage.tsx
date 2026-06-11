@@ -9,6 +9,7 @@ export default function OAuthSuccessPage() {
 
   useEffect(() => {
     let alive = true;
+
     void fetchCurrentUser()
       .then(() => {
         if (!alive) return;
@@ -32,8 +33,14 @@ export default function OAuthSuccessPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#050505' }}>
-      <div className="w-full max-w-sm rounded-3xl p-8 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 24px rgba(124,58,237,0.35)' }}>
+      <div
+        className="w-full max-w-sm rounded-3xl p-8 text-center"
+        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+      >
+        <div
+          className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"
+          style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 24px rgba(124,58,237,0.35)' }}
+        >
           <CheckCircle2 size={24} className="text-white" />
         </div>
         <h1 className="text-lg font-bold text-white">PORT 로그인</h1>

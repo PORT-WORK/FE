@@ -44,10 +44,6 @@ export default function LoginPage() {
           </button>
 
           <div className="space-y-2 mb-6">
-            <div className="flex items-center gap-2.5 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <Zap size={14} className="text-zinc-500" />
-              <p className="text-xs text-zinc-500">{t('login_ai_guest')}</p>
-            </div>
             <div className="flex items-center gap-2.5 p-3 rounded-xl" style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)' }}>
               <Zap size={14} className="text-violet-400" />
               <p className="text-xs text-violet-300">{t('login_ai_user')}</p>
@@ -58,9 +54,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <button onClick={() => navigate('/')} className="w-full text-center text-xs text-zinc-600 hover:text-zinc-400 transition-colors py-2">
-            {t('login_guest')}
-          </button>
         </div>
       </div>
     </div>
