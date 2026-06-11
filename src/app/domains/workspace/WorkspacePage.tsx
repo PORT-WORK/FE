@@ -10,6 +10,7 @@ export default function WorkspacePage() {
   const navigate = useNavigate();
   const { language } = useApp();
   const ko = language === 'ko';
+
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
@@ -32,7 +33,7 @@ export default function WorkspacePage() {
         setPortfolios([]);
         setSelectedPortfolioId(null);
         setProjects([]);
-        setError(ko ? '프로젝트 데이터를 불러오지 못했습니다.' : 'Failed to load projects.');
+        setError(ko ? '포트폴리오 데이터를 불러오지 못했습니다.' : 'Failed to load projects.');
       });
 
     return () => {
@@ -83,7 +84,7 @@ export default function WorkspacePage() {
 
   const emptyTitle = ko ? '프로젝트가 없습니다' : 'No projects yet';
   const emptyDescription = ko
-    ? '프로젝트를 만들면 그 안의 글을 모아서 포트폴리오로 정리할 수 있습니다.'
+    ? '프로젝트를 만들면 안의 글을 모아 포트폴리오로 정리할 수 있습니다.'
     : 'Create a project first, then organize the posts that will become a portfolio.';
 
   return (
@@ -92,11 +93,12 @@ export default function WorkspacePage() {
         open={modalOpen}
         portfolioId={selectedPortfolioId || 0}
         onClose={() => setModalOpen(false)}
-        onCreated={() => {
+        onCreated={project => {
           if (selectedPortfolioId) {
             void listPortfolioProjects(selectedPortfolioId).then(setProjects).catch(() => undefined);
           }
-          navigate('/project/editor');
+          setModalOpen(false);
+          navigate(`/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}`);
         }}
       />
 
@@ -148,13 +150,14 @@ export default function WorkspacePage() {
             {projects.map(project => (
               <button
                 key={project.id}
+                onClick={() => navigate(`/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}`)}
                 className="rounded-3xl text-left overflow-hidden transition-all duration-300 hover:-translate-y-0.5"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
               >
                 <div className="h-28" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.15), rgba(37,99,235,0.12))' }} />
                 <div className="p-5">
                   <p className="text-sm font-semibold text-white">{project.name}</p>
-                  <p className="text-xs text-zinc-500 mt-1">{project.role || (ko ? '역할 없음' : 'No role yet')}</p>
+                  <p className="text-xs text-zinc-500 mt-1">{project.role || (ko ? '직무 없음' : 'No role yet')}</p>
                   <p className="text-xs text-zinc-600 mt-3 line-clamp-2">{project.summary || (ko ? '요약 없음' : 'No summary yet.')}</p>
                   <div className="mt-4 flex items-center justify-between text-[11px] text-zinc-600">
                     <span>{Array.isArray(project.skills) ? project.skills.join(' · ') : project.skills || (ko ? '기술 없음' : 'No skills')}</span>

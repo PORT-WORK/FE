@@ -1,23 +1,21 @@
 import { useMemo, useState } from 'react';
-import { Calendar, Check, Plus, Sparkles, X } from 'lucide-react';
-import { createPortfolioProject } from '../../../api/contentApi';
+import { Calendar, Plus, Sparkles, X } from 'lucide-react';
+import { createPortfolioProject, type ProjectItem } from '../../../api/contentApi';
+import { type ProjectRole, WRITING_ROLES } from '../projectWriting';
 
 type Props = {
   open: boolean;
   portfolioId: number;
   onClose: () => void;
-  onCreated?: () => void;
+  onCreated?: (project: ProjectItem) => void;
 };
-
-const DEFAULT_CATEGORIES = ['트러블슈팅', '맡은 역할', '사용 기술', '작업 과정', '결과 및 성과', '회고'];
 
 export default function ProjectCreateModal({ open, portfolioId, onClose, onCreated }: Props) {
   const [name, setName] = useState('');
-  const [role, setRole] = useState('');
+  const [role, setRole] = useState<ProjectRole>('DEVELOPER');
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [summary, setSummary] = useState('');
   const [skills, setSkills] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,21 +23,12 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
 
   if (!open) return null;
 
-  const toggleCategory = (label: string) => {
-    setSelectedCategories(prev => (
-      prev.includes(label)
-        ? prev.filter(item => item !== label)
-        : [...prev, label]
-    ));
-  };
-
   const reset = () => {
     setName('');
-    setRole('');
+    setRole('DEVELOPER');
     setYear(String(new Date().getFullYear()));
     setSummary('');
     setSkills('');
-    setSelectedCategories([]);
     setError(null);
   };
 
@@ -49,18 +38,15 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
     setError(null);
 
     try {
-      await createPortfolioProject(portfolioId, {
+      const created = await createPortfolioProject(portfolioId, {
         name: name.trim(),
-        role: role.trim() || undefined,
-        summary: [
-          summary.trim(),
-          selectedCategories.length ? `Categories: ${selectedCategories.join(', ')}` : '',
-        ].filter(Boolean).join('\n\n') || undefined,
+        role,
+        summary: summary.trim() || undefined,
         startDate: year.trim() ? `${year}-01-01` : undefined,
         endDate: year.trim() ? `${year}-12-31` : undefined,
         skills: skills.trim() || undefined,
       });
-      onCreated?.();
+      onCreated?.(created);
       reset();
       onClose();
     } catch {
@@ -73,7 +59,7 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)' }} onClick={onClose}>
       <div
-        className="w-full max-w-xl rounded-3xl overflow-hidden shadow-2xl"
+        className="w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl"
         style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.08)' }}
         onClick={e => e.stopPropagation()}
       >
@@ -84,7 +70,7 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
               Project
             </div>
             <p className="text-lg font-black text-white">새 프로젝트</p>
-            <p className="text-xs text-zinc-500 mt-1">프로젝트 안에서 노션 글을 정리할 수 있도록 정보를 입력해 주세요.</p>
+            <p className="text-xs text-zinc-500 mt-1">프로젝트를 만든 뒤, 안의 글을 모아서 작성 화면으로 이어집니다.</p>
           </div>
           <button onClick={onClose} className="p-2 text-zinc-600 hover:text-zinc-300 rounded-xl hover:bg-white/[0.05] transition-colors">
             <X size={16} />
@@ -92,6 +78,26 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
         </div>
 
         <div className="px-6 py-6 space-y-5">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {WRITING_ROLES.map(item => {
+              const active = role === item.key;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => setRole(item.key)}
+                  className="rounded-2xl p-4 text-left transition-all"
+                  style={{
+                    background: active ? 'rgba(124,58,237,0.10)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${active ? 'rgba(124,58,237,0.28)' : 'rgba(255,255,255,0.08)'}`,
+                  }}
+                >
+                  <p className="text-sm font-bold text-white">{item.label}</p>
+                  <p className="mt-1 text-xs text-zinc-500 leading-relaxed">{item.description}</p>
+                </button>
+              );
+            })}
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-zinc-500 mb-2">프로젝트 이름 *</label>
             <input
@@ -105,16 +111,6 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-zinc-500 mb-2">역할</label>
-              <input
-                value={role}
-                onChange={e => setRole(e.target.value)}
-                placeholder="Frontend Developer"
-                className="w-full px-4 py-3 rounded-2xl text-sm text-zinc-200 outline-none"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
-              />
-            </div>
-            <div>
               <label className="block text-xs font-semibold text-zinc-500 mb-2">연도</label>
               <div className="relative">
                 <Calendar size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" />
@@ -126,6 +122,16 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
                 />
               </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-zinc-500 mb-2">기술</label>
+              <input
+                value={skills}
+                onChange={e => setSkills(e.target.value)}
+                placeholder="React, TypeScript, Node.js"
+                className="w-full px-4 py-3 rounded-2xl text-sm text-zinc-200 outline-none"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+              />
             </div>
           </div>
 
@@ -139,41 +145,6 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
               className="w-full px-4 py-3 rounded-2xl text-sm text-zinc-200 outline-none resize-none"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
             />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-zinc-500 mb-2">기술 스택</label>
-            <input
-              value={skills}
-              onChange={e => setSkills(e.target.value)}
-              placeholder="React, TypeScript, Node.js"
-              className="w-full px-4 py-3 rounded-2xl text-sm text-zinc-200 outline-none"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-zinc-500 mb-3">기본 카테고리</label>
-            <div className="flex flex-wrap gap-2">
-              {DEFAULT_CATEGORIES.map(item => {
-                const active = selectedCategories.includes(item);
-                return (
-                  <button
-                    key={item}
-                    onClick={() => toggleCategory(item)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs transition-colors"
-                    style={{
-                      background: active ? 'rgba(124,58,237,0.14)' : 'rgba(255,255,255,0.03)',
-                      border: `1px solid ${active ? 'rgba(124,58,237,0.3)' : 'rgba(255,255,255,0.08)'}`,
-                      color: active ? '#ddd6fe' : '#a1a1aa',
-                    }}
-                  >
-                    {active && <Check size={11} />}
-                    {item}
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
           {error && (
