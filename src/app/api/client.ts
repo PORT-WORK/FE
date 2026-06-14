@@ -188,6 +188,7 @@ export function fetchEventSource(url: string, options: FetchEventSourceOptions =
       const response = await fetch(url, {
         method: 'GET',
         headers: options.headers,
+        credentials: 'include',
         signal: controller.signal,
       });
       if (onopen) {

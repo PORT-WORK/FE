@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Loader2, ShieldAlert } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { connectIntegration } from '../../../api/contentApi';
+import { clearAuthTokens, getAccessToken, setAccessToken, setRefreshToken } from '../../../api/client';
+import { refreshAuthToken } from '../../../api/contentApi';
 
 type ProviderKey = 'github' | 'notion' | 'figma';
 
@@ -38,33 +40,50 @@ export default function IntegrationCallbackPage({ provider }: { provider: Provid
 
     startedRef.current = true;
 
-    const timer = { id: 0 };
     let alive = true;
+    const timer = { id: 0 };
     const code = searchParams.get('code');
     const callbackProvider = normalizeProvider(location.pathname.split('/')[2] ?? null);
     const nextProvider = callbackProvider ?? resolvedProvider;
     const workspaceUrl = searchParams.get('workspaceUrl') || sessionStorage.getItem(`${WORKSPACE_URL_KEY}:${nextProvider}`) || undefined;
 
-    if (!code) {
-      setStatus('error');
-      setMessage('Authorization code was not returned.');
-      return;
-    }
+    const run = async () => {
+      if (!code) {
+        setStatus('error');
+        setMessage('Authorization code was not returned.');
+        return;
+      }
 
-    void connectIntegration(nextProvider, code, workspaceUrl)
-      .then(() => {
+      if (!getAccessToken()) {
+        try {
+          clearAuthTokens();
+          const token = await refreshAuthToken();
+          if (token.accessToken) setAccessToken(token.accessToken);
+          if (token.refreshToken) setRefreshToken(token.refreshToken);
+        } catch {
+          if (!alive) return;
+          setStatus('error');
+          setMessage('로그인 토큰을 확인하지 못했습니다. 다시 로그인해주세요.');
+          return;
+        }
+      }
+
+      try {
+        await connectIntegration(nextProvider, code, workspaceUrl);
         if (!alive) return;
         setStatus('success');
         setMessage(`${PROVIDER_LABEL[nextProvider]} connected successfully.`);
         timer.id = window.setTimeout(() => {
           navigate('/settings', { replace: true });
         }, 700);
-      })
-      .catch(() => {
+      } catch {
         if (!alive) return;
         setStatus('error');
         setMessage(`Failed to connect ${PROVIDER_LABEL[nextProvider]}.`);
-      });
+      }
+    };
+
+    void run();
 
     return () => {
       alive = false;
@@ -81,7 +100,7 @@ export default function IntegrationCallbackPage({ provider }: { provider: Provid
         <h1 className="mt-5 text-2xl font-black text-white">
           {status === 'success' ? '연동 완료' : status === 'error' ? '연동 실패' : '연동 처리 중'}
         </h1>
-        <p className="mt-3 text-sm leading-6 text-zinc-500">{message || '잠시만 기다려 주세요.'}</p>
+        <p className="mt-3 text-sm leading-6 text-zinc-500">{message || '잠시만 기다려주세요.'}</p>
         <div className="mt-8 flex items-center justify-center gap-3">
           {status === 'error' ? (
             <button

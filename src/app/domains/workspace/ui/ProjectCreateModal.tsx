@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus, Sparkles, X } from 'lucide-react';
 import { createPortfolioProject, type ProjectItem } from '../../../api/contentApi';
 import { type ProjectRole, WRITING_ROLES } from '../projectWriting';
@@ -6,23 +6,31 @@ import { type ProjectRole, WRITING_ROLES } from '../projectWriting';
 type Props = {
   open: boolean;
   portfolioId?: number | null;
+  initialRole?: ProjectRole;
   onClose: () => void;
   onCreated?: (project: ProjectItem) => void;
 };
 
 const DEFAULT_PROJECT_NAME = '새 프로젝트';
 
-export default function ProjectCreateModal({ open, portfolioId, onClose, onCreated }: Props) {
-  const [role, setRole] = useState<ProjectRole>('DEVELOPER');
+export default function ProjectCreateModal({ open, portfolioId, initialRole = 'DEVELOPER', onClose, onCreated }: Props) {
+  const [role, setRole] = useState<ProjectRole>(initialRole);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canSubmit = useMemo(() => Boolean(role), [role]);
 
+  useEffect(() => {
+    if (open) {
+      setRole(initialRole);
+      setError(null);
+    }
+  }, [initialRole, open]);
+
   if (!open) return null;
 
   const reset = () => {
-    setRole('DEVELOPER');
+    setRole(initialRole);
     setError(null);
   };
 
@@ -57,7 +65,7 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
       reset();
       onClose();
     } catch {
-      setError('프로젝트를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setError('프로젝트를 생성하지 못했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setBusy(false);
     }
@@ -83,10 +91,8 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
               <Sparkles size={11} />
               Project
             </div>
-            <p className="text-lg font-black text-white">새 프로젝트 만들기</p>
-            <p className="mt-1 text-xs text-zinc-500">
-              직무만 먼저 선택하고, 이름과 상세 내용은 생성 후 편집 화면에서 수정합니다.
-            </p>
+            <p className="text-lg font-black text-white">프로젝트 만들기</p>
+            <p className="mt-1 text-xs text-zinc-500">직무만 먼저 선택하고 나머지는 상세 화면에서 작성할 수 있습니다.</p>
           </div>
           <button
             onClick={onClose}
