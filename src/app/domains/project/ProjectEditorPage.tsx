@@ -188,6 +188,13 @@ export default function ProjectEditorPage() {
     };
   }, [projectId, sectionMeta]);
 
+  useEffect(() => {
+    if (loading || !projectId) return;
+    if (session?.selectedSourceIds?.length) return;
+    if (sourceModalOpen) return;
+    setSourceModalOpen(true);
+  }, [loading, projectId, session?.selectedSourceIds?.length, sourceModalOpen]);
+
   const completedCount = useMemo(() => countCompletedSections(sectionDrafts), [sectionDrafts]);
   const progress = useMemo(() => {
     if (sectionMeta.length === 0) return 0;
@@ -260,11 +267,46 @@ export default function ProjectEditorPage() {
   };
 
   const handleSelectSources = async (payload: { provider: SourceProvider; sourceIds: string[] }) => {
-    if (!projectId || !portfolioId || draftMode) {
-      setSourceError(ko ? '포트폴리오가 생성된 뒤 외부 자료를 연결할 수 있습니다.' : 'Connect a portfolio first to use external sources.');
+    if (!projectId) {
+      setSourceError('Create a project first.');
       return;
     }
     setSourceError(null);
+
+    if (draftMode || !portfolioId) {
+      setSession(prev => ({
+        ...(prev || {
+          projectId,
+          portfolioId: portfolioId || 0,
+          projectName,
+          role,
+          status: 'WRITING',
+          progress,
+          sectionDrafts: Object.fromEntries(Object.entries(sectionDrafts).map(([key, item]) => [key, item.value])),
+          sectionStatuses: Object.fromEntries(Object.entries(sectionDrafts).map(([key, item]) => [key, item.status])),
+          sourceSnapshot: {},
+          selectedProvider: payload.provider.toUpperCase(),
+          selectedSourceIds: payload.sourceIds,
+          selectedProjectIds: [],
+          selectedDocumentIds: [],
+          documentText: null,
+          reviewedDocument: null,
+          presentationJson: null,
+          lastError: null,
+          lastSavedAt: new Date().toISOString(),
+        }),
+        sourceSnapshot: {
+          provider: payload.provider.toUpperCase(),
+          sources: payload.sourceIds.map(id => ({ resourceId: id, title: id, kind: 'SOURCE', summary: id, tags: [], raw: {} })),
+        },
+        selectedProvider: payload.provider.toUpperCase(),
+        selectedSourceIds: payload.sourceIds,
+        lastSavedAt: new Date().toISOString(),
+      }));
+      setSourceModalOpen(false);
+      return;
+    }
+
     try {
       const next = await selectProjectWritingSources(projectId, {
         portfolioId,
@@ -276,7 +318,7 @@ export default function ProjectEditorPage() {
       setPreviewBlob(null);
       setError(next.lastError || null);
     } catch {
-      setSourceError(ko ? '자료를 연결하지 못했습니다.' : 'Failed to apply selected sources.');
+      setSourceError(ko ? '??????????? ????????' : 'Failed to apply selected sources.');
     }
   };
 

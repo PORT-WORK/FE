@@ -35,6 +35,7 @@ export type PortfolioSummary = {
   thumbnailUrl: string | null;
   summary: string | null;
   skills: string[];
+  pptxUrl: string | null;
   isPublic: boolean;
   viewCount: number;
   likeCount: number;
@@ -50,6 +51,7 @@ export type PortfolioDetail = {
   summary: string | null;
   skills: string[];
   templateId: number | null;
+  pptxUrl: string | null;
   customDomain: string | null;
   isPublic: boolean;
   viewCount: number;
@@ -345,6 +347,10 @@ export async function fetchPublicProfile(userId: number) {
     { url: `/users/${userId}`, method: 'GET' },
     async () => ({ id: userId, name: `User ${userId}`, profileImageUrl: null, location: null, experienceYears: null, bio: null, email: null }),
   );
+}
+
+export async function fetchPublicUserPortfolios(userId: number) {
+  return apiRequestStrict<PortfolioSummary[]>({ url: `/users/${userId}/portfolios`, method: 'GET' });
 }
 
 export async function fetchSettings() {

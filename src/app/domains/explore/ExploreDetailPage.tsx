@@ -1,43 +1,84 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Briefcase, Image as ImageIcon, MessageSquare, Star } from 'lucide-react';
-import { fetchPortfolioDetail, listPortfolioProjects, type PortfolioDetail, type ProjectItem } from '../../api/contentApi';
+import { ArrowLeft, ChevronLeft, ChevronRight, Image as ImageIcon, LayoutGrid, MessageSquare, Sparkles, User } from 'lucide-react';
+import { fetchPortfolioData, fetchPortfolioDetail, fetchPublicProfile, fetchPublicUserPortfolios, type PortfolioDataResponse, type PortfolioDetail, type PortfolioSummary, type PublicUserProfile } from '../../api/contentApi';
+import { useApp } from '../../contexts/AppContext';
 
-function splitSkills(value?: string | null) {
-  if (!value) return [];
-  return value
-    .split(/[,/|·]/g)
-    .map(item => item.trim())
-    .filter(Boolean);
-}
+type SlideCard = {
+  title: string;
+  subtitle: string;
+  body: string[];
+  accent: string;
+};
 
-function formatPeriod(project: ProjectItem) {
-  const start = project.startDate ? new Date(project.startDate).getFullYear() : '';
-  const end = project.endDate ? new Date(project.endDate).getFullYear() : '';
-  if (start && end) return `${start} - ${end}`;
-  return start || end || 'Now';
+function makeSlides(data: PortfolioDataResponse): SlideCard[] {
+  const slides: SlideCard[] = [];
+  slides.push({
+    title: data.portfolio.title,
+    subtitle: data.portfolio.jobRole || 'Portfolio',
+    body: [
+      data.portfolio.summary || 'No summary yet.',
+      ...(data.portfolio.skills || []).map(skill => `# ${skill}`),
+    ],
+    accent: 'from-violet-500/25 via-blue-500/20 to-cyan-400/10',
+  });
+
+  data.projects.forEach((projectData, index) => {
+    const docs = projectData.documents
+      .map(item => item.document.title)
+      .filter(Boolean)
+      .slice(0, 5);
+    slides.push({
+      title: projectData.project.name,
+      subtitle: projectData.project.role || `Project ${index + 1}`,
+      body: [
+        projectData.project.summary || 'No project summary.',
+        ...docs.map(doc => `• ${doc}`),
+      ],
+      accent: index % 2 === 0 ? 'from-fuchsia-500/20 via-violet-500/15 to-indigo-500/10' : 'from-emerald-500/20 via-teal-500/15 to-cyan-500/10',
+    });
+  });
+
+  if (slides.length === 0) {
+    slides.push({
+      title: 'No portfolio content',
+      subtitle: 'Empty deck',
+      body: ['The selected portfolio has no content yet.'],
+      accent: 'from-zinc-500/15 via-zinc-400/10 to-zinc-300/5',
+    });
+  }
+
+  return slides;
 }
 
 export default function ExploreDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const portfolioId = Number(id);
-  const [portfolio, setPortfolio] = useState<PortfolioDetail | null>(null);
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const { language } = useApp();
+  const ko = language === 'ko';
+  const userId = Number(id);
+
+  const [profile, setProfile] = useState<PublicUserProfile | null>(null);
+  const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
+  const [selectedPortfolioData, setSelectedPortfolioData] = useState<PortfolioDataResponse | null>(null);
+  const [selectedPortfolioDetail, setSelectedPortfolioDetail] = useState<PortfolioDetail | null>(null);
+  const [slideIndex, setSlideIndex] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!portfolioId || Number.isNaN(portfolioId)) return;
+    if (!userId || Number.isNaN(userId)) return;
     let alive = true;
 
     Promise.all([
-      fetchPortfolioDetail(portfolioId),
-      listPortfolioProjects(portfolioId).catch(() => [] as ProjectItem[]),
+      fetchPublicProfile(userId),
+      fetchPublicUserPortfolios(userId).catch(() => [] as PortfolioSummary[]),
     ])
-      .then(([detail, projectRows]) => {
+      .then(([user, userPortfolios]) => {
         if (!alive) return;
-        setPortfolio(detail);
-        setProjects(projectRows);
+        setProfile(user);
+        setPortfolios(userPortfolios);
+        setSelectedPortfolioId(userPortfolios[0]?.id ?? null);
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -46,143 +87,250 @@ export default function ExploreDetailPage() {
     return () => {
       alive = false;
     };
-  }, [portfolioId]);
+  }, [userId]);
 
-  const skills = useMemo(() => splitSkills(portfolio?.skills), [portfolio?.skills]);
+  useEffect(() => {
+    if (!selectedPortfolioId) {
+      setSelectedPortfolioData(null);
+      setSelectedPortfolioDetail(null);
+      return;
+    }
+    let alive = true;
+    setSlideIndex(0);
+    Promise.all([
+      fetchPortfolioDetail(selectedPortfolioId),
+      fetchPortfolioData(selectedPortfolioId).catch(() => null),
+    ])
+      .then(([detail, data]) => {
+        if (!alive) return;
+        setSelectedPortfolioDetail(detail);
+        setSelectedPortfolioData(data);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setSelectedPortfolioDetail(null);
+        setSelectedPortfolioData(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [selectedPortfolioId]);
+
+  const slides = useMemo(() => {
+    if (!selectedPortfolioData) return [];
+    return makeSlides(selectedPortfolioData);
+  }, [selectedPortfolioData]);
+
+  useEffect(() => {
+    if (slideIndex >= slides.length) {
+      setSlideIndex(0);
+    }
+  }, [slideIndex, slides.length]);
+
+  const currentSlide = slides[slideIndex] || null;
 
   return (
-    <div className="px-8 py-8 overflow-y-auto" style={{ background: '#050505', minHeight: '100%' }}>
-      <div className="mx-auto max-w-5xl">
-        <button onClick={() => navigate('/explore')} className="mb-5 flex items-center gap-2 text-xs text-zinc-600 transition-colors hover:text-zinc-300">
-          <ArrowLeft size={12} />
-          Back to explore
+    <div className="min-h-full overflow-y-auto px-6 py-6 lg:px-8" style={{ background: '#050505' }}>
+      <div className="mx-auto max-w-[1500px] space-y-6">
+        <button
+          onClick={() => navigate('/explore')}
+          className="inline-flex items-center gap-2 text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+        >
+          <ArrowLeft size={14} />
+          {ko ? '탐색으로 돌아가기' : 'Back to explore'}
         </button>
 
-        <div className="overflow-hidden rounded-[28px]" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="h-56 bg-gradient-to-br from-violet-500/20 via-blue-500/15 to-cyan-400/10" />
-          <div className="px-6 pb-6">
-            <div className="-mt-14 flex items-end gap-4">
-              <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[28px] ring-4 ring-[#050505]" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-                {portfolio?.thumbnailUrl ? (
-                  <img src={portfolio.thumbnailUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <ImageIcon size={34} className="text-white/90" />
-                )}
-              </div>
-              <div className="pb-1">
-                <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Portfolio</p>
-                <h1 className="mt-2 text-3xl font-black text-white">{loading ? 'Loading...' : portfolio?.title || 'Portfolio detail'}</h1>
-                <p className="mt-1 text-sm text-zinc-500">{portfolio?.jobRole || 'Role not set'}</p>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="rounded-[24px] border border-white/6 bg-white/[0.02] p-5">
-                <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-white">
-                  <Briefcase size={14} className="text-violet-400" />
-                  프로젝트
-                </div>
-                <div className="space-y-3">
-                  {projects.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-white/8 px-4 py-6 text-center text-sm text-zinc-600">
-                      아직 프로젝트가 없습니다.
-                    </div>
-                  ) : (
-                    projects.map(project => (
-                      <div key={project.id} className="rounded-2xl border border-white/6 bg-white/[0.02] p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-white">{project.name}</p>
-                            <p className="mt-1 text-xs text-zinc-500">{project.role} · {formatPeriod(project)}</p>
-                          </div>
-                          <span className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                            {project.isSynced ? 'SYNCED' : 'LOCAL'}
-                          </span>
-                        </div>
-                        {project.summary && <p className="mt-3 text-xs leading-6 text-zinc-500">{project.summary}</p>}
-                        {project.skills?.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {project.skills.map(skill => (
-                              <span key={skill} className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] text-zinc-400">{skill}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="rounded-[24px] border border-white/6 bg-white/[0.02] p-5">
-                  <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-white">
-                    <ImageIcon size={14} className="text-blue-400" />
-                    사진
-                  </div>
-                  <div className="overflow-hidden rounded-2xl border border-white/8 bg-black/20">
-                    {portfolio?.thumbnailUrl ? (
-                      <img src={portfolio.thumbnailUrl} alt="" className="h-44 w-full object-cover" />
+        <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)_360px]">
+          <aside className="space-y-4">
+            <div className="overflow-hidden rounded-[28px] border border-white/8 bg-white/[0.03]">
+              <div className="h-28 bg-gradient-to-br from-violet-500/30 via-blue-500/20 to-cyan-400/10" />
+              <div className="-mt-10 px-5 pb-5">
+                <div className="flex items-end gap-3">
+                  <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-[22px] ring-4 ring-[#050505]" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
+                    {profile?.profileImageUrl ? (
+                      <img src={profile.profileImageUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="flex h-44 items-center justify-center text-sm text-zinc-600">대표 이미지 없음</div>
+                      <User size={26} className="text-white" />
                     )}
                   </div>
+                  <div className="pb-1">
+                    <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">{ko ? '프로필' : 'Profile'}</p>
+                    <h1 className="mt-2 text-xl font-black text-white">{profile?.name || (ko ? '불러오는 중...' : 'Loading...')}</h1>
+                    <p className="text-sm text-zinc-500">{profile?.location || (ko ? '위치 정보 없음' : 'No location')}</p>
+                  </div>
                 </div>
 
-                <div className="rounded-[24px] border border-white/6 bg-white/[0.02] p-5">
-                  <p className="mb-4 text-sm font-semibold text-white">정보</p>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-zinc-500">공개 여부</span>
-                      <span className="text-zinc-300">{portfolio?.isPublic ? 'Public' : 'Private'}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-zinc-500">조회수</span>
-                      <span className="text-zinc-300">{portfolio?.viewCount ?? 0}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-zinc-500">좋아요</span>
-                      <span className="text-zinc-300">{portfolio?.likeCount ?? 0}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-zinc-500">저장</span>
-                      <span className="text-zinc-300">{portfolio?.bookmarkCount ?? 0}</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => navigate('/messages')}
-                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors"
-                    style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-                  >
-                    <MessageSquare size={13} />
-                    메시지
-                  </button>
-                </div>
+                <p className="mt-4 text-sm leading-6 text-zinc-400">{profile?.bio || (ko ? '소개가 없습니다.' : 'No bio available.')}</p>
 
-                <div className="rounded-[24px] border border-white/6 bg-white/[0.02] p-5">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
-                    <Star size={14} className="text-amber-400" />
-                    기술 스택
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{ko ? '포트폴리오' : 'Portfolios'}</p>
+                    <p className="mt-2 text-lg font-black text-white">{portfolios.length}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {skills.length === 0 ? (
-                      <span className="text-sm text-zinc-600">스택 정보가 없습니다.</span>
-                    ) : skills.map(skill => (
-                      <span key={skill} className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-300">
-                        {skill}
-                      </span>
-                    ))}
+                  <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{ko ? '경력' : 'Experience'}</p>
+                    <p className="mt-2 text-lg font-black text-white">{profile?.experienceYears ?? 0}{ko ? '년' : 'y'}</p>
                   </div>
                 </div>
               </div>
             </div>
+          </aside>
 
-            {portfolio?.summary && (
-              <div className="mt-4 rounded-[24px] border border-white/6 bg-white/[0.02] p-5">
-                <p className="mb-2 text-sm font-semibold text-white">소개</p>
-                <p className="text-sm leading-7 text-zinc-400">{portfolio.summary}</p>
+          <main className="space-y-4">
+            <div className="rounded-[30px] border border-white/8 bg-white/[0.03] p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">{ko ? 'PPT 보기' : 'PPT viewer'}</p>
+                  <h2 className="mt-2 text-3xl font-black text-white">{selectedPortfolioDetail?.title || (ko ? '포트폴리오를 선택하세요' : 'Select a portfolio')}</h2>
+                  <p className="mt-1 text-sm text-zinc-500">{selectedPortfolioDetail?.jobRole || (ko ? '오른쪽 목록에서 포트폴리오를 선택하면 슬라이드가 나타납니다.' : 'Choose a portfolio from the list to preview its slides.')}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSlideIndex(prev => Math.max(0, prev - 1))}
+                    disabled={slides.length === 0}
+                    className="rounded-xl border border-white/8 p-2 text-zinc-400 transition-colors hover:bg-white/[0.04] disabled:opacity-40"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    onClick={() => setSlideIndex(prev => Math.min(Math.max(slides.length - 1, 0), prev + 1))}
+                    disabled={slides.length === 0}
+                    className="rounded-xl border border-white/8 p-2 text-zinc-400 transition-colors hover:bg-white/[0.04] disabled:opacity-40"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+
+            <div className="overflow-hidden rounded-[32px] border border-white/8 bg-white/[0.03] p-6">
+              {currentSlide ? (
+                <div className="grid min-h-[640px] gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                  <div className={`rounded-[28px] bg-gradient-to-br ${currentSlide.accent} p-6`} style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div className="flex h-full flex-col justify-between">
+                      <div>
+                        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-white/80">
+                          <LayoutGrid size={12} />
+                          {ko ? '슬라이드' : 'Slide'} {slideIndex + 1}
+                        </div>
+                        <h3 className="text-4xl font-black leading-tight text-white">{currentSlide.title}</h3>
+                        <p className="mt-3 text-sm text-white/70">{currentSlide.subtitle}</p>
+                      </div>
+                      <div className="mt-10 space-y-3">
+                        {currentSlide.body.map(line => (
+                          <div key={line} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm leading-6 text-white/85">
+                            {line}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <div className="rounded-[28px] border border-white/8 bg-black/20 p-5">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                        <ImageIcon size={14} className="text-blue-300" />
+                        {ko ? '포트폴리오 목록' : 'Portfolio list'}
+                      </div>
+                      <div className="mt-4 grid gap-3">
+                        {portfolios.map(item => {
+                          const active = item.id === selectedPortfolioId;
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => setSelectedPortfolioId(item.id)}
+                              className="rounded-2xl p-4 text-left transition-all"
+                              style={{
+                                background: active ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.02)',
+                                border: `1px solid ${active ? 'rgba(124,58,237,0.28)' : 'rgba(255,255,255,0.06)'}`,
+                              }}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-white">{item.title}</p>
+                                  <p className="mt-1 text-xs text-zinc-500">{item.jobRole}</p>
+                                </div>
+                                {item.pptxUrl && <Sparkles size={14} className="text-violet-300" />}
+                              </div>
+                              {item.summary && <p className="mt-3 line-clamp-2 text-xs leading-5 text-zinc-500">{item.summary}</p>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[28px] border border-white/8 bg-black/20 p-5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-white">{ko ? '선택된 포트폴리오' : 'Selected portfolio'}</p>
+                        <span className="text-xs text-zinc-500">{slideIndex + 1} / {slides.length}</span>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-zinc-500">
+                        {selectedPortfolioDetail?.summary || (ko ? '선택된 PPT를 크게 확인할 수 있습니다.' : 'You can inspect the selected PPT in detail here.')}
+                      </p>
+                      <div className="mt-4 flex gap-2">
+                        <button
+                          onClick={() => navigate('/messages')}
+                          className="flex-1 rounded-2xl px-4 py-3 text-sm font-semibold text-white"
+                          style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                        >
+                          <MessageSquare size={14} className="mr-2 inline-block" />
+                          {ko ? '메시지' : 'Message'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex min-h-[640px] items-center justify-center rounded-[28px] border border-dashed border-white/10 bg-black/20 text-center">
+                  <div>
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-violet-500/20 bg-violet-500/10 text-violet-300">
+                      <Sparkles size={22} />
+                    </div>
+                    <p className="text-lg font-semibold text-white">{ko ? '포트폴리오를 선택하세요' : 'Select a portfolio'}</p>
+                    <p className="mt-2 text-sm text-zinc-500">{ko ? '오른쪽에서 포트폴리오를 고르면 슬라이드가 표시됩니다.' : 'Pick a portfolio from the right panel to see its slides.'}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </main>
+
+          <aside className="space-y-4">
+            <div className="rounded-[30px] border border-white/8 bg-white/[0.03] p-5">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                <User size={14} className="text-violet-300" />
+                {ko ? '프로필' : 'Profile'}
+              </div>
+              <div className="mt-4 overflow-hidden rounded-3xl border border-white/8 bg-black/20">
+                <div className="h-24 bg-gradient-to-br from-violet-500/25 via-blue-500/20 to-cyan-500/10" />
+                <div className="-mt-8 px-4 pb-4">
+                  <div className="flex items-end gap-3">
+                    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border-4 border-[#050505]" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
+                      {profile?.profileImageUrl ? <img src={profile.profileImageUrl} alt="" className="h-full w-full object-cover" /> : <User size={20} className="text-white" />}
+                    </div>
+                    <div className="pb-1">
+                      <p className="text-lg font-black text-white">{profile?.name || '-'}</p>
+                      <p className="text-xs text-zinc-500">{profile?.email || ''}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-2">
+                <div className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm">
+                  <span className="text-zinc-500">{ko ? '직무' : 'Role'}</span>
+                  <span className="text-zinc-200">{selectedPortfolioDetail?.jobRole || '-'}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm">
+                  <span className="text-zinc-500">{ko ? '공개' : 'Public'}</span>
+                  <span className="text-zinc-200">{selectedPortfolioDetail?.isPublic ? 'Yes' : 'No'}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm">
+                  <span className="text-zinc-500">{ko ? '슬라이드 수' : 'Slides'}</span>
+                  <span className="text-zinc-200">{slides.length}</span>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
     </div>

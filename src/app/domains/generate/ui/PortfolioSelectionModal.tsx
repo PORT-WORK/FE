@@ -142,13 +142,13 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
 
   return (
     <div
-      className="fixed inset-0 z-[350] flex items-center justify-center px-4"
+      className="fixed inset-0 z-[350] flex items-start justify-center overflow-y-auto px-4 py-6"
       style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(12px)' }}
       onClick={onClose}
     >
       <div
         className="w-full max-w-6xl rounded-[30px] overflow-hidden shadow-2xl"
-        style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.08)' }}
+        style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.08)', maxHeight: 'calc(100vh - 3rem)' }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-start justify-between px-7 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -164,13 +164,13 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
           </button>
         </div>
 
-        <div className="grid grid-cols-[280px_1fr_330px] gap-0 min-h-[660px]">
+        <div className="grid h-full grid-cols-[280px_1fr_330px] gap-0 min-h-[660px]">
           <section className="p-4" style={{ borderRight: '1px solid rgba(255,255,255,0.06)', background: 'linear-gradient(180deg, rgba(34,211,238,0.06), rgba(255,255,255,0.01))' }}>
             <div className="flex items-center justify-between mb-3">
               <span className={`text-[10px] uppercase tracking-[0.28em] ${SECTION.project.accent}`}>{SECTION.project.title}</span>
               <span className="text-[10px] text-zinc-500">{loading ? '...' : projects.length}</span>
             </div>
-            <div className="space-y-2 overflow-y-auto max-h-[600px] pr-1">
+            <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 'calc(100vh - 12rem)' }}>
               {projects.map(project => {
                 const active = selectedProjectIds.includes(project.id);
                 return (
@@ -207,7 +207,7 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
               <span className={`text-[10px] uppercase tracking-[0.28em] ${SECTION.posts.accent}`}>{SECTION.posts.title}</span>
               <span className="text-[10px] text-zinc-500">{documents.length}</span>
             </div>
-            <div className="space-y-2 overflow-y-auto max-h-[600px] pr-1">
+            <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 'calc(100vh - 12rem)' }}>
               {documents.map(item => {
                 const id = String(item.document.id);
                 const active = selectedArticleIds.includes(id);

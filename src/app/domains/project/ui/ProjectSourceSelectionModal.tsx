@@ -129,9 +129,10 @@ export default function ProjectSourceSelectionModal({ open, initialProvider = 'g
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[320] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md" onClick={onClose}>
+    <div className="fixed inset-0 z-[320] flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-6 backdrop-blur-md" onClick={onClose}>
       <div
         className="w-full max-w-6xl overflow-hidden rounded-[32px] border border-white/10 bg-[#090909] shadow-2xl shadow-black/50"
+        style={{ maxHeight: 'calc(100vh - 3rem)' }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-start justify-between border-b border-white/6 px-6 py-5">
@@ -150,9 +151,9 @@ export default function ProjectSourceSelectionModal({ open, initialProvider = 'g
           </button>
         </div>
 
-        <div className="grid min-h-[680px] grid-cols-[250px_1fr_320px]">
+        <div className="grid h-full min-h-[680px] grid-cols-[250px_1fr_320px]">
           <aside className="border-r border-white/6 p-4">
-            <div className="space-y-2">
+            <div className="max-h-[calc(100vh-12rem)] space-y-2 overflow-y-auto pr-1">
               {PROVIDERS.map(item => {
                 const active = provider === item.key;
                 const isConnected = Boolean(connections[item.key]);
@@ -213,7 +214,7 @@ export default function ProjectSourceSelectionModal({ open, initialProvider = 'g
               </div>
             )}
 
-            <div className="space-y-2">
+            <div className="max-h-[calc(100vh-16rem)] space-y-2 overflow-y-auto pr-1">
               {loading ? (
                 <div className="flex min-h-[420px] items-center justify-center rounded-3xl border border-white/6 bg-white/[0.02] text-sm text-zinc-500">
                   <Loader2 size={16} className="mr-2 animate-spin" />

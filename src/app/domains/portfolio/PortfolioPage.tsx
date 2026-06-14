@@ -8,7 +8,7 @@ import { listMyPortfolios, type PortfolioSummary } from '../../api/contentApi';
 function EmptyState({ ko, onAction }: { ko: boolean; onAction: () => void }) {
   return (
     <div
-      className="w-full min-h-[560px] rounded-3xl p-12 flex flex-col items-center justify-center text-center"
+      className="flex min-h-[560px] w-full flex-col items-center justify-center rounded-3xl p-12 text-center"
       style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
     >
       <div
@@ -17,15 +17,15 @@ function EmptyState({ ko, onAction }: { ko: boolean; onAction: () => void }) {
       >
         <span className="text-2xl">📁</span>
       </div>
-      <p className="text-lg font-semibold text-white mb-2">{ko ? '저장된 포트폴리오가 없습니다' : 'No saved portfolios yet.'}</p>
-      <p className="text-sm text-zinc-600 max-w-md mx-auto">{ko ? '프로젝트 안의 글을 선택해 포트폴리오를 제작하면 여기에 보입니다.' : 'Select project posts to build a portfolio and store it here.'}</p>
+      <p className="mb-2 text-lg font-semibold text-white">{ko ? '저장된 포트폴리오가 없습니다' : 'No saved portfolios yet.'}</p>
+      <p className="mx-auto max-w-md text-sm text-zinc-600">{ko ? '프로젝트 안의 글을 선택해 포트폴리오로 만들면 여기에 표시됩니다.' : 'Select project posts to build a portfolio and store it here.'}</p>
       <button
         onClick={onAction}
-        className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
+        className="mt-6 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white"
         style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
       >
         <Sparkles size={14} />
-        {ko ? '포트폴리오 제작' : 'Create portfolio'}
+        {ko ? '포트폴리오 생성하기' : 'Create portfolio'}
       </button>
     </div>
   );
@@ -54,32 +54,34 @@ export default function PortfolioPage() {
   const openGenerate = () => navigate('/generate');
 
   return (
-    <div className="h-full flex" style={{ background: '#050505' }}>
-      <div className="flex-1 px-8 py-8 overflow-y-auto">
+    <div className="flex h-full" style={{ background: '#050505' }}>
+      <div className="flex-1 overflow-y-auto px-8 py-8">
         {(hasFiles || search) && (
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="relative flex-1 max-w-sm">
+              <div className="relative max-w-sm flex-1">
                 <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder={ko ? '파일 검색...' : 'Search files...'}
-                  className="w-full pl-8 pr-3 py-2 text-xs text-zinc-300 placeholder-zinc-700 rounded-xl focus:outline-none"
+                  className="w-full rounded-xl py-2 pl-8 pr-3 text-xs text-zinc-300 placeholder-zinc-700 focus:outline-none"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
                 />
               </div>
-              <div className="text-xs text-zinc-600">{filtered.length} {ko ? '개 파일' : 'files'}</div>
+              <div className="text-xs text-zinc-600">
+                {filtered.length} {ko ? '개 파일' : 'files'}
+              </div>
             </div>
 
             {hasFiles && (
               <button
                 onClick={openGenerate}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl"
+                className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white"
                 style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
               >
                 <Plus size={14} />
-                {ko ? '포트폴리오 제작' : 'Create portfolio'}
+                {ko ? '포트폴리오 생성하기' : 'Create portfolio'}
               </button>
             )}
           </div>
@@ -89,8 +91,8 @@ export default function PortfolioPage() {
           <EmptyStatePanel
             emoji="📁"
             title={ko ? '저장된 포트폴리오가 없습니다' : 'No saved portfolios yet.'}
-            description={ko ? '프로젝트 안의 글을 선택해 포트폴리오를 제작하면 여기에 보입니다.' : 'Select project posts to build a portfolio and store it here.'}
-            actionLabel={ko ? '포트폴리오 제작' : 'Create portfolio'}
+            description={ko ? '프로젝트 안의 글을 선택해 포트폴리오로 만들면 여기에 표시됩니다.' : 'Select project posts to build a portfolio and store it here.'}
+            actionLabel={ko ? '포트폴리오 생성하기' : 'Create portfolio'}
             onAction={openGenerate}
             accent="violet"
           />
@@ -100,15 +102,15 @@ export default function PortfolioPage() {
               <button
                 key={file.id}
                 onClick={() => navigate('/workspace', { state: { portfolioId: file.id } })}
-                className="rounded-2xl overflow-hidden text-left transition-all duration-300 hover:-translate-y-0.5"
+                className="overflow-hidden rounded-2xl text-left transition-all duration-300 hover:-translate-y-0.5"
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
               >
-                <div className="h-32 flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                <div className="flex h-32 items-center justify-center" style={{ background: 'rgba(255,255,255,0.03)' }}>
                   <FileText size={28} className="text-zinc-700" />
                 </div>
                 <div className="p-5">
-                  <p className="text-sm font-semibold text-white mb-1">{file.title}</p>
-                  <p className="text-xs text-zinc-500 mb-3">{file.jobRole}</p>
+                  <p className="mb-1 text-sm font-semibold text-white">{file.title}</p>
+                  <p className="mb-3 text-xs text-zinc-500">{file.jobRole}</p>
                   <div className="flex items-center gap-2 text-xs text-zinc-600">
                     <Sparkles size={12} />
                     {ko ? '생성된 결과물' : 'Published result'}

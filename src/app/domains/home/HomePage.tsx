@@ -3,52 +3,54 @@ import { Check, Sparkles, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useApp } from '../../contexts/AppContext';
 
-const HOME_COPY = {
+const COPY = {
   ko: {
     badge: 'PORT Project Builder',
     titleMain: '프로젝트를 만들고',
     titleAccent: '글쓰기 흐름을 바로 시작하세요',
     subtitle: '프로젝트, 글, 작업 기록을 연결하면 PORT가 구조를 정리하고 바로 작성할 수 있게 도와줍니다.',
-    placeholder: '배경과 강점을 입력해보세요...',
-    ctrlEnter: 'Ctrl + Enter로 시작할 수 있습니다.',
+    button: '포트폴리오 생성하기',
     steps: [
       { label: '자료 연결', detail: '프로젝트, 글, 기술 정보를 연결합니다.' },
       { label: '작업 정리', detail: 'AI가 경험을 섹션 단위로 정리합니다.' },
       { label: '결과 생성', detail: '정리된 내용을 PPTX로 변환합니다.' },
     ],
     templates: [
-      { id: 'dev', label: '개발자', emoji: '💻', desc: '기술 중심 프로젝트 구성' },
+      { id: 'developer', label: '개발자', emoji: '💻', desc: '기술 중심 프로젝트 구성' },
       { id: 'pm', label: 'PM', emoji: '📋', desc: '문제 해결과 기획 흐름 중심' },
     ],
-    free: ['3 포트폴리오 파일 저장', '3회 AI 포트폴리오 제작'],
-    freeBtn: '무료 시작',
-    proBtn: 'Pro 시작',
+    freeLabel: '무료',
+    freeFeatures: ['3 포트폴리오 파일 저장', '3회 AI 포트폴리오 제작'],
+    freeButton: '무료 시작',
     proFeatures: ['10 포트폴리오 파일 저장', '30회 AI 포트폴리오 제작'],
+    proButton: 'Pro 시작',
     footer: 'AI 생성 결과는 참고용입니다. 발행 전 반드시 검토해 주세요.',
-    pricing: { free: '무료', pro: 'Popular' },
+    month: '/월',
+    popular: 'Popular',
   },
   en: {
     badge: 'PORT Project Builder',
     titleMain: 'Build your project',
     titleAccent: 'and start writing right away',
     subtitle: 'Connect your projects, posts, and work history, and PORT will organize the structure for you.',
-    placeholder: 'Describe your background and strengths...',
-    ctrlEnter: 'Press Ctrl + Enter to continue.',
+    button: 'Create portfolio',
     steps: [
       { label: 'Connect data', detail: 'Link project, post, and skill information.' },
       { label: 'Organize work', detail: 'AI turns your experience into sections.' },
       { label: 'Generate result', detail: 'Convert the draft into PPTX.' },
     ],
     templates: [
-      { id: 'dev', label: 'Developer', emoji: '💻', desc: 'Tech-focused structure' },
+      { id: 'developer', label: 'Developer', emoji: '💻', desc: 'Tech-focused structure' },
       { id: 'pm', label: 'PM', emoji: '📋', desc: 'Planning and problem-solving flow' },
     ],
-    free: ['3 portfolio files stored', '3 AI portfolio generations'],
-    freeBtn: 'Start free',
-    proBtn: 'Start Pro',
+    freeLabel: 'Free',
+    freeFeatures: ['3 portfolio files stored', '3 AI portfolio generations'],
+    freeButton: 'Start free',
     proFeatures: ['10 portfolio files stored', '30 AI portfolio generations'],
+    proButton: 'Start Pro',
     footer: 'AI output is for reference only. Please review before publishing.',
-    pricing: { free: 'Free', pro: 'Popular' },
+    month: '/month',
+    popular: 'Popular',
   },
 } as const;
 
@@ -57,7 +59,7 @@ export default function HomePage() {
   const { setPayModal, isLoggedIn, language } = useApp();
   const [activeStep, setActiveStep] = useState(0);
   const ko = language === 'ko';
-  const copy = ko ? HOME_COPY.ko : HOME_COPY.en;
+  const copy = ko ? COPY.ko : COPY.en;
 
   useEffect(() => {
     const timer = setInterval(() => setActiveStep(prev => (prev + 1) % copy.steps.length), 1800);
@@ -100,7 +102,7 @@ export default function HomePage() {
                 style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 24px rgba(124,58,237,0.3)' }}
               >
                 <Sparkles size={16} />
-                {ko ? '포트폴리오 생성하기' : 'Create portfolio'}
+                {copy.button}
               </button>
             </div>
           </div>
@@ -140,13 +142,13 @@ export default function HomePage() {
 
         <div className="mt-10 grid gap-5 md:grid-cols-2">
           <div className="rounded-2xl border p-7" style={{ borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(124,58,237,0.06)' }}>
-            <p className="mb-3 text-xs uppercase tracking-wider text-violet-300">{copy.pricing.free}</p>
+            <p className="mb-3 text-xs uppercase tracking-wider text-violet-300">{copy.freeLabel}</p>
             <div className="mb-5 flex items-end gap-2">
               <span className="text-4xl font-black text-white">$0</span>
-              <span className="mb-1 text-sm text-zinc-600">/ month</span>
+              <span className="mb-1 text-sm text-zinc-600">{copy.month}</span>
             </div>
             <ul className="mb-6 space-y-2">
-              {copy.free.map(item => (
+              {copy.freeFeatures.map(item => (
                 <li key={item} className="flex items-center gap-2.5 text-sm text-zinc-300">
                   <Check size={13} className="text-violet-400" />
                   {item}
@@ -154,7 +156,7 @@ export default function HomePage() {
               ))}
             </ul>
             <button onClick={() => navigate('/login')} className="w-full rounded-xl py-2.5 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-              {copy.freeBtn}
+              {copy.freeButton}
             </button>
           </div>
 
@@ -164,12 +166,12 @@ export default function HomePage() {
               <div className="mb-3 flex items-start justify-between">
                 <p className="text-xs uppercase tracking-wider text-violet-400">Pro</p>
                 <span className="rounded-full bg-gradient-to-r from-violet-600 to-blue-600 px-2.5 py-1 text-[10px] font-bold text-white">
-                  {copy.pricing.pro}
+                  {copy.popular}
                 </span>
               </div>
               <div className="mb-5 flex items-end gap-2">
                 <span className="text-4xl font-black text-white">$12.99</span>
-                <span className="mb-1 text-sm text-zinc-500">/ month</span>
+                <span className="mb-1 text-sm text-zinc-500">{copy.month}</span>
               </div>
               <ul className="mb-6 space-y-2">
                 {copy.proFeatures.map(item => (
@@ -180,7 +182,7 @@ export default function HomePage() {
                 ))}
               </ul>
               <button onClick={() => setPayModal(true)} className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 py-2.5 text-sm font-bold text-white">
-                {copy.proBtn}
+                {copy.proButton}
               </button>
             </div>
           </div>
