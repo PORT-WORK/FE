@@ -149,7 +149,7 @@ export async function apiRequestStrict<T>(config: AxiosRequestConfig): Promise<T
 }
 
 type RealtimeEventHandler = (event: { type: string; data: unknown }) => void;
-const REALTIME_SSE_ENABLED = false;
+const REALTIME_SSE_ENABLED = true;
 
 function parseRealtimePayload(value: string) {
   try {
@@ -259,7 +259,6 @@ export function fetchEventSource(url: string, options: FetchEventSourceOptions =
 }
 
 export function subscribeRealtime(handler: RealtimeEventHandler) {
-  void handler;
   if (!REALTIME_SSE_ENABLED) {
     return () => undefined;
   }

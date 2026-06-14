@@ -12,12 +12,8 @@ type SavedItem = {
   name: string;
   role: string;
   pptxUrl?: string;
+  thumbnail?: string;
 };
-
-function officeViewerUrl(url?: string | null) {
-  if (!url) return '';
-  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
-}
 
 export default function SavedPage() {
   const navigate = useNavigate();
@@ -83,25 +79,22 @@ export default function SavedPage() {
           />
         ) : (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {visible.map(item => {
-              const viewer = officeViewerUrl(item.pptxUrl);
-              return (
-                <button
-                  key={`${tab}-${item.id}`}
-                  type="button"
-                  onClick={() => navigate(`/explore/${item.id}`)}
-                  className="aspect-[16/9] overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]"
-                >
-                  {viewer ? (
-                    <iframe title={item.name} src={viewer} loading="lazy" className="pointer-events-none h-full w-full bg-black" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-500/20 to-blue-500/15 text-sm text-zinc-500">
-                      {item.name}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+            {visible.map(item => (
+              <button
+                key={`${tab}-${item.id}`}
+                type="button"
+                onClick={() => navigate(`/explore/${item.id}`)}
+                className="aspect-[16/9] overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]"
+              >
+                {item.thumbnail ? (
+                  <img src={item.thumbnail} alt="" loading="lazy" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-500/20 to-blue-500/15 text-sm text-zinc-500">
+                    {item.name}
+                  </div>
+                )}
+              </button>
+            ))}
           </div>
         )}
       </div>

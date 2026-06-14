@@ -13,7 +13,7 @@ import { useApp } from '../../contexts/AppContext';
 
 function officeViewerUrl(url?: string | null) {
   if (!url) return '';
-  return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(url)}`;
+  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
 }
 
 export default function ExploreDetailPage() {

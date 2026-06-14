@@ -927,7 +927,7 @@ export default function ProjectEditorPage() {
                   { key: 'draft', title: ko ? '자료 작성' : 'Write draft', desc: ko ? '섹션별 내용을 직접 작성합니다.' : 'Write each section manually.' },
                   { key: 'review', title: ko ? 'AI 검수 1회' : 'AI review once', desc: ko ? '문장과 흐름만 다듬습니다.' : 'Polish wording and flow only.' },
                   { key: 'ppt', title: ko ? 'PPTX 생성' : 'Build PPTX', desc: ko ? '검수된 문서로 PPT를 만듭니다.' : 'Generate the PPT from the reviewed document.' },
-                ].map((item, index) => {
+                ].filter(item => item.key !== 'ppt').map((item, index) => {
                   const active = (index === 0 && step === 'WRITING') || (index === 1 && step === 'DOCUMENT_CREATED') || (index === 2 && (step === 'REVIEWED' || step === 'PPT_CREATED'));
                   const done = (index === 0 && ['DOCUMENT_CREATED', 'REVIEWED', 'PPT_CREATED'].includes(step)) || (index === 1 && ['REVIEWED', 'PPT_CREATED'].includes(step)) || (index === 2 && step === 'PPT_CREATED');
                   return (
