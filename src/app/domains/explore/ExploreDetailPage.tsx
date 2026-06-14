@@ -11,9 +11,9 @@ import {
 } from '../../api/contentApi';
 import { useApp } from '../../contexts/AppContext';
 
-function officeViewerUrl(url?: string | null) {
+function pptViewerUrl(url?: string | null) {
   if (!url) return '';
-  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+  return `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
 }
 
 export default function ExploreDetailPage() {
@@ -27,6 +27,7 @@ export default function ExploreDetailPage() {
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<PortfolioDetail | null>(null);
+  const [viewerFallback, setViewerFallback] = useState(false);
 
   const targetKey = String(userId);
   const following = followingIds.includes(targetKey);
@@ -70,7 +71,14 @@ export default function ExploreDetailPage() {
     };
   }, [selectedId]);
 
-  const viewer = useMemo(() => officeViewerUrl(detail?.pptxUrl), [detail?.pptxUrl]);
+  const viewer = useMemo(() => pptViewerUrl(detail?.pptxUrl), [detail?.pptxUrl]);
+
+  useEffect(() => {
+    setViewerFallback(false);
+    if (!viewer) return undefined;
+    const fallbackTimer = window.setTimeout(() => setViewerFallback(true), 4500);
+    return () => window.clearTimeout(fallbackTimer);
+  }, [viewer]);
   const publicProfile = profile as (PublicUserProfile & {
     githubUrl?: string | null;
     notionUrl?: string | null;
@@ -166,7 +174,7 @@ export default function ExploreDetailPage() {
 
             <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
               <div className="overflow-hidden rounded-[30px] border border-white/8 bg-black/30">
-                {viewer ? (
+                {viewer && !viewerFallback ? (
                   <div className="relative h-[680px] w-full bg-black">
                     <iframe title={detail?.title || 'PPT'} src={viewer} className="h-full w-full bg-black" />
                     <div className="pointer-events-none absolute inset-x-4 bottom-4 flex justify-end">
@@ -178,6 +186,40 @@ export default function ExploreDetailPage() {
                       >
                         {ko ? 'PPT 새 탭으로 열기' : 'Open PPT'}
                       </a>
+                    </div>
+                  </div>
+                ) : detail?.pptxUrl ? (
+                  <div className="flex h-[680px] items-center justify-center bg-[#070707] p-8 text-center">
+                    <div className="max-w-md">
+                      {detail.thumbnailUrl ? (
+                        <img src={detail.thumbnailUrl} alt="" className="mx-auto mb-6 max-h-80 rounded-3xl border border-white/10 object-contain" />
+                      ) : (
+                        <div className="mx-auto mb-6 flex h-36 w-56 items-center justify-center rounded-3xl border border-violet-500/25 bg-violet-500/10 text-4xl font-black text-violet-200">
+                          PPT
+                        </div>
+                      )}
+                      <p className="text-xl font-black text-white">{detail.title}</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-500">
+                        {ko ? '브라우저 미리보기가 제한되면 다운로드로 확인할 수 있습니다.' : 'If browser preview is blocked, download the PPT file.'}
+                      </p>
+                      <div className="mt-6 flex justify-center gap-2">
+                        <a
+                          href={detail.pptxUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200"
+                        >
+                          {ko ? '새 탭으로 열기' : 'Open in new tab'}
+                        </a>
+                        <a
+                          href={detail.pptxUrl}
+                          download
+                          className="rounded-2xl px-4 py-2 text-sm font-semibold text-white"
+                          style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                        >
+                          {ko ? '다운로드' : 'Download'}
+                        </a>
+                      </div>
                     </div>
                   </div>
                 ) : (

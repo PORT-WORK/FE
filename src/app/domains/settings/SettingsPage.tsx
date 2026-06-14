@@ -200,12 +200,11 @@ export default function SettingsPage() {
     try {
       setError(null);
       const updated = await updateCurrentUser({
-        name: profile.name,
+        name: profile.name?.trim() || 'PORT User',
         profileImageUrl: profile.profileImageUrl,
         location: profile.location,
         experienceYears: profile.experienceYears,
         bio: profile.bio,
-        language: profile.language,
         isEmailPublic: next,
       });
       setProfile(updated);

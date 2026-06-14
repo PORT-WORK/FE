@@ -305,6 +305,13 @@ export async function sendMessage(receiverId: number, content: string) {
   );
 }
 
+export async function localLogin(email: string, password: string) {
+  return apiRequestStrict<{
+    accessToken: string;
+    user: UserProfile;
+  }>({ url: '/auth/login', method: 'POST', data: { email, password }, withCredentials: true });
+}
+
 export async function markMessageRead(messageId: string | number) {
   return apiRequest(
     { url: `/messages/${messageId}/read`, method: 'PUT' },
@@ -340,7 +347,6 @@ export async function updateCurrentUser(payload: {
   location?: string | null;
   experienceYears?: number | null;
   bio?: string | null;
-  language?: string | null;
   isEmailPublic?: boolean;
 }) {
   return apiRequestStrict<UserProfile>({ url: '/users/me', method: 'PUT', data: payload });
@@ -406,6 +412,14 @@ export async function fetchIntegrationAuthorizeUrl(provider: IntegrationProvider
 
 export async function fetchIntegrationSources(provider: IntegrationProviderKey) {
   return apiRequestStrict<IntegrationSourceItem[]>({ url: `/integrations/${provider.toUpperCase()}/sources`, method: 'GET' });
+}
+
+export async function addFigmaFileSource(fileUrl: string) {
+  return apiRequestStrict<IntegrationSourceItem[]>({
+    url: '/integrations/FIGMA/sources',
+    method: 'POST',
+    data: { fileUrl, workspaceUrl: fileUrl },
+  });
 }
 
 export async function disconnectIntegration(provider: IntegrationProviderKey) {

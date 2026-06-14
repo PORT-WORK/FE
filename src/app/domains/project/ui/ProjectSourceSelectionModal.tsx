@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ExternalLink, Figma, FileText, Github, Loader2, Search, Sparkles, X } from 'lucide-react';
-import { fetchIntegrationSources, type IntegrationSourceItem } from '../../../api/contentApi';
+import { addFigmaFileSource, fetchIntegrationSources, type IntegrationSourceItem } from '../../../api/contentApi';
 import { integrationProviderLabel, type IntegrationProviderKey } from '../../../api/integrationProviders';
 import { useApp } from '../../../contexts/AppContext';
 
@@ -48,6 +48,10 @@ export default function ProjectSourceSelectionModal({
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [figmaModalOpen, setFigmaModalOpen] = useState(false);
+  const [figmaFileUrl, setFigmaFileUrl] = useState('');
+  const [figmaBusy, setFigmaBusy] = useState(false);
+  const [figmaError, setFigmaError] = useState<string | null>(null);
   const providerRef = useRef<IntegrationProviderKey>(initialProvider);
   const cacheRef = useRef<Partial<Record<IntegrationProviderKey, IntegrationSourceItem[]>>>({});
 
@@ -157,6 +161,34 @@ export default function ProjectSourceSelectionModal({
     window.alert(detail || item.title);
   };
 
+  const addFigmaFile = async () => {
+    const nextUrl = figmaFileUrl.trim();
+    if (!nextUrl) {
+      setFigmaError(ko ? 'Figma 파일 URL을 입력해주세요.' : 'Enter a Figma file URL.');
+      return;
+    }
+    if (!/figma\.com\/(file|design)\//i.test(nextUrl)) {
+      setFigmaError(ko ? 'Figma file/design URL만 사용할 수 있습니다.' : 'Use a Figma file/design URL.');
+      return;
+    }
+
+    setFigmaBusy(true);
+    setFigmaError(null);
+    try {
+      const rows = await addFigmaFileSource(nextUrl);
+      cacheRef.current.figma = rows;
+      if (provider === 'figma') {
+        setItems(rows);
+      }
+      setFigmaFileUrl('');
+      setFigmaModalOpen(false);
+    } catch {
+      setFigmaError(ko ? 'Figma 파일을 불러오지 못했습니다.' : 'Failed to load the Figma file.');
+    } finally {
+      setFigmaBusy(false);
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -239,6 +271,19 @@ export default function ProjectSourceSelectionModal({
               <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3 text-xs text-zinc-500">
                 {loading ? '...' : filtered.length}
               </div>
+              {provider === 'figma' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFigmaError(null);
+                    setFigmaModalOpen(true);
+                  }}
+                  className="rounded-2xl px-4 py-3 text-xs font-semibold text-white"
+                  style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                >
+                  Figma 파일 추가
+                </button>
+              )}
             </div>
 
             <div className="mb-4 rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-3 text-xs text-zinc-500">
@@ -389,6 +434,45 @@ export default function ProjectSourceSelectionModal({
           </main>
         </div>
       </div>
+      {figmaModalOpen && (
+        <div className="fixed inset-0 z-[340] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm" onClick={() => setFigmaModalOpen(false)}>
+          <div className="w-full max-w-lg rounded-[28px] border border-white/10 bg-[#101010] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">Figma</p>
+                <h4 className="mt-2 text-xl font-black text-white">{ko ? 'Figma 파일 추가' : 'Add Figma file'}</h4>
+                <p className="mt-2 text-sm leading-6 text-zinc-500">
+                  {ko ? 'file 또는 design URL을 붙여넣으면 Page, Frame, Section을 선택 목록으로 불러옵니다.' : 'Paste a file or design URL to load pages, frames, and sections.'}
+                </p>
+              </div>
+              <button type="button" onClick={() => setFigmaModalOpen(false)} className="rounded-xl p-2 text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200">
+                <X size={16} />
+              </button>
+            </div>
+            <input
+              value={figmaFileUrl}
+              onChange={event => setFigmaFileUrl(event.target.value)}
+              placeholder="https://www.figma.com/design/{fileKey}/..."
+              className="mt-5 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-violet-400/50"
+            />
+            {figmaError && <p className="mt-3 text-sm text-red-300">{figmaError}</p>}
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" onClick={() => setFigmaModalOpen(false)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-300">
+                {ko ? '취소' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={addFigmaFile}
+                disabled={figmaBusy}
+                className="rounded-2xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+              >
+                {figmaBusy ? (ko ? '불러오는 중...' : 'Loading...') : (ko ? '불러오기' : 'Load file')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

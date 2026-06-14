@@ -154,7 +154,7 @@ export default function ProfilePage() {
 
     try {
       const updated = await updateCurrentUser({
-        name: user.name,
+        name: user.name?.trim() || 'PORT User',
         profileImageUrl: avatarDraft,
         location: user.location,
         experienceYears: user.experienceYears,

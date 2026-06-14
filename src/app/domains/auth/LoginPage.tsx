@@ -1,12 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Sparkles } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
-import { buildOauthLoginUrl } from '../../api/client';
+import { buildOauthLoginUrl, setAccessToken, setCurrentUserId } from '../../api/client';
+import { localLogin } from '../../api/contentApi';
 
 export default function LoginPage() {
-  const { t, isLoggedIn, authReady } = useApp();
+  const { t, isLoggedIn, authReady, setUser } = useApp();
   const navigate = useNavigate();
+  const [localOpen, setLocalOpen] = useState(false);
+  const [email, setEmail] = useState('demo@port.kr');
+  const [password, setPassword] = useState('password123!');
+  const [localError, setLocalError] = useState('');
+  const [localBusy, setLocalBusy] = useState(false);
 
   useEffect(() => {
     if (authReady && isLoggedIn) {
@@ -17,6 +23,31 @@ export default function LoginPage() {
   const handleLogin = (provider: 'kakao' | 'google') => {
     localStorage.removeItem('port-auth-logged-out');
     window.location.assign(buildOauthLoginUrl(provider));
+  };
+
+  const handleLocalLogin = async () => {
+    if (!email.trim() || !password.trim()) return;
+    setLocalBusy(true);
+    setLocalError('');
+    try {
+      const result = await localLogin(email.trim(), password);
+      setAccessToken(result.accessToken);
+      setCurrentUserId(result.user.id);
+      localStorage.removeItem('port-auth-logged-out');
+      setUser({
+        name: result.user.name,
+        email: result.user.email,
+        role: result.user.tier || 'FREE',
+        avatar: result.user.profileImageUrl || '',
+        provider: 'google',
+        bio: result.user.bio || '',
+      });
+      navigate('/', { replace: true });
+    } catch {
+      setLocalError('로컬 로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.');
+    } finally {
+      setLocalBusy(false);
+    }
   };
 
   return (
@@ -52,6 +83,46 @@ export default function LoginPage() {
             </span>
             {t('login_google')}
           </button>
+
+          <button
+            type="button"
+            onClick={() => setLocalOpen(prev => !prev)}
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.03] py-3 text-sm font-semibold text-zinc-200 transition-colors hover:bg-white/[0.06]"
+          >
+            로컬 로그인
+          </button>
+
+          {localOpen && (
+            <div className="mt-4 space-y-3">
+              <input
+                value={email}
+                onChange={event => setEmail(event.target.value)}
+                type="email"
+                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600"
+                placeholder="email@port.kr"
+              />
+              <input
+                value={password}
+                onChange={event => setPassword(event.target.value)}
+                type="password"
+                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600"
+                placeholder="password"
+                onKeyDown={event => {
+                  if (event.key === 'Enter') void handleLocalLogin();
+                }}
+              />
+              {localError && <p className="text-xs text-red-300">{localError}</p>}
+              <button
+                type="button"
+                disabled={localBusy}
+                onClick={handleLocalLogin}
+                className="w-full rounded-2xl py-3 text-sm font-bold text-white disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+              >
+                {localBusy ? '로그인 중...' : '로그인'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -238,11 +238,24 @@ export default function MessagesPage() {
   const send = async () => {
     if (!input.trim() || !activeCard) return;
     const text = input.trim();
+    const optimisticId = `local-${Date.now()}`;
     setInput('');
+    setChats(prev => [...prev, {
+      id: optimisticId,
+      from: 'me',
+      text,
+      time: 'Just now',
+      type: 'text',
+    }]);
     try {
-      await sendMessage(activeCard.userId, text);
+      const sent = await sendMessage(activeCard.userId, text);
+      setChats(prev => prev.map(item => (
+        item.id === optimisticId ? { ...item, id: String((sent as { id?: string | number }).id ?? optimisticId) } : item
+      )));
       setLoadError(null);
     } catch {
+      setChats(prev => prev.filter(item => item.id !== optimisticId));
+      setInput(text);
       setLoadError('메시지를 전송하지 못했습니다.');
     }
   };
