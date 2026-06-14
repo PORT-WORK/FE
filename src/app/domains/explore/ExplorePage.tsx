@@ -19,11 +19,6 @@ type ExploreUser = {
   isPublic: boolean;
 };
 
-function officeViewerUrl(url?: string | null) {
-  if (!url) return '';
-  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
-}
-
 function normalizeText(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9\uac00-\ud7a3]+/g, '');
 }
@@ -187,7 +182,6 @@ export default function ExplorePage() {
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {loading ? Array.from({ length: 9 }).map((_, index) => <SkeletonCard key={index} />) : sorted.map(user => {
-            const viewer = officeViewerUrl(user.pptxUrl);
             return (
             <div
               key={user.id}
@@ -201,15 +195,17 @@ export default function ExplorePage() {
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
               aria-label={user.name}
             >
-              {viewer ? (
-                <iframe
-                  title={user.name}
-                  src={viewer}
+              {user.thumbnail ? (
+                <img
+                  src={user.thumbnail}
+                  alt=""
                   loading="lazy"
-                  className="pointer-events-none h-full w-full bg-black transition-transform duration-500 group-hover:scale-105"
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               ) : (
-                <div className="h-full w-full bg-gradient-to-br from-violet-500/25 to-blue-500/20" />
+                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-500/25 to-blue-500/20 text-4xl font-black text-white/80">
+                  PPT
+                </div>
               )}
             </div>
           );})}

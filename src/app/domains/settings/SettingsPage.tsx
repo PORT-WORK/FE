@@ -155,11 +155,6 @@ export default function SettingsPage() {
     setBusyProvider(provider);
     try {
       setError(null);
-      if (provider === 'figma') {
-        const fileUrl = window.prompt(ko ? '연동할 Figma 파일 URL을 입력해주세요.' : 'Enter the Figma file URL to connect.');
-        if (!fileUrl) return;
-        sessionStorage.setItem('port-integration-workspace-url:figma', fileUrl);
-      }
       const authorizeUrl = await fetchIntegrationAuthorizeUrl(provider);
       if (authorizeUrl) {
         window.location.assign(authorizeUrl);

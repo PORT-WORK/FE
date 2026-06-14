@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import {
   Edit3,
   ExternalLink,
@@ -19,7 +19,7 @@ import {
 import { useApp } from '../../contexts/AppContext';
 import EmptyStatePanel from '../../components/EmptyStatePanel';
 import { getCurrentUserId, subscribeRealtime } from '../../api/client';
-import { listMessages, markMessageRead, sendMessage, type ConversationCard, type MessageItem } from '../../api/contentApi';
+import { fetchPublicProfile, listMessages, markMessageRead, sendMessage, type ConversationCard, type MessageItem } from '../../api/contentApi';
 
 type ChatType = 'text' | 'image' | 'file' | 'voice';
 
@@ -73,6 +73,8 @@ export default function MessagesPage() {
   const { t, language } = useApp();
   const ko = language === 'ko';
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const targetUserId = Number(searchParams.get('userId') || 0);
   const [conversations, setConversations] = useState<ConversationCard[]>([]);
   const [active, setActive] = useState<string>('');
   const [input, setInput] = useState('');
@@ -105,11 +107,27 @@ export default function MessagesPage() {
   useEffect(() => {
     let alive = true;
     void listMessages()
-      .then(data => {
+      .then(async data => {
         if (!alive) return;
-        setConversations(data);
+        let nextData = data;
+        if (targetUserId > 0 && !data.some(item => item.userId === targetUserId)) {
+          const profile = await fetchPublicProfile(targetUserId);
+          nextData = [{
+            id: String(targetUserId),
+            latestMessageId: 0,
+            userId: targetUserId,
+            user: profile.name,
+            role: profile.location || 'Portfolio contact',
+            lastMsg: ko ? '새 대화를 시작하세요.' : 'Start a new conversation.',
+            time: '',
+            createdAt: new Date().toISOString(),
+            unread: 0,
+            avatar: profile.profileImageUrl || '',
+          }, ...data];
+        }
+        setConversations(nextData);
         setLoadError(null);
-        setActive(data[0]?.id ?? '');
+        setActive(targetUserId > 0 ? String(targetUserId) : nextData[0]?.id ?? '');
       })
       .catch(() => {
         if (!alive) return;
@@ -122,7 +140,7 @@ export default function MessagesPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [ko, targetUserId]);
 
   const activeCard = useMemo(
     () => conversations.find(item => item.id === active) || null,
@@ -319,7 +337,7 @@ export default function MessagesPage() {
     renderedChats.push(msg);
   });
 
-  if (conversations.length === 0) {
+  if (conversations.length === 0 && !targetUserId) {
     return (
       <div className="flex h-full items-center justify-center px-6" style={{ background: '#050505' }}>
         <div className="w-full max-w-2xl">

@@ -127,6 +127,22 @@ function asSourceList(snapshot: Record<string, unknown>) {
   return value.filter(Boolean) as SnapshotSource[];
 }
 
+function extractSourceBody(source: SnapshotSource) {
+  const raw = source.raw && typeof source.raw === 'object' ? source.raw : {};
+  const candidates = [
+    source.summary,
+    raw.content,
+    raw.body,
+    raw.text,
+    raw.readme,
+    raw.description,
+    raw.markdown,
+  ];
+  return candidates
+    .map(item => (typeof item === 'string' ? item.trim() : ''))
+    .find(Boolean) || '';
+}
+
 function joinSourceText(source: SnapshotSource) {
   const raw = source.raw && typeof source.raw === 'object' ? JSON.stringify(source.raw).slice(0, 280) : '';
   return [
@@ -211,7 +227,7 @@ function buildSectionDraftMap(
     const nextText = [
       source.title,
       source.subtitle && source.subtitle !== source.title ? source.subtitle : '',
-      source.summary,
+      extractSourceBody(source),
       source.kind ? `Type: ${source.kind}` : '',
       source.tags?.length ? `Tags: ${source.tags.join(', ')}` : '',
       source.url ? `URL: ${source.url}` : '',
@@ -333,14 +349,6 @@ export default function ProjectEditorPage() {
       alive = false;
     };
   }, [draftMode, projectId, sectionMeta]);
-
-  useEffect(() => {
-    if (!draftMode && loading) return;
-    if (session?.selectedSourceIds?.length) return;
-    if (sourceModalOpen) return;
-    if (sourceModalDismissed) return;
-    if (projectId) setSourceModalOpen(true);
-  }, [draftMode, loading, projectId, session?.selectedSourceIds?.length, sourceModalDismissed, sourceModalOpen]);
 
   const completedCount = useMemo(() => countCompletedSections(sectionDrafts), [sectionDrafts]);
   const progress = useMemo(() => (sectionMeta.length === 0 ? 0 : Math.round((completedCount / sectionMeta.length) * 100)), [completedCount, sectionMeta.length]);
@@ -489,7 +497,6 @@ export default function ProjectEditorPage() {
       setSession(next);
       setSectionDrafts(prev => buildSectionDraftMap(role, sectionMeta, next.sourceSnapshot || {}, prev));
       setSourceModalOpen(false);
-      setPreviewBlob(null);
       setError(next.lastError || null);
     } catch {
       setSourceError(ko ? '자료를 연결하지 못했습니다.' : 'Failed to apply selected sources.');
@@ -503,6 +510,18 @@ export default function ProjectEditorPage() {
         { ...item, status: item.value.trim() ? 'COMPLETED' : 'EMPTY' as SectionStatus },
       ]),
     ) as Record<string, { value: string; status: SectionStatus }>;
+  };
+
+  const buildDocumentFromDrafts = (drafts: Record<string, { value: string; status: SectionStatus }>) => {
+    return [
+      `# ${projectName}`,
+      `Role: ${role}`,
+      '',
+      ...sectionMeta.map(section => {
+        const value = drafts[section.key]?.value?.trim() || '';
+        return value ? `## ${section.title}\n${value}` : '';
+      }).filter(Boolean),
+    ].join('\n\n').trim();
   };
 
   const createDocument = async () => {
@@ -550,17 +569,11 @@ export default function ProjectEditorPage() {
         lastError: null,
         lastSavedAt: new Date().toISOString(),
       } as ProjectWritingSession));
-      setPreviewBlob(null);
       setDocumentBusy(false);
       return;
     }
 
     if (!projectId) return;
-    if (selectedSourceCount === 0) {
-      setError(ko ? '먼저 자료를 선택해주세요.' : 'Select sources first.');
-      return;
-    }
-
     setDocumentBusy(true);
     setError(null);
     try {
@@ -568,7 +581,6 @@ export default function ProjectEditorPage() {
       setSession(next);
       const sourceDrafts = buildSectionDraftMap(role, sectionMeta, next.sourceSnapshot || session?.sourceSnapshot || sourceSnapshot, sectionDrafts);
       setSectionDrafts(fillCompletedStatus(sourceDrafts));
-      setPreviewBlob(null);
       setStep('DOCUMENT_CREATED');
       setError(next.lastError || null);
     } catch {
@@ -579,9 +591,16 @@ export default function ProjectEditorPage() {
   };
 
   const reviewDocument = async () => {
+    const localDocument = documentText.trim() || buildDocumentFromDrafts(sectionDrafts);
+    if (!localDocument) {
+      setError(ko ? '먼저 섹션 답변을 작성해주세요.' : 'Write at least one section first.');
+      return;
+    }
+
     if (draftMode) {
       setReviewBusy(true);
-      const reviewed = normalizeForReview(documentText);
+      setDocumentText(localDocument);
+      const reviewed = normalizeForReview(localDocument);
       setReviewedText(reviewed);
       setStep('REVIEWED');
       setSession(prev => ({
@@ -599,7 +618,7 @@ export default function ProjectEditorPage() {
           selectedSourceIds: [],
           selectedProjectIds: [],
           selectedDocumentIds: [],
-          documentText,
+          documentText: localDocument,
           reviewedDocument: null,
           presentationJson: null,
           lastError: null,
@@ -609,7 +628,6 @@ export default function ProjectEditorPage() {
         status: 'REVIEWED',
         lastSavedAt: new Date().toISOString(),
       } as ProjectWritingSession));
-      setPreviewBlob(null);
       setReviewBusy(false);
       return;
     }
@@ -618,6 +636,9 @@ export default function ProjectEditorPage() {
     setReviewBusy(true);
     setError(null);
     try {
+      if (!documentText.trim()) {
+        await createDocument();
+      }
       const next = await reviewProjectWritingDocument(projectId);
       setSession(next);
       setReviewedText(next.reviewedDocument || '');
@@ -750,6 +771,7 @@ export default function ProjectEditorPage() {
         initialValue={editingSection ? sectionDrafts[editingSection]?.value || '' : ''}
         onClose={() => setEditingSection(null)}
         onSave={saveSection}
+        onOpenSources={() => setSourceModalOpen(true)}
       />
 
       <div className="mx-auto max-w-[1480px] space-y-6">
@@ -791,7 +813,7 @@ export default function ProjectEditorPage() {
                 <button
                   type="button"
                   onClick={() => setSourceModalOpen(true)}
-                  className="rounded-2xl px-4 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(124,58,237,0.28)]"
+                  className="hidden rounded-2xl px-4 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(124,58,237,0.28)]"
                   style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
                 >
                   {ko ? '자료 선택' : 'Select sources'}
@@ -936,7 +958,7 @@ export default function ProjectEditorPage() {
                 <button
                   type="button"
                   onClick={() => setSourceModalOpen(true)}
-                  className="flex w-full items-center justify-between rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-4 text-left text-sm text-zinc-200 transition-colors hover:bg-white/[0.05]"
+                  className="hidden w-full items-center justify-between rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-4 text-left text-sm text-zinc-200 transition-colors hover:bg-white/[0.05]"
                 >
                   <span>{ko ? '자료 선택' : 'Select sources'}</span>
                   <Sparkles size={14} className="text-violet-300" />
@@ -960,7 +982,7 @@ export default function ProjectEditorPage() {
                   {reviewBusy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                   {ko ? 'AI 검수' : 'AI review'}
                 </button>
-                <button
+                {false && <button
                   type="button"
                   onClick={() => void generatePptx()}
                   disabled={generateBusy}
@@ -969,8 +991,8 @@ export default function ProjectEditorPage() {
                 >
                   {generateBusy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
                   {ko ? 'PPTX 생성' : 'Generate PPTX'}
-                </button>
-                <button
+                </button>}
+                {false && <button
                   type="button"
                   onClick={() => void downloadPptx()}
                   disabled={downloadBusy || (step !== 'PPT_CREATED' && !previewBlob)}
@@ -978,11 +1000,11 @@ export default function ProjectEditorPage() {
                 >
                   {downloadBusy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                   {ko ? '다운로드' : 'Download'}
-                </button>
+                </button>}
               </div>
             </div>
 
-            <div className="rounded-[30px] border border-white/8 bg-white/[0.03] p-6">
+            <div className="hidden rounded-[30px] border border-white/8 bg-white/[0.03] p-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-white">{ko ? 'PPT 미리보기' : 'PPT preview'}</h3>
                 <span className="text-xs text-zinc-500">{selectedSlides.length}</span>

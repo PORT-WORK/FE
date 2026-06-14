@@ -13,7 +13,7 @@ import { useApp } from '../../contexts/AppContext';
 
 function officeViewerUrl(url?: string | null) {
   if (!url) return '';
-  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+  return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(url)}`;
 }
 
 export default function ExploreDetailPage() {
@@ -167,7 +167,19 @@ export default function ExploreDetailPage() {
             <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
               <div className="overflow-hidden rounded-[30px] border border-white/8 bg-black/30">
                 {viewer ? (
-                  <iframe title={detail?.title || 'PPT'} src={viewer} className="h-[680px] w-full bg-black" />
+                  <div className="relative h-[680px] w-full bg-black">
+                    <iframe title={detail?.title || 'PPT'} src={viewer} className="h-full w-full bg-black" />
+                    <div className="pointer-events-none absolute inset-x-4 bottom-4 flex justify-end">
+                      <a
+                        href={detail?.pptxUrl || '#'}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="pointer-events-auto rounded-xl border border-white/10 bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur"
+                      >
+                        {ko ? 'PPT 새 탭으로 열기' : 'Open PPT'}
+                      </a>
+                    </div>
+                  </div>
                 ) : (
                   <div className="flex h-[680px] items-center justify-center text-center">
                     <div>
