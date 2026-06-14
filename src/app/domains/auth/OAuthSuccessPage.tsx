@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { fetchCurrentUser, refreshAuthToken } from '../../api/contentApi';
 import { clearAuthTokens, setAccessToken, setRefreshToken } from '../../api/client';
+import { useApp } from '../../contexts/AppContext';
 
 export default function OAuthSuccessPage() {
   const navigate = useNavigate();
+  const { setUser } = useApp();
   const [message, setMessage] = useState('Signing in...');
 
   useEffect(() => {
@@ -21,8 +23,18 @@ export default function OAuthSuccessPage() {
         if (token.refreshToken) setRefreshToken(token.refreshToken);
         return fetchCurrentUser();
       })
-      .then(() => {
+      .then(profile => {
         if (!alive) return;
+        if (profile) {
+          setUser({
+            name: profile.name,
+            email: profile.email,
+            role: profile.tier || 'Member',
+            avatar: profile.profileImageUrl || '',
+            provider: 'google',
+            bio: profile.bio || undefined,
+          });
+        }
         setMessage('Login complete. Redirecting...');
         setTimeout(() => {
           if (alive) navigate('/', { replace: true });

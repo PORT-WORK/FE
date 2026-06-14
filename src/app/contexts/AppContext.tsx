@@ -22,6 +22,7 @@ type AppContextValue = {
   setLanguage: (lang: Lang) => void;
   t: (key: string) => string;
   user: AppUser | null;
+  setUser: (user: AppUser | null) => void;
   isLoggedIn: boolean;
   login: (provider: 'kakao' | 'google') => void;
   logout: () => void;
@@ -356,6 +357,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLanguage,
     t: (key: string) => translations[language][key] ?? translations.en[key] ?? key,
     user,
+    setUser,
     isLoggedIn: Boolean(user),
     login,
     logout,
