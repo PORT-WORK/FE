@@ -10,7 +10,7 @@ const HOME_COPY = {
     titleAccent: 'AI가 포트폴리오로 조립합니다',
     subtitle: '프로젝트, 글, 작업 기록을 연결하면 AI가 포트폴리오 구조로 자동 정리합니다.',
     placeholder: '배경과 강점을 입력해보세요...',
-    action: '생성',
+    action: '포트폴리오 생성하기',
     steps: [
       { label: '데이터 연결', detail: '프로젝트, 글, 기술 데이터를 연결합니다.' },
       { label: '작업 분석', detail: 'AI가 경력을 섹션 단위로 정리합니다.' },
@@ -34,7 +34,7 @@ const HOME_COPY = {
     titleAccent: 'a portfolio with AI',
     subtitle: 'Connect projects, posts, and work logs and AI will organize them into a clean portfolio structure.',
     placeholder: 'Describe your background and strengths...',
-    action: 'Generate',
+    action: 'Create portfolio',
     steps: [
       { label: 'Connect data', detail: 'Import project, blog, and skill data.' },
       { label: 'Analyze work', detail: 'AI summarizes your experience into sections.' },
@@ -68,7 +68,7 @@ export default function HomePage() {
   }, [copy.steps.length]);
 
   const handleGenerate = () => {
-    navigate(isLoggedIn ? '/generate' : '/login');
+    navigate(isLoggedIn ? '/workspace?create=1' : '/login');
   };
 
   return (

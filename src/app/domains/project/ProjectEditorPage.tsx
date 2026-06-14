@@ -13,6 +13,7 @@ import {
 } from '../../api/contentApi';
 import { useApp } from '../../contexts/AppContext';
 import ProjectSourceSelectionModal from './ui/ProjectSourceSelectionModal';
+import { saveDraft as saveLocalDraft, loadDraft as loadLocalDraft, type ProjectWritingDraft as LocalProjectWritingDraft } from '../workspace/projectWriting';
 
 type Role = 'DEVELOPER' | 'PM';
 type SourceProvider = 'github' | 'notion' | 'figma';
@@ -107,6 +108,7 @@ export default function ProjectEditorPage() {
   const portfolioId = Number(query.get('portfolioId') || 0);
   const projectName = query.get('name') || (ko ? '새 프로젝트' : 'New project');
   const role = (query.get('role') === 'PM' ? 'PM' : 'DEVELOPER') as Role;
+  const draftMode = query.get('draft') === '1' || !projectId || portfolioId === 0;
   const sectionMeta = useMemo(() => roleSections[role](language), [language, role]);
 
   const [session, setSession] = useState<ProjectWritingSession | null>(null);
@@ -131,6 +133,27 @@ export default function ProjectEditorPage() {
   }, [activeKey, sectionMeta]);
 
   useEffect(() => {
+    if (draftMode) {
+      const existing = loadLocalDraft(projectId) as LocalProjectWritingDraft | null;
+      if (existing) {
+        const nextDrafts = createEmptySections(sectionMeta);
+        Object.entries(existing.sections || {}).forEach(([key, value]) => {
+          if (nextDrafts[key]) {
+            nextDrafts[key] = { value: value?.value || '', status: (value?.status as SectionStatus) || inferStatus(value?.value || '') };
+          }
+        });
+        setSession(null);
+        setSectionDrafts(nextDrafts);
+        setActiveKey(sectionMeta.find(item => nextDrafts[item.key])?.key || sectionMeta[0]?.key || '');
+        setDocumentText(existing.document || '');
+        setReviewedText(existing.reviewedDocument || '');
+        setStep(existing.writingStatus || 'NOT_STARTED');
+        setResumable(Boolean(existing.updatedAt));
+      }
+      setLoading(false);
+      return;
+    }
+
     if (!projectId) {
       setLoading(false);
       return;
@@ -181,6 +204,22 @@ export default function ProjectEditorPage() {
   const selectedSourceCount = session?.selectedSourceIds?.length || sourceItems.length;
 
   const persistDraft = async (nextDrafts: Record<string, { value: string; status: SectionStatus }>) => {
+    if (draftMode) {
+      saveLocalDraft({
+        projectId: projectId || Number(Date.now()),
+        portfolioId: portfolioId || null,
+        projectName,
+        role,
+        writingStatus: step,
+        sections: nextDrafts,
+        selectedProjectIds: [],
+        selectedArticleIds: [],
+        reviewedDocument: reviewedText,
+        document: documentText,
+        updatedAt: new Date().toISOString(),
+      });
+      return;
+    }
     if (!projectId) return;
     setSaving(true);
     try {
@@ -224,7 +263,10 @@ export default function ProjectEditorPage() {
   };
 
   const handleSelectSources = async (payload: { provider: SourceProvider; sourceIds: string[] }) => {
-    if (!projectId || !portfolioId) return;
+    if (!projectId || !portfolioId || draftMode) {
+      setSourceError(ko ? '포트폴리오가 생성된 뒤 외부 자료를 연결할 수 있습니다.' : 'Connect a portfolio first to use external sources.');
+      return;
+    }
     setSourceError(null);
     try {
       const next = await selectProjectWritingSources(projectId, {
@@ -242,6 +284,49 @@ export default function ProjectEditorPage() {
   };
 
   const createDocument = async () => {
+    if (draftMode) {
+      const content = [
+        `PROJECT: ${projectName}`,
+        `ROLE: ${role}`,
+        '',
+        ...sectionMeta.map(section => {
+          const value = sectionDrafts[section.key]?.value?.trim() || '';
+          return value ? `# ${section.title}\n${value}` : `# ${section.title}\n(EMPTY)`;
+        }),
+      ].join('\n');
+      setDocumentBusy(true);
+      setError(null);
+      setSession(prev => ({
+        ...(prev || {
+          projectId,
+          portfolioId: portfolioId || 0,
+          projectName,
+          role,
+          status: 'WRITING',
+          progress,
+          sectionDrafts: Object.fromEntries(Object.entries(sectionDrafts).map(([key, item]) => [key, item.value])),
+          sectionStatuses: Object.fromEntries(Object.entries(sectionDrafts).map(([key, item]) => [key, item.status])),
+          sourceSnapshot,
+          selectedProvider: null,
+          selectedSourceIds: [],
+          selectedProjectIds: [],
+          selectedDocumentIds: [],
+          documentText: null,
+          reviewedDocument: null,
+          presentationJson: null,
+          lastError: null,
+          lastSavedAt: new Date().toISOString(),
+        }),
+        documentText: content,
+        reviewedDocument: null,
+        status: 'DOCUMENT_CREATED',
+        lastError: null,
+        lastSavedAt: new Date().toISOString(),
+      } as ProjectWritingSession));
+      setPreviewBlob(null);
+      setDocumentBusy(false);
+      return;
+    }
     if (!projectId) return;
     if (selectedSourceCount === 0) {
       setError(ko ? '먼저 자료를 선택해 주세요.' : 'Select sources first.');
@@ -262,6 +347,40 @@ export default function ProjectEditorPage() {
   };
 
   const reviewDocument = async () => {
+    if (draftMode) {
+      setReviewBusy(true);
+      setError(null);
+      const reviewed = normalizeForReview(documentText);
+      setReviewedText(reviewed);
+      setSession(prev => ({
+        ...(prev || {
+          projectId,
+          portfolioId: portfolioId || 0,
+          projectName,
+          role,
+          status: 'DOCUMENT_CREATED',
+          progress,
+          sectionDrafts: Object.fromEntries(Object.entries(sectionDrafts).map(([key, item]) => [key, item.value])),
+          sectionStatuses: Object.fromEntries(Object.entries(sectionDrafts).map(([key, item]) => [key, item.status])),
+          sourceSnapshot,
+          selectedProvider: null,
+          selectedSourceIds: [],
+          selectedProjectIds: [],
+          selectedDocumentIds: [],
+          documentText,
+          reviewedDocument: null,
+          presentationJson: null,
+          lastError: null,
+          lastSavedAt: new Date().toISOString(),
+        }),
+        reviewedDocument: reviewed,
+        status: 'REVIEWED',
+        lastSavedAt: new Date().toISOString(),
+      } as ProjectWritingSession));
+      setPreviewBlob(null);
+      setReviewBusy(false);
+      return;
+    }
     if (!projectId) return;
     setReviewBusy(true);
     setError(null);
@@ -278,6 +397,10 @@ export default function ProjectEditorPage() {
   };
 
   const generatePptx = async () => {
+    if (draftMode) {
+      setError(ko ? '포트폴리오가 생성된 뒤 PPTX를 만들 수 있습니다.' : 'Create a portfolio first to generate PPTX.');
+      return;
+    }
     if (!projectId) return;
     if (!session?.reviewedDocument) {
       setError(ko ? '먼저 AI 검수를 진행해 주세요.' : 'Please run AI review first.');
@@ -299,6 +422,10 @@ export default function ProjectEditorPage() {
   };
 
   const downloadPptx = async () => {
+    if (draftMode) {
+      setError(ko ? '포트폴리오가 생성된 뒤 다운로드할 수 있습니다.' : 'Create a portfolio first to download.');
+      return;
+    }
     if (!projectId) return;
     setDownloadBusy(true);
     try {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { Plus } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import EmptyStatePanel from '../../components/EmptyStatePanel';
@@ -8,6 +8,7 @@ import ProjectCreateModal from './ui/ProjectCreateModal';
 
 export default function WorkspacePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { language } = useApp();
   const ko = language === 'ko';
 
@@ -17,6 +18,13 @@ export default function WorkspacePage() {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('create') !== '1') return;
+    setModalOpen(true);
+    navigate('/workspace', { replace: true });
+  }, [location.search, navigate]);
 
   useEffect(() => {
     let alive = true;
@@ -75,10 +83,6 @@ export default function WorkspacePage() {
   );
 
   const openProjectCreate = () => {
-    if (!selectedPortfolioId) {
-      setError(ko ? '프로젝트를 만들 포트폴리오가 없습니다.' : 'No portfolio is available for creating a project.');
-      return;
-    }
     setError(null);
     setModalOpen(true);
   };
@@ -92,14 +96,14 @@ export default function WorkspacePage() {
     <div className="h-full overflow-y-auto" style={{ background: '#050505' }}>
       <ProjectCreateModal
         open={modalOpen}
-        portfolioId={selectedPortfolioId || 0}
+        portfolioId={selectedPortfolioId}
         onClose={() => setModalOpen(false)}
         onCreated={project => {
-          if (selectedPortfolioId) {
+          if (selectedPortfolioId && project.portfolioId > 0) {
             void listPortfolioProjects(selectedPortfolioId).then(setProjects).catch(() => undefined);
           }
           setModalOpen(false);
-          navigate(`/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}`);
+          navigate(`/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}${project.portfolioId > 0 ? '' : '&draft=1'}`);
         }}
       />
 

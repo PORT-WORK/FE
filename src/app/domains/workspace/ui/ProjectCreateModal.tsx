@@ -5,7 +5,7 @@ import { type ProjectRole, WRITING_ROLES } from '../projectWriting';
 
 type Props = {
   open: boolean;
-  portfolioId: number;
+  portfolioId?: number | null;
   onClose: () => void;
   onCreated?: (project: ProjectItem) => void;
 };
@@ -19,7 +19,7 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canSubmit = useMemo(() => name.trim().length > 0 && portfolioId > 0, [name, portfolioId]);
+  const canSubmit = useMemo(() => name.trim().length > 0, [name]);
 
   if (!open) return null;
 
@@ -38,14 +38,29 @@ export default function ProjectCreateModal({ open, portfolioId, onClose, onCreat
     setError(null);
 
     try {
-      const created = await createPortfolioProject(portfolioId, {
+      const payload = {
         name: name.trim(),
         role,
         summary: summary.trim() || undefined,
         startDate: year.trim() ? `${year}-01-01` : undefined,
         endDate: year.trim() ? `${year}-12-31` : undefined,
         skills: skills.trim() || undefined,
-      });
+      };
+      const created = portfolioId && portfolioId > 0
+        ? await createPortfolioProject(portfolioId, payload)
+        : ({
+            id: Number(Date.now()),
+            portfolioId: 0,
+            name: payload.name,
+            role: payload.role,
+            summary: payload.summary || null,
+            thumbnailUrl: null,
+            skills: payload.skills ? payload.skills.split(',').map(item => item.trim()).filter(Boolean) : [],
+            isSynced: false,
+            startDate: payload.startDate || null,
+            endDate: payload.endDate || null,
+            orderIndex: 0,
+          } satisfies ProjectItem);
       onCreated?.(created);
       reset();
       onClose();
