@@ -1,27 +1,53 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, ChevronDown, SlidersHorizontal, X, Users, Eye } from 'lucide-react';
+import { ChevronDown, Search, SlidersHorizontal, Users, X } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { listExploreUsers } from '../../api/contentApi';
 
+type ExploreUser = {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  skills: string[];
+  likes: number;
+  views: number;
+  avatar: string;
+  thumbnail: string;
+};
+
 function normalizeText(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '');
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣]+/g, '')
+    .replace(/\./g, '');
 }
 
 function matchesStackValue(skill: string, target: string) {
   const s = normalizeText(skill);
   const t = normalizeText(target);
-  if (s === t) return true;
-  if (s.includes(t) || t.includes(s)) return true;
+  if (!s || !t) return false;
+
   const aliases: Record<string, string[]> = {
+    react: ['react'],
     reactnative: ['reactnative', 'reactnativeapp'],
-    nextjs: ['nextjs', 'nextjsapp', 'next'],
-    springboot: ['springboot', 'spring'],
-    nodejs: ['nodejs', 'node'],
+    kotlin: ['kotlin'],
+    swift: ['swift'],
     typescript: ['typescript', 'ts'],
     javascript: ['javascript', 'js'],
+    java: ['java'],
+    springboot: ['springboot', 'spring'],
+    python: ['python'],
+    nodejs: ['nodejs', 'node'],
+    nextjs: ['nextjs', 'next'],
   };
-  return Object.entries(aliases).some(([key, arr]) => (key === s || arr.includes(s)) && (key === t || arr.includes(t)));
+
+  const canonical = (value: string) => {
+    const entry = Object.entries(aliases).find(([, arr]) => arr.includes(value));
+    return entry?.[0] || value;
+  };
+
+  return canonical(s) === canonical(t);
 }
 
 function SkeletonCard() {
@@ -41,11 +67,11 @@ export default function ExplorePage() {
   const navigate = useNavigate();
   const { t, privacy, language } = useApp();
   const ko = language === 'ko';
-  const [users, setUsers] = useState<any[]>([]);
+
+  const [users, setUsers] = useState<ExploreUser[]>([]);
   const [search, setSearch] = useState('');
   const [activeRole, setActiveRole] = useState(ko ? '전체' : 'All');
   const [activeStack, setActiveStack] = useState('');
-  const [liked, setLiked] = useState<Set<string>>(new Set());
   const [sortOpen, setSortOpen] = useState(false);
   const [sortIdx, setSortIdx] = useState(0);
   const [followOnly, setFollowOnly] = useState(false);
@@ -59,32 +85,38 @@ export default function ExplorePage() {
     let alive = true;
     void listExploreUsers()
       .then(data => {
-        if (alive) setUsers(data as any[]);
+        if (alive) setUsers(data as ExploreUser[]);
       })
       .catch(() => {
         if (alive) setUsers([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
       });
-    const timer = setTimeout(() => setLoading(false), 500);
+
     return () => {
       alive = false;
-      clearTimeout(timer);
     };
   }, []);
 
   const filtered = useMemo(() => {
     return users.filter(user => {
       if (!privacy.public && user.id === 'u1') return false;
-      const query = search.toLowerCase();
+
+      const query = normalizeText(search);
       const matchesSearch =
         !query ||
-        user.name.toLowerCase().includes(query) ||
-        user.role.toLowerCase().includes(query) ||
-        (user.skills || []).some((skill: string) => skill.toLowerCase().includes(query));
+        normalizeText(user.name).includes(query) ||
+        normalizeText(user.role).includes(query) ||
+        (user.skills || []).some(skill => normalizeText(skill).includes(query));
+
       const matchesRole =
         activeRole === (ko ? '전체' : 'All') ||
-        normalizeText(user.role).includes(normalizeText(activeRole));
-      const matchesStack = !activeStack || (user.skills || []).some((skill: string) => matchesStackValue(skill, activeStack));
+        normalizeText(user.role) === normalizeText(activeRole);
+
+      const matchesStack = !activeStack || (user.skills || []).some(skill => matchesStackValue(skill, activeStack));
       const matchesFollow = !followOnly || ['e1', 'e2'].includes(user.id);
+
       return matchesSearch && matchesRole && matchesStack && matchesFollow;
     });
   }, [activeRole, activeStack, followOnly, ko, privacy.public, search, users]);
@@ -96,8 +128,8 @@ export default function ExplorePage() {
   return (
     <div className="min-h-full px-8 py-8" style={{ background: '#050505' }} onClick={() => setSortOpen(false)}>
       <div className="mx-auto mb-8 max-w-5xl">
-        <div className="mb-5 flex items-center gap-3">
-          <div className="relative flex-1">
+        <div className="mb-5 flex items-center gap-3 justify-end">
+          <div className="relative hidden flex-1">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" />
             <input
               value={search}
@@ -222,57 +254,7 @@ export default function ExplorePage() {
                 )}
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.3))' }} />
               </div>
-              <div className="p-4">
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full" style={{ boxShadow: '0 0 0 2px #070707, 0 0 0 3px rgba(124,58,237,0.3)' }}>
-                    {user.avatar ? (
-                      <img src={user.avatar} alt="" className="h-full w-full object-cover object-top" />
-                    ) : (
-                      <div className="h-full w-full" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }} />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white">{user.name}</p>
-                    <p className="text-xs text-zinc-500">{user.role}</p>
-                  </div>
-                </div>
-
-                <div className="mb-3 flex flex-wrap gap-1">
-                  {(user.skills || []).slice(0, 3).map((skill: string) => (
-                    <span key={skill} className="rounded-md border border-white/6 bg-white/[0.04] px-2 py-0.5 text-[10px] text-zinc-500">
-                      {skill}
-                    </span>
-                  ))}
-                  {(user.skills || []).length > 3 && (
-                    <span className="rounded-md border border-white/4 bg-white/[0.02] px-2 py-0.5 text-[10px] text-zinc-600">
-                      +{user.skills.length - 3}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-1 text-xs text-zinc-600">
-                      <Eye size={11} />
-                      {(user.views || 0).toLocaleString()}
-                    </span>
-                    <button
-                      onClick={e => {
-                        e.stopPropagation();
-                        setLiked(prev => {
-                          const next = new Set(prev);
-                          next.has(user.id) ? next.delete(user.id) : next.add(user.id);
-                          return next;
-                        });
-                      }}
-                      className={`flex items-center gap-1 text-xs transition-all hover:scale-110 ${liked.has(user.id) ? 'text-red-400' : 'text-zinc-600 hover:text-zinc-300'}`}
-                    >
-                      {liked.has(user.id) ? (ko ? '좋아요 취소' : 'Liked') : (ko ? '좋아요' : 'Like')}
-                    </button>
-                  </div>
-                  <span className="text-[10px] text-zinc-600">{user.likes} likes</span>
-                </div>
-              </div>
+              <div className="h-12" />
             </div>
           ))
         )}

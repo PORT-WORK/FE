@@ -113,8 +113,10 @@ export default function Layout() {
   }, [authReady, isLoggedIn, location.pathname, navigate]);
 
   const title = location.pathname === '/workspace'
-    ? 'Project'
-    : t(PAGE_TITLE_KEYS[location.pathname] ?? 'nav_home');
+    ? (language === 'ko' ? '프로젝트' : 'Project')
+    : location.pathname === '/portfolio'
+      ? (language === 'ko' ? '포트폴리오' : 'Portfolio')
+      : t(PAGE_TITLE_KEYS[location.pathname] ?? 'nav_home');
   const unreadCount = apiUnreadCount ?? notifications.filter(n => !n.read && !readIds.has(String(n.id))).length;
   const aiLabel = isLoggedIn ? t('ai_count_user').replace('{{n}}', String(aiCount)) : '로그인이 필요합니다';
 
@@ -154,7 +156,13 @@ export default function Layout() {
               {({ isActive }) => (
                 <>
                   <Icon size={15} className={isActive ? 'text-violet-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
-                  <span className="flex-1">{key === 'nav_workspace' ? 'Project' : key === 'nav_portfolio' ? 'My PPT' : t(key)}</span>
+                  <span className="flex-1">
+                    {key === 'nav_workspace'
+                      ? (language === 'ko' ? '프로젝트' : 'Project')
+                      : key === 'nav_portfolio'
+                        ? (language === 'ko' ? '포트폴리오' : 'Portfolio')
+                        : t(key)}
+                  </span>
                   {badge && !isActive && <span className="w-4 h-4 rounded-full bg-violet-600 text-[10px] text-white flex items-center justify-center">{badge}</span>}
                   {isActive && <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />}
                 </>

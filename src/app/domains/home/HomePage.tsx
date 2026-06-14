@@ -66,8 +66,9 @@ export default function HomePage() {
     return () => clearInterval(timer);
   }, [copy.steps.length]);
 
-  const handleGenerate = () => {
-    navigate(isLoggedIn ? '/workspace?create=1' : '/login');
+  const handleGenerate = (role?: 'DEVELOPER' | 'PM') => {
+    const query = role ? `?create=1&role=${role}` : '?create=1';
+    navigate(isLoggedIn ? `/workspace${query}` : '/login');
   };
 
   return (
@@ -97,7 +98,7 @@ export default function HomePage() {
 
             <div className="mt-8 flex justify-center">
               <button
-                onClick={handleGenerate}
+                onClick={() => navigate('/generate')}
                 className="inline-flex items-center gap-2 rounded-2xl px-7 py-4 text-base font-semibold text-white transition-transform hover:-translate-y-0.5"
                 style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 24px rgba(124,58,237,0.3)' }}
               >
@@ -130,7 +131,7 @@ export default function HomePage() {
           {copy.templates.map(template => (
             <button
               key={template.id}
-              onClick={handleGenerate}
+              onClick={() => handleGenerate(template.id === 'pm' ? 'PM' : 'DEVELOPER')}
               className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-left transition-transform hover:-translate-y-0.5"
             >
               <div className="mb-2 text-2xl">{template.emoji}</div>

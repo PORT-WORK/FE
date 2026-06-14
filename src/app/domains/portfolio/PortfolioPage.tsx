@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { FileText, Plus, Search, Sparkles } from 'lucide-react';
+import { Download, ExternalLink, FileText, Plus, Search, Sparkles, X } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import EmptyStatePanel from '../../components/EmptyStatePanel';
 import { listMyPortfolios, type PortfolioSummary } from '../../api/contentApi';
@@ -37,6 +37,8 @@ export default function PortfolioPage() {
   const ko = language === 'ko';
   const [files, setFiles] = useState<PortfolioSummary[]>([]);
   const [search, setSearch] = useState('');
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<PortfolioSummary | null>(null);
 
   useEffect(() => {
     void listMyPortfolios().then(setFiles).catch(() => setFiles([]));
@@ -52,6 +54,17 @@ export default function PortfolioPage() {
 
   const hasFiles = files.length > 0;
   const openGenerate = () => navigate('/generate');
+  const openPortfolio = (file: PortfolioSummary) => {
+    if (file.pptxUrl) {
+      setSelectedFile(file);
+      setViewerOpen(true);
+      return;
+    }
+    navigate('/workspace', { state: { portfolioId: file.id } });
+  };
+  const viewerUrl = selectedFile?.pptxUrl
+    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(selectedFile.pptxUrl)}`
+    : '';
 
   return (
     <div className="flex h-full" style={{ background: '#050505' }}>
@@ -101,12 +114,17 @@ export default function PortfolioPage() {
             {filtered.map(file => (
               <button
                 key={file.id}
-                onClick={() => navigate('/workspace', { state: { portfolioId: file.id } })}
+                onClick={() => openPortfolio(file)}
                 className="overflow-hidden rounded-2xl text-left transition-all duration-300 hover:-translate-y-0.5"
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
               >
-                <div className="flex h-32 items-center justify-center" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                <div className="relative flex h-32 items-center justify-center" style={{ background: 'rgba(255,255,255,0.03)' }}>
                   <FileText size={28} className="text-zinc-700" />
+                  {file.pptxUrl && (
+                    <div className="absolute right-3 top-3 rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-1 text-[10px] font-semibold text-violet-200">
+                      PPTX
+                    </div>
+                  )}
                 </div>
                 <div className="p-5">
                   <p className="mb-1 text-sm font-semibold text-white">{file.title}</p>
@@ -121,6 +139,66 @@ export default function PortfolioPage() {
           </div>
         )}
       </div>
+
+      {viewerOpen && selectedFile && (
+        <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/75 px-4 backdrop-blur-md" onClick={() => setViewerOpen(false)}>
+          <div className="w-full max-w-[1200px] overflow-hidden rounded-[30px] border border-white/10 bg-[#090909] shadow-2xl shadow-black/50" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-white/6 px-5 py-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.22em] text-zinc-600">PPTX</p>
+                <h3 className="mt-1 text-lg font-black text-white">{selectedFile.title}</h3>
+              </div>
+              <button onClick={() => setViewerOpen(false)} className="rounded-xl p-2 text-zinc-500 transition-colors hover:bg-white/[0.05] hover:text-white">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="grid gap-4 p-5 lg:grid-cols-[1fr_280px]">
+              <div className="min-h-[680px] overflow-hidden rounded-[26px] border border-white/8 bg-black/20">
+                {viewerUrl ? (
+                  <iframe title={selectedFile.title} src={viewerUrl} className="h-[680px] w-full" />
+                ) : (
+                  <div className="flex h-[680px] items-center justify-center text-sm text-zinc-500">
+                    {ko ? 'PPTX 미리보기를 불러올 수 없습니다.' : 'Unable to preview this PPTX.'}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3 rounded-[26px] border border-white/8 bg-white/[0.02] p-4">
+                <p className="text-sm font-semibold text-white">{ko ? '파일 정보' : 'File info'}</p>
+                <div className="space-y-2 rounded-2xl border border-white/6 bg-black/20 p-4 text-sm text-zinc-400">
+                  <p>{selectedFile.summary || (ko ? '요약 없음' : 'No summary')}</p>
+                  <p>{selectedFile.jobRole}</p>
+                  <p>{selectedFile.skills?.join(', ') || ''}</p>
+                </div>
+                <a
+                  href={selectedFile.pptxUrl || '#'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white"
+                  style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                >
+                  <ExternalLink size={14} />
+                  {ko ? '새 창으로 열기' : 'Open in new tab'}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = selectedFile.pptxUrl || '';
+                    link.download = `${selectedFile.title || 'portfolio'}.pptx`;
+                    link.click();
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 px-4 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:bg-white/[0.04]"
+                >
+                  <Download size={14} />
+                  {ko ? '다운로드' : 'Download'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

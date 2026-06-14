@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ArrowLeft, ChevronLeft, ChevronRight, Image as ImageIcon, LayoutGrid, MessageSquare, Sparkles, User } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Heart, Image as ImageIcon, LayoutGrid, MessageSquare, Sparkles, User } from 'lucide-react';
 import { fetchPortfolioData, fetchPortfolioDetail, fetchPublicProfile, fetchPublicUserPortfolios, type PortfolioDataResponse, type PortfolioDetail, type PortfolioSummary, type PublicUserProfile } from '../../api/contentApi';
 import { useApp } from '../../contexts/AppContext';
 
@@ -65,6 +65,10 @@ export default function ExploreDetailPage() {
   const [selectedPortfolioDetail, setSelectedPortfolioDetail] = useState<PortfolioDetail | null>(null);
   const [slideIndex, setSlideIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [following, setFollowing] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!userId || Number.isNaN(userId)) return;
@@ -128,6 +132,16 @@ export default function ExploreDetailPage() {
   }, [slideIndex, slides.length]);
 
   const currentSlide = slides[slideIndex] || null;
+  const publicProfile = profile as (PublicUserProfile & {
+    githubUrl?: string | null;
+    notionUrl?: string | null;
+    figmaUrl?: string | null;
+  }) | null;
+  const profileLinks = [
+    { label: 'GitHub', url: publicProfile?.githubUrl || '' },
+    { label: 'Notion', url: publicProfile?.notionUrl || '' },
+    { label: 'Figma', url: publicProfile?.figmaUrl || '' },
+  ];
 
   return (
     <div className="min-h-full overflow-y-auto px-6 py-6 lg:px-8" style={{ background: '#050505' }}>
@@ -162,6 +176,44 @@ export default function ExploreDetailPage() {
 
                 <p className="mt-4 text-sm leading-6 text-zinc-400">{profile?.bio || (ko ? '소개가 없습니다.' : 'No bio available.')}</p>
 
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {profileLinks.map(link => (
+                    <button
+                      key={link.label}
+                      type="button"
+                      disabled={!link.url}
+                      onClick={() => link.url && window.open(link.url, '_blank', 'noopener,noreferrer')}
+                      className="rounded-2xl border px-3 py-2 text-left transition-all disabled:cursor-not-allowed disabled:opacity-45"
+                      style={{
+                        background: link.url ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.015)',
+                        borderColor: link.url ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
+                      }}
+                    >
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">{link.label}</p>
+                      <p className="mt-1 truncate text-xs text-zinc-300">{link.url || (ko ? '연결 없음' : 'Not connected')}</p>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/messages')}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/8 px-4 py-2.5 text-xs font-semibold text-zinc-200 transition-colors hover:bg-white/[0.04]"
+                  >
+                    <MessageSquare size={13} />
+                    {ko ? '메세지' : 'Message'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFollowing(prev => !prev)}
+                    className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-semibold text-white"
+                    style={{ background: following ? 'rgba(16,185,129,0.16)' : 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                  >
+                    {following ? (ko ? '팔로잉' : 'Following') : (ko ? '팔로우' : 'Follow')}
+                  </button>
+                </div>
+
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{ko ? '포트폴리오' : 'Portfolios'}</p>
@@ -181,7 +233,7 @@ export default function ExploreDetailPage() {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">{ko ? 'PPT 보기' : 'PPT viewer'}</p>
-                  <h2 className="mt-2 text-3xl font-black text-white">{selectedPortfolioDetail?.title || (ko ? '포트폴리오를 선택하세요' : 'Select a portfolio')}</h2>
+                  <h2 className="mt-2 text-[1.7rem] font-black text-white">{selectedPortfolioDetail?.title || (ko ? '포트폴리오를 선택하세요' : 'Select a portfolio')}</h2>
                   <p className="mt-1 text-sm text-zinc-500">{selectedPortfolioDetail?.jobRole || (ko ? '오른쪽 목록에서 포트폴리오를 선택하면 슬라이드가 나타납니다.' : 'Choose a portfolio from the list to preview its slides.')}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -267,7 +319,46 @@ export default function ExploreDetailPage() {
                       <p className="mt-3 text-sm leading-6 text-zinc-500">
                         {selectedPortfolioDetail?.summary || (ko ? '선택된 PPT를 크게 확인할 수 있습니다.' : 'You can inspect the selected PPT in detail here.')}
                       </p>
-                      <div className="mt-4 flex gap-2">
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSaved(prev => !prev)}
+                          className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-xs font-semibold transition-colors"
+                          style={{
+                            background: saved ? 'rgba(16,185,129,0.14)' : 'rgba(255,255,255,0.03)',
+                            borderColor: saved ? 'rgba(16,185,129,0.24)' : 'rgba(255,255,255,0.08)',
+                            color: saved ? '#6ee7b7' : '#e4e4e7',
+                          }}
+                        >
+                          <Bookmark size={13} />
+                          {ko ? '저장됨' : 'Saved'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLiked(prev => !prev)}
+                          className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-xs font-semibold transition-colors"
+                          style={{
+                            background: liked ? 'rgba(239,68,68,0.14)' : 'rgba(255,255,255,0.03)',
+                            borderColor: liked ? 'rgba(239,68,68,0.24)' : 'rgba(255,255,255,0.08)',
+                            color: liked ? '#fca5a5' : '#e4e4e7',
+                          }}
+                        >
+                          <Heart size={13} />
+                          {ko ? '좋아요' : 'Like'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBookmarked(prev => !prev)}
+                          className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-xs font-semibold transition-colors"
+                          style={{
+                            background: bookmarked ? 'rgba(124,58,237,0.16)' : 'rgba(255,255,255,0.03)',
+                            borderColor: bookmarked ? 'rgba(124,58,237,0.24)' : 'rgba(255,255,255,0.08)',
+                            color: bookmarked ? '#c4b5fd' : '#e4e4e7',
+                          }}
+                        >
+                          <Bookmark size={13} />
+                          {ko ? '보관됨' : 'Archive'}
+                        </button>
                         <button
                           onClick={() => navigate('/messages')}
                           className="flex-1 rounded-2xl px-4 py-3 text-sm font-semibold text-white"
@@ -286,7 +377,7 @@ export default function ExploreDetailPage() {
                     <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-violet-500/20 bg-violet-500/10 text-violet-300">
                       <Sparkles size={22} />
                     </div>
-                    <p className="text-lg font-semibold text-white">{ko ? '포트폴리오를 선택하세요' : 'Select a portfolio'}</p>
+                    <p className="text-sm font-semibold text-white">{ko ? '포트폴리오를 선택하세요' : 'Select a portfolio'}</p>
                     <p className="mt-2 text-sm text-zinc-500">{ko ? '오른쪽에서 포트폴리오를 고르면 슬라이드가 표시됩니다.' : 'Pick a portfolio from the right panel to see its slides.'}</p>
                   </div>
                 </div>
