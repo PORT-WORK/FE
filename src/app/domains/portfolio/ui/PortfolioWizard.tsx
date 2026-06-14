@@ -55,11 +55,8 @@ const jobTypes = [
 ];
 
 const techOptions = [
-  'React', 'Vue', 'Angular', 'Next.js', 'Nuxt.js', 'TypeScript', 'JavaScript',
-  'Python', 'Java', 'Go', 'Node.js', 'Express', 'Django', 'Spring',
-  'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'AWS', 'GCP', 'Azure',
-  'Docker', 'Kubernetes', 'Git', 'Figma', 'Sketch', 'Adobe XD',
-  'Tailwind CSS', 'Sass', 'GraphQL', 'REST API',
+  'React', 'React Native', 'Kotlin', 'Swift', 'TypeScript', 'JavaScript',
+  'Java', 'Spring Boot', 'Python', 'Node.js', 'Next.js',
 ];
 
 const jobSpecificLinks: Record<string, { label: string; placeholder: string }[]> = {

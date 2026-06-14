@@ -4,8 +4,8 @@ import { Search, ChevronDown, SlidersHorizontal, X, Users, Eye } from 'lucide-re
 import { useApp } from '../../contexts/AppContext';
 import { listExploreUsers } from '../../api/contentApi';
 
-const ROLES = ['All', 'Developer', 'Designer', 'PM', 'Data', 'Marketer', 'Founder'];
-const STACKS = ['React', 'TypeScript', 'Figma', 'Python', 'Next.js', 'Node.js'];
+const ROLES = ['All', 'Developer', 'PM'];
+const STACKS = ['React', 'React Native', 'Kotlin', 'Swift', 'TypeScript', 'JavaScript', 'Java', 'Spring Boot', 'Python', 'Node.js', 'Next.js'];
 
 function SkeletonCard() {
   return (

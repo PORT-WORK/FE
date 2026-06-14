@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Sparkles, ArrowRight, Check, Zap } from 'lucide-react';
+import { ArrowRight, Check, Sparkles, Zap } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 
 const HOME_COPY = {
@@ -8,17 +8,16 @@ const HOME_COPY = {
     badge: 'AI 포트폴리오 빌더',
     titleMain: '아이디어를 수집하면',
     titleAccent: 'AI가 포트폴리오로 조립합니다',
-    subtitle: '프로젝트, 글, 작업 기록을 연결하면 AI가 포트폴리오 구조로 자동 정리합니다.',
+    subtitle: '프로젝트, 글, 작업 기록을 연결하면 AI가 포트폴리오 구조로 정리합니다.',
     placeholder: '배경과 강점을 입력해보세요...',
     action: '포트폴리오 생성하기',
     steps: [
-      { label: '데이터 연결', detail: '프로젝트, 글, 기술 데이터를 연결합니다.' },
-      { label: '작업 분석', detail: 'AI가 경력을 섹션 단위로 정리합니다.' },
-      { label: '포트폴리오 생성', detail: '정리된 내용을 PPTX로 만듭니다.' },
+      { label: '데이터 연결', detail: '프로젝트, 글, 기술 정보를 연결합니다.' },
+      { label: '작업 분석', detail: 'AI가 경력과 성과를 섹션 단위로 정리합니다.' },
+      { label: '포트폴리오 생성', detail: '정리된 내용을 PPTX로 변환합니다.' },
     ],
     templates: [
       { id: 'dev', label: '개발자', emoji: '💻', desc: '기술 중심 포트폴리오' },
-      { id: 'design', label: '디자이너', emoji: '🎨', desc: '시각 중심 포트폴리오' },
       { id: 'pm', label: 'PM', emoji: '📋', desc: '제품 이야기 중심 포트폴리오' },
     ],
     free: ['3 포트폴리오 파일 저장', '3회 AI 포트폴리오 제작'],
@@ -42,7 +41,6 @@ const HOME_COPY = {
     ],
     templates: [
       { id: 'dev', label: 'Developer', emoji: '💻', desc: 'Tech-focused portfolio' },
-      { id: 'design', label: 'Designer', emoji: '🎨', desc: 'Visual-first portfolio' },
       { id: 'pm', label: 'PM', emoji: '📋', desc: 'Product story portfolio' },
     ],
     free: ['3 portfolio files stored', '3 AI portfolio generations'],
@@ -109,7 +107,7 @@ export default function HomePage() {
                 }}
                 placeholder={copy.placeholder}
                 rows={2}
-                className="flex-1 bg-transparent px-4 py-4 text-sm text-white placeholder-zinc-700 focus:outline-none resize-none min-h-[76px] max-h-32"
+                className="min-h-[76px] max-h-32 flex-1 resize-none bg-transparent px-4 py-4 text-sm text-white placeholder-zinc-700 focus:outline-none"
               />
               <button
                 onClick={handleGenerate}
@@ -137,7 +135,7 @@ export default function HomePage() {
           ))}
         </div>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
+        <div className="mt-10 grid gap-4 md:grid-cols-2">
           {copy.templates.map(template => (
             <button
               key={template.id}
