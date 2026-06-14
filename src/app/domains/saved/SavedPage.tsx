@@ -1,146 +1,107 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Bookmark, ChevronDown, ExternalLink, Heart, Star } from 'lucide-react';
+import { Bookmark, Heart, Archive } from 'lucide-react';
+import { listExploreUsers } from '../../api/contentApi';
 import { useApp } from '../../contexts/AppContext';
 import EmptyStatePanel from '../../components/EmptyStatePanel';
-import { listExploreUsers } from '../../api/contentApi';
 
-type SortKey = 'latest' | 'name' | 'popular';
+type SavedTab = 'saved' | 'liked' | 'archived';
+
+type SavedItem = {
+  id: string;
+  name: string;
+  role: string;
+  pptxUrl?: string;
+};
+
+function officeViewerUrl(url?: string | null) {
+  if (!url) return '';
+  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+}
 
 export default function SavedPage() {
-  const [tab, setTab] = useState(0);
-  const [sortOpen, setSortOpen] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>('latest');
-  const [items, setItems] = useState<any[]>([]);
   const navigate = useNavigate();
-  const { language } = useApp();
+  const { language, savedCollections } = useApp();
   const ko = language === 'ko';
-
-  const tabs = ko ? ['저장됨', '좋아요', '보관됨'] : ['Saved', 'Liked', 'Archived'];
-  const sorts = ko
-    ? [
-        { key: 'latest' as const, label: '최신순' },
-        { key: 'name' as const, label: '이름순' },
-        { key: 'popular' as const, label: '인기순' },
-      ]
-    : [
-        { key: 'latest' as const, label: 'Latest' },
-        { key: 'name' as const, label: 'A-Z' },
-        { key: 'popular' as const, label: 'Popular' },
-      ];
+  const [tab, setTab] = useState<SavedTab>('saved');
+  const [items, setItems] = useState<SavedItem[]>([]);
 
   useEffect(() => {
-    void listExploreUsers().then(data => setItems(data.slice(0, tab === 2 ? 4 : tab === 1 ? 5 : 3)));
-  }, [tab]);
+    let alive = true;
+    void listExploreUsers()
+      .then(rows => {
+        if (alive) setItems(rows as SavedItem[]);
+      })
+      .catch(() => {
+        if (alive) setItems([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
-  const displayItems = useMemo(() => {
-    const next = [...items];
-    if (sortKey === 'name') next.sort((a, b) => a.name.localeCompare(b.name));
-    if (sortKey === 'popular') next.sort((a, b) => b.likes - a.likes);
-    return next;
-  }, [items, sortKey]);
+  const visible = useMemo(() => {
+    const ids = savedCollections[tab];
+    return items.filter(item => ids.includes(item.id));
+  }, [items, savedCollections, tab]);
+
+  const tabs = [
+    { key: 'saved' as const, label: ko ? '저장됨' : 'Saved', icon: Bookmark },
+    { key: 'liked' as const, label: ko ? '좋아요' : 'Liked', icon: Heart },
+    { key: 'archived' as const, label: ko ? '보관됨' : 'Archived', icon: Archive },
+  ];
 
   return (
-    <div className="px-8 py-8 overflow-y-auto" style={{ background: '#050505', minHeight: '100%' }} onClick={() => setSortOpen(false)}>
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            {tabs.map((item, idx) => (
-              <button
-                key={item}
-                onClick={() => setTab(idx)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all"
-                style={{ background: tab === idx ? 'rgba(255,255,255,0.08)' : 'transparent', color: tab === idx ? '#f4f4f5' : '#71717a' }}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-
-          <div className="relative" onClick={e => e.stopPropagation()}>
+    <div className="min-h-full px-8 py-10" style={{ background: '#050505' }}>
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-10 flex flex-wrap gap-2">
+          {tabs.map(item => (
             <button
-              onClick={() => setSortOpen(prev => !prev)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-zinc-400 transition-all"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+              key={item.key}
+              type="button"
+              onClick={() => setTab(item.key)}
+              className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold"
+              style={{
+                background: tab === item.key ? 'rgba(124,58,237,0.18)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${tab === item.key ? 'rgba(124,58,237,0.35)' : 'rgba(255,255,255,0.08)'}`,
+                color: tab === item.key ? '#c4b5fd' : '#a1a1aa',
+              }}
             >
-              {sorts.find(item => item.key === sortKey)?.label}
-              <ChevronDown size={11} className="text-zinc-600" />
+              <item.icon size={14} />
+              {item.label}
             </button>
-            {sortOpen && (
-              <div className="absolute top-full right-0 mt-1 rounded-xl shadow-xl z-50 overflow-hidden" style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', minWidth: '140px' }}>
-                {sorts.map(option => (
-                  <button
-                    key={option.key}
-                    onClick={() => {
-                      setSortKey(option.key);
-                      setSortOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-2.5 text-xs transition-colors"
-                    style={{ color: sortKey === option.key ? '#a78bfa' : '#a1a1aa', background: sortKey === option.key ? 'rgba(124,58,237,0.06)' : 'transparent' }}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          ))}
         </div>
 
-        {displayItems.length === 0 ? (
+        {visible.length === 0 ? (
           <EmptyStatePanel
-            emoji={tab === 0 ? '🔖' : tab === 1 ? '❤️' : '⭐'}
-            title={ko ? '저장된 항목이 없습니다' : 'No saved items yet'}
-            description={ko ? '탐색에서 포트폴리오를 저장하면 여기 표시됩니다.' : 'Save a portfolio from Explore to see it here.'}
+            emoji="🔖"
+            title={ko ? '저장된 항목이 없습니다' : 'No saved items'}
+            description={ko ? '탐색에서 포트폴리오를 저장하면 여기에 표시됩니다.' : 'Saved portfolios from Explore will appear here.'}
             actionLabel={ko ? '탐색으로 이동' : 'Go to Explore'}
             onAction={() => navigate('/explore')}
-            accent={tab === 1 ? 'rose' : tab === 2 ? 'amber' : 'violet'}
           />
         ) : (
-          <div className="grid grid-cols-3 gap-4">
-            {displayItems.map(user => (
-              <div
-                key={user.id}
-                className="rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5 cursor-pointer group"
-                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
-                onClick={() => navigate(`/explore/${user.id}`)}
-              >
-                <div className="h-28 overflow-hidden relative">
-                  <div className="w-full h-full flex items-center justify-center text-zinc-700" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                    <Bookmark size={28} />
-                  </div>
-                </div>
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="text-sm font-semibold text-white">{user.name}</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">{user.role}</p>
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {visible.map(item => {
+              const viewer = officeViewerUrl(item.pptxUrl);
+              return (
+                <button
+                  key={`${tab}-${item.id}`}
+                  type="button"
+                  onClick={() => navigate(`/explore/${item.id}`)}
+                  className="aspect-[16/9] overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]"
+                >
+                  {viewer ? (
+                    <iframe title={item.name} src={viewer} loading="lazy" className="pointer-events-none h-full w-full bg-black" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-500/20 to-blue-500/15 text-sm text-zinc-500">
+                      {item.name}
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      {tab === 1 && <Heart size={12} className="text-red-400 fill-red-400" />}
-                      {tab === 0 && <Bookmark size={12} className="text-violet-400 fill-violet-400" />}
-                      {tab === 2 && <Star size={12} className="text-yellow-400 fill-yellow-400" />}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {(user.skills || []).slice(0, 3).map((skill: string) => (
-                      <span key={skill} className="px-2 py-0.5 text-[10px] text-zinc-600 rounded-md" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                  <button
-                    onClick={e => {
-                      e.stopPropagation();
-                      navigate(`/explore/${user.id}`);
-                    }}
-                    className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-violet-400 transition-colors"
-                  >
-                    <ExternalLink size={11} />
-                    {ko ? '보기' : 'View'}
-                  </button>
-                </div>
-              </div>
-            ))}
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

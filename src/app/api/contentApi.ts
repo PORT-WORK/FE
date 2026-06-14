@@ -30,6 +30,7 @@ export type ConversationCard = {
 
 export type PortfolioSummary = {
   id: number;
+  userId?: number;
   title: string;
   jobRole: string;
   thumbnailUrl: string | null;
@@ -237,7 +238,8 @@ export async function listExploreUsers() {
       .filter(Boolean);
   };
   return items.map((item: any) => ({
-    id: String(item.id),
+    id: String(item.userId ?? item.ownerId ?? item.user?.id ?? item.id),
+    portfolioId: item.id,
     name: item.name || item.title || 'Portfolio',
     role: item.role || item.jobRole || 'Developer',
     bio: item.bio || item.summary || '',
@@ -246,6 +248,7 @@ export async function listExploreUsers() {
     views: item.views ?? item.viewCount ?? 0,
     avatar: item.avatar || item.thumbnailUrl || '',
     thumbnail: item.thumbnail || item.thumbnailUrl || '',
+    pptxUrl: item.pptxUrl || '',
     isPublic: item.isPublic ?? true,
   }));
 }
@@ -432,6 +435,7 @@ export async function fetchPortfolioDetail(portfolioId: number) {
       summary: null,
       skills: [],
       templateId: null,
+      pptxUrl: null,
       customDomain: null,
       isPublic: false,
       viewCount: 0,

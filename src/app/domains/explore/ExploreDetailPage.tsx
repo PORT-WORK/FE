@@ -19,7 +19,7 @@ function officeViewerUrl(url?: string | null) {
 export default function ExploreDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { language, followingIds, setFollowingIds } = useApp();
+  const { language, followingIds, setFollowingIds, savedCollections, setSavedCollections } = useApp();
   const ko = language === 'ko';
   const userId = Number(id);
 
@@ -27,11 +27,12 @@ export default function ExploreDetailPage() {
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<PortfolioDetail | null>(null);
-  const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [archived, setArchived] = useState(false);
 
-  const following = followingIds.includes(userId);
+  const targetKey = String(userId);
+  const following = followingIds.includes(targetKey);
+  const saved = savedCollections.saved.includes(targetKey);
+  const liked = savedCollections.liked.includes(targetKey);
+  const archived = savedCollections.archived.includes(targetKey);
 
   useEffect(() => {
     if (!userId || Number.isNaN(userId)) return;
@@ -82,7 +83,13 @@ export default function ExploreDetailPage() {
   ];
 
   const toggleFollow = () => {
-    setFollowingIds(prev => (prev.includes(userId) ? prev.filter(item => item !== userId) : [...prev, userId]));
+    setFollowingIds(prev => (prev.includes(targetKey) ? prev.filter(item => item !== targetKey) : [...prev, targetKey]));
+  };
+  const toggleCollection = (key: 'saved' | 'liked' | 'archived') => {
+    setSavedCollections(prev => ({
+      ...prev,
+      [key]: prev[key].includes(targetKey) ? prev[key].filter(item => item !== targetKey) : [...prev[key], targetKey],
+    }));
   };
 
   return (
@@ -131,7 +138,7 @@ export default function ExploreDetailPage() {
                 <div className="mt-4 flex gap-2">
                   <button
                     type="button"
-                    onClick={() => navigate('/messages')}
+                    onClick={() => navigate(`/messages?userId=${userId}`)}
                     className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/8 px-4 py-2.5 text-sm font-semibold text-zinc-200 hover:bg-white/[0.04]"
                   >
                     <MessageSquare size={14} />
@@ -200,14 +207,14 @@ export default function ExploreDetailPage() {
                   <p className="mt-3 text-sm leading-6 text-zinc-500">{detail?.summary || (ko ? '선택한 PPT 정보를 확인합니다.' : 'Review selected PPT information.')}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {[
-                      { active: saved, set: setSaved, icon: Bookmark, label: ko ? '저장됨' : 'Saved' },
-                      { active: liked, set: setLiked, icon: Heart, label: ko ? '좋아요' : 'Like' },
-                      { active: archived, set: setArchived, icon: Bookmark, label: ko ? '보관됨' : 'Archived' },
+                      { key: 'saved' as const, active: saved, icon: Bookmark, label: ko ? '저장됨' : 'Saved' },
+                      { key: 'liked' as const, active: liked, icon: Heart, label: ko ? '좋아요' : 'Like' },
+                      { key: 'archived' as const, active: archived, icon: Bookmark, label: ko ? '보관됨' : 'Archived' },
                     ].map(item => (
                       <button
                         key={item.label}
                         type="button"
-                        onClick={() => item.set(prev => !prev)}
+                        onClick={() => toggleCollection(item.key)}
                         className="inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-semibold"
                         style={{
                           background: item.active ? 'rgba(124,58,237,0.16)' : 'rgba(255,255,255,0.03)',

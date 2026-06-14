@@ -6,6 +6,7 @@ import { listExploreUsers } from '../../api/contentApi';
 
 type ExploreUser = {
   id: string;
+  portfolioId?: number;
   name: string;
   role: string;
   bio: string;
@@ -14,8 +15,14 @@ type ExploreUser = {
   views: number;
   avatar: string;
   thumbnail: string;
+  pptxUrl?: string;
   isPublic: boolean;
 };
+
+function officeViewerUrl(url?: string | null) {
+  if (!url) return '';
+  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+}
 
 function normalizeText(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9\uac00-\ud7a3]+/g, '');
@@ -179,22 +186,33 @@ export default function ExplorePage() {
         <p className="mb-6 text-sm text-zinc-600">{sorted.length}{ko ? '개의 결과' : ' results'}</p>
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {loading ? Array.from({ length: 9 }).map((_, index) => <SkeletonCard key={index} />) : sorted.map(user => (
-            <button
+          {loading ? Array.from({ length: 9 }).map((_, index) => <SkeletonCard key={index} />) : sorted.map(user => {
+            const viewer = officeViewerUrl(user.pptxUrl);
+            return (
+            <div
               key={user.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => navigate(`/explore/${user.id}`)}
+              onKeyDown={event => {
+                if (event.key === 'Enter' || event.key === ' ') navigate(`/explore/${user.id}`);
+              }}
               className="group aspect-[16/9] overflow-hidden rounded-2xl text-left transition-all duration-300 hover:-translate-y-1"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
               aria-label={user.name}
             >
-              {user.thumbnail ? (
-                <img src={user.thumbnail} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              {viewer ? (
+                <iframe
+                  title={user.name}
+                  src={viewer}
+                  loading="lazy"
+                  className="pointer-events-none h-full w-full bg-black transition-transform duration-500 group-hover:scale-105"
+                />
               ) : (
                 <div className="h-full w-full bg-gradient-to-br from-violet-500/25 to-blue-500/20" />
               )}
-            </button>
-          ))}
+            </div>
+          );})}
         </div>
       </div>
     </div>

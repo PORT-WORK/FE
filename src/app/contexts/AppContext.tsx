@@ -9,6 +9,11 @@ type Notifs = { email: boolean; push: boolean; message: boolean };
 type Privacy = { public: boolean; showEmail: boolean };
 type Connections = Record<IntegrationProviderKey, boolean>;
 type Following = string[];
+type SavedCollections = {
+  saved: string[];
+  liked: string[];
+  archived: string[];
+};
 
 export interface AppUser {
   name: string;
@@ -41,6 +46,8 @@ type AppContextValue = {
   setConnections: (value: Connections) => void;
   followingIds: Following;
   setFollowingIds: Dispatch<SetStateAction<Following>>;
+  savedCollections: SavedCollections;
+  setSavedCollections: Dispatch<SetStateAction<SavedCollections>>;
 };
 
 const STORAGE_KEY = 'port-app-state';
@@ -279,6 +286,7 @@ const defaultState = {
   privacy: { public: true, showEmail: false },
   connections: Object.fromEntries(INTEGRATION_PROVIDER_KEYS.map(key => [key, key === 'github'])) as Connections,
   followingIds: [] as Following,
+  savedCollections: { saved: [], liked: [], archived: [] } as SavedCollections,
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -293,6 +301,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [privacy, setPrivacy] = useState(defaultState.privacy);
   const [connections, setConnections] = useState(defaultState.connections);
   const [followingIds, setFollowingIds] = useState<Following>(defaultState.followingIds);
+  const [savedCollections, setSavedCollections] = useState<SavedCollections>(defaultState.savedCollections);
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
@@ -307,6 +316,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (parsed.privacy) setPrivacy(parsed.privacy);
       if (parsed.connections) setConnections(parsed.connections);
       if (Array.isArray(parsed.followingIds)) setFollowingIds(parsed.followingIds.filter(item => typeof item === 'string'));
+      if (parsed.savedCollections) {
+        setSavedCollections({
+          saved: Array.isArray(parsed.savedCollections.saved) ? parsed.savedCollections.saved.filter(item => typeof item === 'string') : [],
+          liked: Array.isArray(parsed.savedCollections.liked) ? parsed.savedCollections.liked.filter(item => typeof item === 'string') : [],
+          archived: Array.isArray(parsed.savedCollections.archived) ? parsed.savedCollections.archived.filter(item => typeof item === 'string') : [],
+        });
+      }
     } catch {
       // ignore invalid cache
     }
@@ -342,8 +358,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ language, user, aiCount, notifs, privacy, connections, followingIds }));
-  }, [language, user, aiCount, notifs, privacy, connections, followingIds]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ language, user, aiCount, notifs, privacy, connections, followingIds, savedCollections }));
+  }, [language, user, aiCount, notifs, privacy, connections, followingIds, savedCollections]);
 
   const login = (provider: 'kakao' | 'google') => {
     localStorage.removeItem(LOGOUT_FLAG_KEY);
@@ -381,7 +397,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setConnections,
     followingIds,
     setFollowingIds,
-  }), [language, user, authReady, aiCount, aiLimit, payModal, notifs, privacy, connections, followingIds]);
+    savedCollections,
+    setSavedCollections,
+  }), [language, user, authReady, aiCount, aiLimit, payModal, notifs, privacy, connections, followingIds, savedCollections]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
