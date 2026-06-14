@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronRight, Github, Figma, FileText, Loader2, Search, Sparkles, X } from 'lucide-react';
+import { Check, ChevronRight, Figma, FileText, Github, Loader2, Search, Sparkles, X } from 'lucide-react';
 import { fetchIntegrationSources, type IntegrationSourceItem } from '../../../api/contentApi';
 import { useApp } from '../../../contexts/AppContext';
 
@@ -40,6 +40,8 @@ export default function ProjectSourceSelectionModal({ open, initialProvider = 'g
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const providerRef = useRef<ProviderKey>(initialProvider);
+  const cacheRef = useRef<Partial<Record<ProviderKey, IntegrationSourceItem[]>>>({});
+  const selectedIdsRef = useRef<string[]>(initialSourceIds);
 
   const connected = Boolean(connections[provider]);
 
@@ -51,25 +53,49 @@ export default function ProjectSourceSelectionModal({ open, initialProvider = 'g
     setActiveItem(null);
     setError(null);
     providerRef.current = initialProvider;
+    selectedIdsRef.current = initialSourceIds;
   }, [initialProvider, initialSourceIds, open]);
 
   useEffect(() => {
+    selectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
+
+  useEffect(() => {
     if (!open) return;
+
     let alive = true;
-    setLoading(true);
-    setError(null);
+    const cached = cacheRef.current[provider];
     const providerChanged = providerRef.current !== provider;
+
     providerRef.current = provider;
+    setError(null);
+
     if (providerChanged) {
       setSelectedIds([]);
     }
+
+    if (cached) {
+      setItems(cached);
+      setActiveItem(cached[0] || null);
+      if ((providerChanged || selectedIdsRef.current.length === 0) && cached.length > 0) {
+        setSelectedIds(cached.slice(0, Math.min(3, cached.length)).map(item => item.resourceId));
+      }
+      setLoading(false);
+      return () => {
+        alive = false;
+      };
+    }
+
+    setLoading(true);
     setActiveItem(null);
+
     void fetchIntegrationSources(provider)
       .then(rows => {
         if (!alive) return;
+        cacheRef.current[provider] = rows;
         setItems(rows);
         setActiveItem(rows[0] || null);
-        if ((providerChanged || selectedIds.length === 0) && rows.length > 0) {
+        if ((providerChanged || selectedIdsRef.current.length === 0) && rows.length > 0) {
           setSelectedIds(rows.slice(0, Math.min(3, rows.length)).map(item => item.resourceId));
         }
       })
@@ -82,6 +108,7 @@ export default function ProjectSourceSelectionModal({ open, initialProvider = 'g
       .finally(() => {
         if (alive) setLoading(false);
       });
+
     return () => {
       alive = false;
     };
@@ -180,6 +207,11 @@ export default function ProjectSourceSelectionModal({ open, initialProvider = 'g
               </div>
             </div>
 
+            <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-3 text-xs text-zinc-500">
+              <span>{providerLabel(provider)}</span>
+              <span>{ko ? '선택해서 원고로 가져갈 수 있습니다.' : 'Select items to use in your draft.'}</span>
+            </div>
+
             {!connected && (
               <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
                 {ko ? '설정에서 먼저 해당 연동을 연결해 주세요.' : 'Connect this provider in Settings first.'}
@@ -196,51 +228,57 @@ export default function ProjectSourceSelectionModal({ open, initialProvider = 'g
                 <div className="flex min-h-[420px] items-center justify-center rounded-3xl border border-white/6 bg-white/[0.02] text-sm text-zinc-500">
                   {ko ? '표시할 자료가 없습니다.' : 'No sources to show.'}
                 </div>
-              ) : filtered.map(item => {
-                const active = selectedIds.includes(item.resourceId);
-                const focused = activeItem?.resourceId === item.resourceId;
-                return (
-                  <button
-                    key={item.resourceId}
-                    onClick={() => {
-                      setActiveItem(item);
-                      toggle(item.resourceId);
-                    }}
-                    className="w-full rounded-3xl p-4 text-left transition-all"
-                    style={{
-                      background: focused ? 'rgba(124,58,237,0.08)' : 'rgba(255,255,255,0.02)',
-                      border: `1px solid ${focused ? 'rgba(124,58,237,0.22)' : 'rgba(255,255,255,0.06)'}`,
-                    }}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-white/[0.05] text-zinc-200">
-                        {item.imageUrl && item.imageUrl.startsWith('http') ? (
-                          <img src={item.imageUrl} alt="" className="h-full w-full rounded-2xl object-cover" />
-                        ) : (
-                          <span className="text-lg font-black">{item.title.slice(0, 1).toUpperCase()}</span>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="truncate text-sm font-semibold text-white">{item.title}</p>
-                            <p className="mt-1 text-xs text-zinc-500">{item.subtitle}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {item.tags.slice(0, 2).map(tag => (
-                              <span key={tag} className="rounded-full border border-white/8 bg-white/[0.03] px-2 py-1 text-[10px] text-zinc-500">
-                                {tag}
-                              </span>
-                            ))}
-                            {active && <Check size={14} className="text-violet-300" />}
-                          </div>
+              ) : (
+                filtered.map(item => {
+                  const active = selectedIds.includes(item.resourceId);
+                  const focused = activeItem?.resourceId === item.resourceId;
+                  return (
+                    <button
+                      key={item.resourceId}
+                      onClick={() => {
+                        setActiveItem(item);
+                        toggle(item.resourceId);
+                      }}
+                      className="w-full rounded-3xl p-4 text-left transition-all"
+                      style={{
+                        background: focused ? 'rgba(124,58,237,0.08)' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${focused ? 'rgba(124,58,237,0.22)' : 'rgba(255,255,255,0.06)'}`,
+                      }}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-white/[0.05] text-zinc-200">
+                          {item.imageUrl && item.imageUrl.startsWith('http') ? (
+                            <img src={item.imageUrl} alt="" className="h-full w-full rounded-2xl object-cover" />
+                          ) : (
+                            <span className="text-lg font-black">{item.title.slice(0, 1).toUpperCase()}</span>
+                          )}
                         </div>
-                        <p className="mt-3 line-clamp-2 text-xs leading-6 text-zinc-500">{item.summary}</p>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-white">{item.title}</p>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                                <span>{item.subtitle}</span>
+                                <span className="h-1 w-1 rounded-full bg-zinc-700" />
+                                <span className="uppercase tracking-[0.18em]">{item.kind}</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              {item.tags.slice(0, 3).map(tag => (
+                                <span key={tag} className="rounded-full border border-white/8 bg-white/[0.03] px-2 py-1 text-[10px] text-zinc-500">
+                                  {tag}
+                                </span>
+                              ))}
+                              {active && <Check size={14} className="text-violet-300" />}
+                            </div>
+                          </div>
+                          <p className="mt-3 line-clamp-2 text-xs leading-6 text-zinc-500">{item.summary}</p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })
+              )}
             </div>
           </main>
 
