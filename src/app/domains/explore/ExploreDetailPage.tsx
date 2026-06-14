@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Bookmark, Heart, MessageSquare, User } from 'lucide-react';
 import {
@@ -11,11 +11,6 @@ import {
 } from '../../api/contentApi';
 import { useApp } from '../../contexts/AppContext';
 
-function pptViewerUrl(url?: string | null) {
-  if (!url) return '';
-  return `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
-}
-
 export default function ExploreDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -27,7 +22,6 @@ export default function ExploreDetailPage() {
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<PortfolioDetail | null>(null);
-  const [viewerFallback, setViewerFallback] = useState(false);
 
   const targetKey = String(userId);
   const following = followingIds.includes(targetKey);
@@ -71,11 +65,6 @@ export default function ExploreDetailPage() {
     };
   }, [selectedId]);
 
-  const viewer = useMemo(() => pptViewerUrl(detail?.pptxUrl), [detail?.pptxUrl]);
-
-  useEffect(() => {
-    setViewerFallback(false);
-  }, [viewer]);
   const publicProfile = profile as (PublicUserProfile & {
     githubUrl?: string | null;
     notionUrl?: string | null;
@@ -90,6 +79,7 @@ export default function ExploreDetailPage() {
   const toggleFollow = () => {
     setFollowingIds(prev => (prev.includes(targetKey) ? prev.filter(item => item !== targetKey) : [...prev, targetKey]));
   };
+
   const toggleCollection = (key: 'saved' | 'liked' | 'archived') => {
     setSavedCollections(prev => ({
       ...prev,
@@ -166,54 +156,30 @@ export default function ExploreDetailPage() {
             <section className="rounded-[30px] border border-white/8 bg-white/[0.03] p-5">
               <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">{ko ? 'PPT 보기' : 'PPT viewer'}</p>
               <h2 className="mt-2 text-2xl font-black text-white">{detail?.title || (ko ? '포트폴리오를 선택하세요' : 'Select a portfolio')}</h2>
-              <p className="mt-1 text-sm text-zinc-500">{detail?.jobRole || (ko ? '아래 목록에서 PPT를 선택하면 표시됩니다.' : 'Pick a PPT below to preview it.')}</p>
+              <p className="mt-1 text-sm text-zinc-500">{detail?.jobRole || (ko ? '오른쪽 목록에서 PPT를 선택하면 표시됩니다.' : 'Pick a PPT from the list.')}</p>
             </section>
 
             <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
               <div className="overflow-hidden rounded-[30px] border border-white/8 bg-black/30">
-                {viewer && !viewerFallback ? (
-                  <div className="relative h-[680px] w-full bg-black">
-                    <iframe title={detail?.title || 'PPT'} src={viewer} className="h-full w-full bg-black" onError={() => setViewerFallback(true)} />
-                    <div className="pointer-events-none absolute inset-x-4 bottom-4 flex justify-end">
-                      <a
-                        href={detail?.pptxUrl || '#'}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="pointer-events-auto rounded-xl border border-white/10 bg-black/70 px-3 py-2 text-xs font-semibold text-white backdrop-blur"
-                      >
-                        {ko ? 'PPT 새 탭으로 열기' : 'Open PPT'}
-                      </a>
-                    </div>
-                  </div>
-                ) : detail?.pptxUrl ? (
+                {detail?.pptxUrl ? (
                   <div className="flex h-[680px] items-center justify-center bg-[#070707] p-8 text-center">
-                    <div className="max-w-md">
+                    <div className="max-w-lg">
                       {detail.thumbnailUrl ? (
-                        <img src={detail.thumbnailUrl} alt="" className="mx-auto mb-6 max-h-80 rounded-3xl border border-white/10 object-contain" />
+                        <img src={detail.thumbnailUrl} alt="" className="mx-auto mb-6 max-h-[360px] rounded-3xl border border-white/10 object-contain" />
                       ) : (
-                        <div className="mx-auto mb-6 flex h-36 w-56 items-center justify-center rounded-3xl border border-violet-500/25 bg-violet-500/10 text-4xl font-black text-violet-200">
+                        <div className="mx-auto mb-6 flex h-48 w-80 items-center justify-center rounded-3xl border border-violet-500/25 bg-violet-500/10 text-5xl font-black text-violet-200">
                           PPT
                         </div>
                       )}
                       <p className="text-xl font-black text-white">{detail.title}</p>
                       <p className="mt-2 text-sm leading-6 text-zinc-500">
-                        {ko ? '브라우저 미리보기가 제한되면 다운로드로 확인할 수 있습니다.' : 'If browser preview is blocked, download the PPT file.'}
+                        {ko ? 'PPT 파일이 준비되었습니다. 브라우저 미리보기가 막혀도 새 탭 또는 다운로드로 확인할 수 있습니다.' : 'The PPT file is ready. If browser preview is blocked, open or download the file.'}
                       </p>
                       <div className="mt-6 flex justify-center gap-2">
-                        <a
-                          href={detail.pptxUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200"
-                        >
+                        <a href={detail.pptxUrl} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200">
                           {ko ? '새 탭으로 열기' : 'Open in new tab'}
                         </a>
-                        <a
-                          href={detail.pptxUrl}
-                          download
-                          className="rounded-2xl px-4 py-2 text-sm font-semibold text-white"
-                          style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-                        >
+                        <a href={detail.pptxUrl} download className="rounded-2xl px-4 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
                           {ko ? '다운로드' : 'Download'}
                         </a>
                       </div>
@@ -226,7 +192,7 @@ export default function ExploreDetailPage() {
                         <Bookmark size={22} />
                       </div>
                       <p className="text-lg font-black text-white">{ko ? 'PPT 파일이 없습니다' : 'No PPT file'}</p>
-                      <p className="mt-2 text-sm text-zinc-500">{ko ? 'pptx_url이 있는 공개 포트폴리오만 표시됩니다.' : 'Only public portfolios with pptxUrl can be previewed.'}</p>
+                      <p className="mt-2 text-sm text-zinc-500">{ko ? 'pptxUrl이 있는 공개 포트폴리오만 표시됩니다.' : 'Only public portfolios with pptxUrl can be shown.'}</p>
                     </div>
                   </div>
                 )}

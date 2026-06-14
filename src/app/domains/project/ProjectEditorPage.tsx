@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { ArrowLeft, Check, Clock3, Download, FileText, Loader2, RefreshCw, Sparkles, Wand2 } from 'lucide-react';
+import { ArrowLeft, Check, Clock3, Download, FileText, Loader2, Sparkles, Wand2 } from 'lucide-react';
 import {
   createProjectWritingDocument,
   createProjectWritingPresentation,
@@ -279,7 +279,6 @@ export default function ProjectEditorPage() {
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [sourceModalDismissed, setSourceModalDismissed] = useState(false);
   const [documentModalOpen, setDocumentModalOpen] = useState(false);
-  const [compareModalOpen, setCompareModalOpen] = useState(false);
   const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -613,7 +612,7 @@ export default function ProjectEditorPage() {
       const reviewed = normalizeForReview(localDocument);
       setReviewedText(reviewed);
       setStep('REVIEWED');
-      setCompareModalOpen(true);
+      setDocumentModalOpen(true);
       setSession(prev => ({
         ...(prev || {
           projectId,
@@ -653,7 +652,7 @@ export default function ProjectEditorPage() {
       const next = await reviewProjectWritingDocument(projectId);
       setSession(next);
       setReviewedText(next.reviewedDocument || '');
-      setCompareModalOpen(true);
+      setDocumentModalOpen(true);
       setStep('REVIEWED');
       setError(next.lastError || null);
     } catch {
@@ -783,10 +782,7 @@ export default function ProjectEditorPage() {
         initialValue={editingSection ? sectionDrafts[editingSection]?.value || '' : ''}
         onClose={() => setEditingSection(null)}
         onSave={saveSection}
-        onOpenSources={() => {
-          setEditingSection(null);
-          window.setTimeout(() => setSourceModalOpen(true), 0);
-        }}
+        onOpenSources={() => setSourceModalOpen(true)}
       />
 
       {(documentBusy || reviewBusy) && (
@@ -809,52 +805,48 @@ export default function ProjectEditorPage() {
               </div>
               <button onClick={() => setDocumentModalOpen(false)} className="rounded-xl p-2 text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200">×</button>
             </div>
-            <textarea
-              value={documentText}
-              onChange={event => setDocumentText(event.target.value)}
-              className="mt-5 min-h-[520px] w-full resize-y rounded-[24px] border border-white/8 bg-white/[0.03] px-5 py-4 text-sm leading-7 text-zinc-100 outline-none"
-            />
+            {reviewedText ? (
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-zinc-300">{ko ? '이전 버전' : 'Before'}</p>
+                  <textarea
+                    value={documentText}
+                    onChange={event => setDocumentText(event.target.value)}
+                    className="min-h-[520px] w-full resize-y rounded-[24px] border border-white/8 bg-white/[0.03] px-5 py-4 text-sm leading-7 text-zinc-100 outline-none"
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-zinc-300">{ko ? '검수 버전' : 'Reviewed'}</p>
+                  <textarea
+                    value={reviewedText}
+                    onChange={event => setReviewedText(event.target.value)}
+                    className="min-h-[520px] w-full resize-y rounded-[24px] border border-violet-500/20 bg-violet-500/[0.06] px-5 py-4 text-sm leading-7 text-zinc-100 outline-none"
+                  />
+                </div>
+              </div>
+            ) : (
+              <textarea
+                value={documentText}
+                onChange={event => setDocumentText(event.target.value)}
+                className="mt-5 min-h-[520px] w-full resize-y rounded-[24px] border border-white/8 bg-white/[0.03] px-5 py-4 text-sm leading-7 text-zinc-100 outline-none"
+              />
+            )}
             <div className="mt-5 flex justify-end gap-2">
               <button onClick={() => void createDocument()} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-zinc-300">재시도</button>
-              <button onClick={() => void reviewDocument()} className="rounded-2xl px-5 py-3 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>AI 검수</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {compareModalOpen && (
-        <div className="fixed inset-0 z-[385] flex items-start justify-center overflow-y-auto bg-black/75 px-4 py-6 backdrop-blur-md" onClick={() => setCompareModalOpen(false)}>
-          <div className="w-full max-w-6xl rounded-[32px] border border-white/10 bg-[#090909] p-6 shadow-2xl" onClick={event => event.stopPropagation()}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-violet-300">AI review</p>
-                <h3 className="mt-2 text-2xl font-black text-white">AI 검수 결과 비교</h3>
-              </div>
-              <button onClick={() => setCompareModalOpen(false)} className="rounded-xl p-2 text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200">×</button>
-            </div>
-            <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              <div>
-                <p className="mb-2 text-sm font-semibold text-zinc-300">이전 버전</p>
-                <textarea value={documentText} onChange={event => setDocumentText(event.target.value)} className="min-h-[500px] w-full resize-y rounded-[24px] border border-white/8 bg-white/[0.03] px-5 py-4 text-sm leading-7 text-zinc-100 outline-none" />
-              </div>
-              <div>
-                <p className="mb-2 text-sm font-semibold text-zinc-300">이후 버전</p>
-                <textarea value={reviewedText} onChange={event => setReviewedText(event.target.value)} className="min-h-[500px] w-full resize-y rounded-[24px] border border-violet-500/20 bg-violet-500/[0.06] px-5 py-4 text-sm leading-7 text-zinc-100 outline-none" />
-              </div>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => void reviewDocument()} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-zinc-300">재시도</button>
-              <button
-                onClick={() => {
-                  setCompareModalOpen(false);
-                  setDocumentModalOpen(false);
-                  setStep('REVIEWED');
-                }}
-                className="rounded-2xl px-5 py-3 text-sm font-semibold text-white"
-                style={{ background: 'linear-gradient(135deg,#22c55e,#2563eb)' }}
-              >
-                저장
-              </button>
+              {reviewedText ? (
+                <button
+                  onClick={() => {
+                    setDocumentModalOpen(false);
+                    setStep('REVIEWED');
+                  }}
+                  className="rounded-2xl px-5 py-3 text-sm font-semibold text-white"
+                  style={{ background: 'linear-gradient(135deg,#22c55e,#2563eb)' }}
+                >
+                  {ko ? '저장' : 'Save'}
+                </button>
+              ) : (
+                <button onClick={() => void reviewDocument()} className="rounded-2xl px-5 py-3 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>AI 검수</button>
+              )}
             </div>
           </div>
         </div>
@@ -1011,7 +1003,7 @@ export default function ProjectEditorPage() {
               <div className="mt-5 space-y-3">
                 {[
                   { key: 'draft', title: ko ? '자료 작성' : 'Write draft', desc: ko ? '섹션별 내용을 직접 작성합니다.' : 'Write each section manually.' },
-                  { key: 'review', title: ko ? 'AI 검수 1회' : 'AI review once', desc: ko ? '문장과 흐름만 다듬습니다.' : 'Polish wording and flow only.' },
+                  { key: 'review', title: ko ? 'AI 검수 1회' : 'AI review once', desc: ko ? '문서 생성 후 열린 창에서 문장과 흐름만 다듬습니다.' : 'Review from the generated document modal only.' },
                   { key: 'ppt', title: ko ? 'PPTX 생성' : 'Build PPTX', desc: ko ? '검수된 문서로 PPT를 만듭니다.' : 'Generate the PPT from the reviewed document.' },
                 ].filter(item => item.key !== 'ppt').map((item, index) => {
                   const active = (index === 0 && step === 'WRITING') || (index === 1 && step === 'DOCUMENT_CREATED') || (index === 2 && (step === 'REVIEWED' || step === 'PPT_CREATED'));
@@ -1058,15 +1050,6 @@ export default function ProjectEditorPage() {
                 >
                   {documentBusy ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
                   {ko ? '문서 생성' : 'Create document'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void reviewDocument()}
-                  disabled={reviewBusy}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 px-4 py-4 text-sm font-semibold text-zinc-300 transition-colors hover:bg-white/[0.05] disabled:opacity-40"
-                >
-                  {reviewBusy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                  {ko ? 'AI 검수' : 'AI review'}
                 </button>
                 {false && <button
                   type="button"

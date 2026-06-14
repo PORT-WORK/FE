@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router';
-import { Home, Compass, Briefcase, LayoutTemplate, MessageSquare, User, Bookmark, Settings, Sparkles, Github, CheckCircle2, Cpu, ChevronRight, Bell, BarChart2, X, Heart, MessageCircle, UserPlus, AtSign, CreditCard, Check } from 'lucide-react';
+import { Home, Compass, Briefcase, LayoutTemplate, MessageSquare, User, Bookmark, Settings, Sparkles, Github, CheckCircle2, Cpu, ChevronRight, ChevronDown, Bell, BarChart2, X, Heart, MessageCircle, UserPlus, AtSign, CreditCard, Check } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { fetchNotifications, fetchUnreadNotificationCount, markNotificationRead } from '../api/contentApi';
 import { subscribeRealtime } from '../api/client';
@@ -58,6 +58,7 @@ export default function Layout() {
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [notifications, setNotifications] = useState<NotifItem[]>([]);
   const [apiUnreadCount, setApiUnreadCount] = useState<number | null>(null);
+  const [integrationOpen, setIntegrationOpen] = useState(false);
 
   const publicHome = !isLoggedIn && location.pathname === '/';
 
@@ -172,12 +173,40 @@ export default function Layout() {
         </nav>
 
         <div className="px-3 pb-3 pt-2 flex-shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-zinc-600">
+          <button
+            type="button"
+            onClick={() => setIntegrationOpen(prev => !prev)}
+            className="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-xs text-zinc-500 transition-colors hover:bg-white/[0.04] hover:text-zinc-300"
+          >
+            <Github size={11} />
+            <span>{language === 'ko' ? '연동 상태' : 'Integrations'}</span>
+            <div className="ml-auto flex items-center gap-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              {integrationOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </div>
+          </button>
+          {integrationOpen && (
+            <div className="mt-1 space-y-1">
+              {(['github', 'notion', 'figma'] as const).map(key => {
+                const connected = Boolean(connections[key]);
+                return (
+                  <div key={key} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] text-zinc-600">
+                    <span className="capitalize">{key}</span>
+                    <span className={`ml-auto ${connected ? 'text-emerald-400' : 'text-zinc-700'}`}>
+                      {connected ? (language === 'ko' ? '연동됨' : 'Connected') : (language === 'ko' ? '미연동' : 'Off')}
+                    </span>
+                    <div className={`h-1.5 w-1.5 rounded-full ${connected ? 'bg-emerald-500' : 'bg-zinc-700'}`} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="hidden items-center gap-2 px-3 py-2 rounded-lg text-xs text-zinc-600">
             <Github size={11} />
             <span>{language === 'ko' ? '연동 상태' : 'Integrations'}</span>
             <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
           </div>
-          <div className="mt-1 space-y-1">
+          <div className="hidden mt-1 space-y-1">
             {Object.entries(connections)
               .filter(([, connected]) => connected)
               .map(([key]) => (

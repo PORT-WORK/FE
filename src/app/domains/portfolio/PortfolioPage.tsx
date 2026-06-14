@@ -62,10 +62,6 @@ export default function PortfolioPage() {
     }
     navigate('/workspace', { state: { portfolioId: file.id } });
   };
-  const viewerUrl = selectedFile?.pptxUrl
-    ? `https://docs.google.com/gview?url=${encodeURIComponent(selectedFile.pptxUrl)}&embedded=true`
-    : '';
-
   return (
     <div className="flex h-full" style={{ background: '#050505' }}>
       <div className="flex-1 overflow-y-auto px-8 py-8">
@@ -155,13 +151,21 @@ export default function PortfolioPage() {
 
             <div className="grid gap-4 p-5 lg:grid-cols-[1fr_280px]">
               <div className="min-h-[680px] overflow-hidden rounded-[26px] border border-white/8 bg-black/20">
-                {viewerUrl ? (
-                  <iframe title={selectedFile.title} src={viewerUrl} className="h-[680px] w-full" />
-                ) : (
-                  <div className="flex h-[680px] items-center justify-center text-sm text-zinc-500">
-                    {ko ? 'PPTX 미리보기를 불러올 수 없습니다.' : 'Unable to preview this PPTX.'}
+                <div className="flex h-[680px] items-center justify-center bg-[#070707] p-8 text-center">
+                  <div className="max-w-lg">
+                    {selectedFile.thumbnailUrl ? (
+                      <img src={selectedFile.thumbnailUrl} alt="" className="mx-auto mb-6 max-h-[360px] rounded-3xl border border-white/10 object-contain" />
+                    ) : (
+                      <div className="mx-auto mb-6 flex h-48 w-80 items-center justify-center rounded-3xl border border-violet-500/25 bg-violet-500/10 text-5xl font-black text-violet-200">
+                        PPT
+                      </div>
+                    )}
+                    <p className="text-xl font-black text-white">{selectedFile.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-500">
+                      {ko ? 'PPTX 파일이 준비되었습니다. 새 탭 또는 다운로드로 확인할 수 있습니다.' : 'The PPTX file is ready. Open it in a new tab or download it.'}
+                    </p>
                   </div>
-                )}
+                </div>
               </div>
 
               <div className="space-y-3 rounded-[26px] border border-white/8 bg-white/[0.02] p-4">
@@ -186,7 +190,7 @@ export default function PortfolioPage() {
                   onClick={() => {
                     const link = document.createElement('a');
                     link.href = selectedFile.pptxUrl || '';
-                    link.download = `${selectedFile.title || 'portfolio'}.pptx`;
+                    link.download = `${encodeURIComponent(selectedFile.title || 'portfolio')}.pptx`;
                     link.click();
                   }}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 px-4 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:bg-white/[0.04]"

@@ -116,6 +116,32 @@ export type MessageItem = {
   readAt: string | null;
 };
 
+let messageBucketCache: {
+  at: number;
+  currentUserId: number;
+  inbox: MessageItem[];
+  sent: MessageItem[];
+} | null = null;
+
+async function fetchMessageBuckets() {
+  const currentUserId = getCurrentUserId();
+  const now = Date.now();
+  if (messageBucketCache && messageBucketCache.currentUserId === currentUserId && now - messageBucketCache.at < 5000) {
+    return messageBucketCache;
+  }
+  const [inbox, sent] = await Promise.all([
+    apiRequest({ url: '/messages/inbox', method: 'GET' }, async () => []),
+    apiRequest({ url: '/messages/sent', method: 'GET' }, async () => []),
+  ]);
+  messageBucketCache = {
+    at: now,
+    currentUserId,
+    inbox: asArray<MessageItem>(inbox),
+    sent: asArray<MessageItem>(sent),
+  };
+  return messageBucketCache;
+}
+
 export type NotificationItem = {
   id: number;
   type: string;
@@ -254,13 +280,7 @@ export async function listExploreUsers() {
 }
 
 export async function listMessages(): Promise<ConversationCard[]> {
-  const currentUserId = getCurrentUserId();
-  const inbox = asArray<MessageItem>(
-    await apiRequest({ url: '/messages/inbox', method: 'GET' }, async () => []),
-  );
-  const sent = asArray<MessageItem>(
-    await apiRequest({ url: '/messages/sent', method: 'GET' }, async () => []),
-  );
+  const { currentUserId, inbox, sent } = await fetchMessageBuckets();
   const latestByPeer = new Map<number, MessageItem>();
   const unreadByPeer = new Map<number, number>();
   [...inbox, ...sent].forEach(item => {
@@ -299,13 +319,7 @@ export async function listMessages(): Promise<ConversationCard[]> {
 }
 
 export async function listConversationMessages(peerId: number): Promise<MessageItem[]> {
-  const currentUserId = getCurrentUserId();
-  const inbox = asArray<MessageItem>(
-    await apiRequest({ url: '/messages/inbox', method: 'GET' }, async () => []),
-  );
-  const sent = asArray<MessageItem>(
-    await apiRequest({ url: '/messages/sent', method: 'GET' }, async () => []),
-  );
+  const { currentUserId, inbox, sent } = await fetchMessageBuckets();
   return [...inbox, ...sent]
     .filter(item =>
       (item.senderId === currentUserId && item.receiverId === peerId) ||
@@ -315,10 +329,12 @@ export async function listConversationMessages(peerId: number): Promise<MessageI
 }
 
 export async function sendMessage(receiverId: number, content: string) {
-  return apiRequest(
+  const result = await apiRequest(
     { url: '/messages', method: 'POST', data: { receiverId, content } },
     async () => ({ id: `local-${Date.now()}`, receiverId, content }),
   );
+  messageBucketCache = null;
+  return result;
 }
 
 export async function localLogin(email: string, password: string) {

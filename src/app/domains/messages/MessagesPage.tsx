@@ -459,8 +459,8 @@ export default function MessagesPage() {
           {!activeCard ? (
             <div className="h-full min-h-[420px] flex items-center justify-center">
               <div className="max-w-sm w-full rounded-[28px] p-8 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <p className="text-lg font-bold text-white">??붾? ?쒖옉???щ엺???놁뒿?덈떎</p>
-                <p className="text-sm text-zinc-600 mt-2">?곌껐???щ엺???놁쑝硫?諛붾줈 硫붿떆吏瑜?蹂대궪 ???놁뒿?덈떎.</p>
+                <p className="text-lg font-bold text-white">{ko ? '대화를 시작할 사람이 없습니다' : 'No conversation selected'}</p>
+                <p className="text-sm text-zinc-600 mt-2">{ko ? '탐색 화면에서 메시지를 눌러 대화를 시작할 수 있습니다.' : 'Open a profile from Explore and start a message.'}</p>
               </div>
             </div>
           ) : renderedChats.map(item => {

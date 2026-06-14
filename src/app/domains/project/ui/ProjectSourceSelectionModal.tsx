@@ -193,7 +193,7 @@ export default function ProjectSourceSelectionModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[320] flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-6 backdrop-blur-md" onClick={onClose}>
+    <div className="fixed inset-0 z-[420] flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-6 backdrop-blur-md" onClick={onClose}>
       <div
         className="w-full max-w-6xl overflow-hidden rounded-[32px] border border-white/10 bg-[#090909] shadow-2xl shadow-black/50"
         style={{ maxHeight: 'calc(100vh - 3rem)' }}
@@ -439,7 +439,7 @@ export default function ProjectSourceSelectionModal({
         </div>
       </div>
       {figmaModalOpen && (
-        <div className="fixed inset-0 z-[340] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm" onClick={() => setFigmaModalOpen(false)}>
+        <div className="fixed inset-0 z-[440] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm" onClick={() => setFigmaModalOpen(false)}>
           <div className="w-full max-w-lg rounded-[28px] border border-white/10 bg-[#101010] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
               <div>
