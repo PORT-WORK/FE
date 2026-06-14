@@ -19,7 +19,7 @@ import {
 import { useApp } from '../../contexts/AppContext';
 import EmptyStatePanel from '../../components/EmptyStatePanel';
 import { getCurrentUserId, subscribeRealtime } from '../../api/client';
-import { fetchPublicProfile, listMessages, markMessageRead, sendMessage, type ConversationCard, type MessageItem } from '../../api/contentApi';
+import { fetchPublicProfile, listConversationMessages, listMessages, markMessageRead, sendMessage, type ConversationCard, type MessageItem } from '../../api/contentApi';
 
 type ChatType = 'text' | 'image' | 'file' | 'voice';
 
@@ -157,6 +157,21 @@ export default function MessagesPage() {
     if (activeConversationIdRef.current !== activeCard.id) {
       activeConversationIdRef.current = activeCard.id;
       setChats(buildInitialChats(activeCard));
+      void listConversationMessages(activeCard.userId)
+        .then(rows => {
+          if (activeConversationIdRef.current !== activeCard.id) return;
+          const currentUserId = getCurrentUserId();
+          const history = rows.map(item => ({
+            id: String(item.id),
+            from: item.senderId === currentUserId ? 'me' as const : 'them' as const,
+            text: item.content,
+            time: formatDateKey(item.createdAt),
+            date: formatDateKey(item.createdAt),
+            type: 'text' as const,
+          }));
+          setChats(history.length > 0 ? history : buildInitialChats(activeCard));
+        })
+        .catch(() => undefined);
     }
   }, [activeCard]);
 
@@ -230,7 +245,7 @@ export default function MessagesPage() {
   }, []);
 
   useEffect(() => {
-    if (activeCard) {
+    if (activeCard?.latestMessageId) {
       void markMessageRead(activeCard.latestMessageId).catch(() => undefined);
     }
   }, [activeCard?.latestMessageId]);

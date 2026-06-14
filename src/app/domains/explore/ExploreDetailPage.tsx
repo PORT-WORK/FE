@@ -75,9 +75,6 @@ export default function ExploreDetailPage() {
 
   useEffect(() => {
     setViewerFallback(false);
-    if (!viewer) return undefined;
-    const fallbackTimer = window.setTimeout(() => setViewerFallback(true), 4500);
-    return () => window.clearTimeout(fallbackTimer);
   }, [viewer]);
   const publicProfile = profile as (PublicUserProfile & {
     githubUrl?: string | null;
@@ -176,7 +173,7 @@ export default function ExploreDetailPage() {
               <div className="overflow-hidden rounded-[30px] border border-white/8 bg-black/30">
                 {viewer && !viewerFallback ? (
                   <div className="relative h-[680px] w-full bg-black">
-                    <iframe title={detail?.title || 'PPT'} src={viewer} className="h-full w-full bg-black" />
+                    <iframe title={detail?.title || 'PPT'} src={viewer} className="h-full w-full bg-black" onError={() => setViewerFallback(true)} />
                     <div className="pointer-events-none absolute inset-x-4 bottom-4 flex justify-end">
                       <a
                         href={detail?.pptxUrl || '#'}

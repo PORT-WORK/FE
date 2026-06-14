@@ -298,6 +298,22 @@ export async function listMessages(): Promise<ConversationCard[]> {
   }));
 }
 
+export async function listConversationMessages(peerId: number): Promise<MessageItem[]> {
+  const currentUserId = getCurrentUserId();
+  const inbox = asArray<MessageItem>(
+    await apiRequest({ url: '/messages/inbox', method: 'GET' }, async () => []),
+  );
+  const sent = asArray<MessageItem>(
+    await apiRequest({ url: '/messages/sent', method: 'GET' }, async () => []),
+  );
+  return [...inbox, ...sent]
+    .filter(item =>
+      (item.senderId === currentUserId && item.receiverId === peerId) ||
+      (item.senderId === peerId && item.receiverId === currentUserId),
+    )
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+}
+
 export async function sendMessage(receiverId: number, content: string) {
   return apiRequest(
     { url: '/messages', method: 'POST', data: { receiverId, content } },

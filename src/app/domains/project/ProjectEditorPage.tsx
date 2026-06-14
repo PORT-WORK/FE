@@ -278,6 +278,8 @@ export default function ProjectEditorPage() {
   const [resumable, setResumable] = useState(false);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [sourceModalDismissed, setSourceModalDismissed] = useState(false);
+  const [documentModalOpen, setDocumentModalOpen] = useState(false);
+  const [compareModalOpen, setCompareModalOpen] = useState(false);
   const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -352,6 +354,7 @@ export default function ProjectEditorPage() {
 
   const completedCount = useMemo(() => countCompletedSections(sectionDrafts), [sectionDrafts]);
   const progress = useMemo(() => (sectionMeta.length === 0 ? 0 : Math.round((completedCount / sectionMeta.length) * 100)), [completedCount, sectionMeta.length]);
+  const allSectionsCompleted = sectionMeta.length > 0 && completedCount === sectionMeta.length;
   const activeSection = sectionMeta.find(item => item.key === activeKey) || sectionMeta[0];
   const activeDraft = activeSection ? sectionDrafts[activeSection.key] : null;
   const nextSectionKey = sectionMeta[(sectionMeta.findIndex(item => item.key === activeKey) + 1) % sectionMeta.length]?.key || sectionMeta[0]?.key || '';
@@ -419,7 +422,11 @@ export default function ProjectEditorPage() {
 
   const saveSection = (value: string) => {
     if (!editingSection) return;
-    updateSection(editingSection, value);
+    setSectionDrafts(prev => ({
+      ...prev,
+      [editingSection]: { value, status: value.trim() ? 'COMPLETED' : 'EMPTY' },
+    }));
+    setStep('WRITING');
     setEditingSection(null);
   };
 
@@ -542,6 +549,7 @@ export default function ProjectEditorPage() {
       setSectionDrafts(nextDrafts);
       setStep('DOCUMENT_CREATED');
       setDocumentText(content);
+      setDocumentModalOpen(true);
       setSession(prev => ({
         ...(prev || {
           projectId,
@@ -579,6 +587,8 @@ export default function ProjectEditorPage() {
     try {
       const next = await createProjectWritingDocument(projectId);
       setSession(next);
+      setDocumentText(next.documentText || buildDocumentFromDrafts(sectionDrafts));
+      setDocumentModalOpen(true);
       const sourceDrafts = buildSectionDraftMap(role, sectionMeta, next.sourceSnapshot || session?.sourceSnapshot || sourceSnapshot, sectionDrafts);
       setSectionDrafts(fillCompletedStatus(sourceDrafts));
       setStep('DOCUMENT_CREATED');
@@ -603,6 +613,7 @@ export default function ProjectEditorPage() {
       const reviewed = normalizeForReview(localDocument);
       setReviewedText(reviewed);
       setStep('REVIEWED');
+      setCompareModalOpen(true);
       setSession(prev => ({
         ...(prev || {
           projectId,
@@ -642,6 +653,7 @@ export default function ProjectEditorPage() {
       const next = await reviewProjectWritingDocument(projectId);
       setSession(next);
       setReviewedText(next.reviewedDocument || '');
+      setCompareModalOpen(true);
       setStep('REVIEWED');
       setError(next.lastError || null);
     } catch {
@@ -771,8 +783,82 @@ export default function ProjectEditorPage() {
         initialValue={editingSection ? sectionDrafts[editingSection]?.value || '' : ''}
         onClose={() => setEditingSection(null)}
         onSave={saveSection}
-        onOpenSources={() => setSourceModalOpen(true)}
+        onOpenSources={() => {
+          setEditingSection(null);
+          window.setTimeout(() => setSourceModalOpen(true), 0);
+        }}
       />
+
+      {(documentBusy || reviewBusy) && (
+        <div className="fixed inset-0 z-[390] flex items-center justify-center bg-black/75 px-4 backdrop-blur-md">
+          <div className="rounded-[28px] border border-white/10 bg-[#101010] px-8 py-7 text-center shadow-2xl">
+            <Loader2 size={22} className="mx-auto mb-4 animate-spin text-violet-300" />
+            <p className="text-lg font-black text-white">{documentBusy ? '문서를 생성하는 중입니다' : 'AI가 문서를 검수하는 중입니다'}</p>
+            <p className="mt-2 text-sm text-zinc-500">잠시만 기다려주세요.</p>
+          </div>
+        </div>
+      )}
+
+      {documentModalOpen && (
+        <div className="fixed inset-0 z-[380] flex items-start justify-center overflow-y-auto bg-black/75 px-4 py-6 backdrop-blur-md" onClick={() => setDocumentModalOpen(false)}>
+          <div className="w-full max-w-5xl rounded-[32px] border border-white/10 bg-[#090909] p-6 shadow-2xl" onClick={event => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.22em] text-violet-300">Project document</p>
+                <h3 className="mt-2 text-2xl font-black text-white">생성된 프로젝트 문서</h3>
+              </div>
+              <button onClick={() => setDocumentModalOpen(false)} className="rounded-xl p-2 text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200">×</button>
+            </div>
+            <textarea
+              value={documentText}
+              onChange={event => setDocumentText(event.target.value)}
+              className="mt-5 min-h-[520px] w-full resize-y rounded-[24px] border border-white/8 bg-white/[0.03] px-5 py-4 text-sm leading-7 text-zinc-100 outline-none"
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => void createDocument()} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-zinc-300">재시도</button>
+              <button onClick={() => void reviewDocument()} className="rounded-2xl px-5 py-3 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>AI 검수</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {compareModalOpen && (
+        <div className="fixed inset-0 z-[385] flex items-start justify-center overflow-y-auto bg-black/75 px-4 py-6 backdrop-blur-md" onClick={() => setCompareModalOpen(false)}>
+          <div className="w-full max-w-6xl rounded-[32px] border border-white/10 bg-[#090909] p-6 shadow-2xl" onClick={event => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.22em] text-violet-300">AI review</p>
+                <h3 className="mt-2 text-2xl font-black text-white">AI 검수 결과 비교</h3>
+              </div>
+              <button onClick={() => setCompareModalOpen(false)} className="rounded-xl p-2 text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200">×</button>
+            </div>
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <div>
+                <p className="mb-2 text-sm font-semibold text-zinc-300">이전 버전</p>
+                <textarea value={documentText} onChange={event => setDocumentText(event.target.value)} className="min-h-[500px] w-full resize-y rounded-[24px] border border-white/8 bg-white/[0.03] px-5 py-4 text-sm leading-7 text-zinc-100 outline-none" />
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-semibold text-zinc-300">이후 버전</p>
+                <textarea value={reviewedText} onChange={event => setReviewedText(event.target.value)} className="min-h-[500px] w-full resize-y rounded-[24px] border border-violet-500/20 bg-violet-500/[0.06] px-5 py-4 text-sm leading-7 text-zinc-100 outline-none" />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => void reviewDocument()} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-zinc-300">재시도</button>
+              <button
+                onClick={() => {
+                  setCompareModalOpen(false);
+                  setDocumentModalOpen(false);
+                  setStep('REVIEWED');
+                }}
+                className="rounded-2xl px-5 py-3 text-sm font-semibold text-white"
+                style={{ background: 'linear-gradient(135deg,#22c55e,#2563eb)' }}
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mx-auto max-w-[1480px] space-y-6">
         <div className="flex items-center justify-between gap-4">
@@ -966,7 +1052,7 @@ export default function ProjectEditorPage() {
                 <button
                   type="button"
                   onClick={() => void createDocument()}
-                  disabled={documentBusy}
+                  disabled={documentBusy || !allSectionsCompleted}
                   className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-semibold text-white disabled:opacity-40"
                   style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
                 >

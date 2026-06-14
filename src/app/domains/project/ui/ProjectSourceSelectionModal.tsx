@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ExternalLink, Figma, FileText, Github, Loader2, Search, Sparkles, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, ExternalLink, Figma, FileText, Github, Loader2, Search, Sparkles, X } from 'lucide-react';
 import { addFigmaFileSource, fetchIntegrationSources, type IntegrationSourceItem } from '../../../api/contentApi';
 import { integrationProviderLabel, type IntegrationProviderKey } from '../../../api/integrationProviders';
 import { useApp } from '../../../contexts/AppContext';
@@ -52,6 +52,7 @@ export default function ProjectSourceSelectionModal({
   const [figmaFileUrl, setFigmaFileUrl] = useState('');
   const [figmaBusy, setFigmaBusy] = useState(false);
   const [figmaError, setFigmaError] = useState<string | null>(null);
+  const [selectedOpen, setSelectedOpen] = useState(true);
   const providerRef = useRef<IntegrationProviderKey>(initialProvider);
   const cacheRef = useRef<Partial<Record<IntegrationProviderKey, IntegrationSourceItem[]>>>({});
 
@@ -384,10 +385,13 @@ export default function ProjectSourceSelectionModal({
 
             <div className="mt-4 rounded-[26px] border border-white/6 bg-white/[0.02] p-4">
               <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-white">{ko ? '선택한 자료' : 'Selected items'}</p>
+                <button type="button" onClick={() => setSelectedOpen(prev => !prev)} className="flex items-center gap-2 text-left">
+                  {selectedOpen ? <ChevronDown size={14} className="text-zinc-500" /> : <ChevronRight size={14} className="text-zinc-500" />}
+                  <div>
+                    <p className="text-sm font-semibold text-white">{ko ? '선택한 자료' : 'Selected items'}</p>
                   <p className="mt-1 text-xs text-zinc-500">{selectedItems.length} {ko ? '개 선택' : 'selected'}</p>
-                </div>
+                  </div>
+                </button>
                 <button
                   type="button"
                   onClick={() => onConfirm({ provider, sourceIds: selectedIds, sources: allSelectedItems, sourceSelections })}
@@ -398,7 +402,7 @@ export default function ProjectSourceSelectionModal({
                   {busy ? (ko ? '처리 중...' : 'Applying...') : ko ? '확인' : 'Confirm'}
                 </button>
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
+              {selectedOpen && <div className="mt-3 flex flex-wrap gap-2">
                 {selectedItems.length === 0 ? (
                   <span className="text-xs text-zinc-600">{ko ? '선택한 자료가 없습니다.' : 'No selected sources yet.'}</span>
                 ) : (
@@ -423,7 +427,7 @@ export default function ProjectSourceSelectionModal({
                     </button>
                   ))
                 )}
-              </div>
+              </div>}
             </div>
 
             {error && (

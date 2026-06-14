@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, FilePlus2, Save, X } from 'lucide-react';
+import { FilePlus2, Save, X } from 'lucide-react';
 
 type Props = {
   open: boolean;
@@ -31,9 +31,8 @@ export default function SectionEditorModal({
   return (
     <div className="fixed inset-0 z-[360] flex items-start justify-center overflow-y-auto bg-black/80 px-4 py-6 backdrop-blur-md" onClick={onClose}>
       <div
-        className="w-full max-w-[980px] overflow-hidden rounded-[32px] border border-white/10 bg-[#090909] shadow-2xl shadow-black/50"
-        style={{ minHeight: 'min(760px, calc(100vh - 3rem))' }}
-        onClick={e => e.stopPropagation()}
+        className="w-full max-w-[920px] overflow-hidden rounded-[32px] border border-white/10 bg-[#090909] shadow-2xl shadow-black/50"
+        onClick={event => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 border-b border-white/6 px-6 py-5">
           <div>
@@ -48,7 +47,7 @@ export default function SectionEditorModal({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="px-6 py-6">
           <section className="rounded-[28px] border border-white/8 bg-black/20 p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
@@ -70,42 +69,29 @@ export default function SectionEditorModal({
             <textarea
               value={value}
               onChange={event => setValue(event.target.value)}
-              placeholder="질문에 대한 답변을 자연스럽게 작성해주세요. 필요한 경우 오른쪽 위 자료 불러오기로 GitHub, Notion, Figma 내용을 보조 자료로 추가할 수 있습니다."
+              placeholder="질문에 대한 답변을 자연스럽게 작성해주세요. 필요한 경우 자료 불러오기로 GitHub, Notion, Figma 내용을 보조 자료로 추가할 수 있습니다."
               className="min-h-[430px] w-full resize-none rounded-[24px] border border-white/8 bg-white/[0.03] px-5 py-4 text-sm leading-7 text-zinc-100 outline-none transition-colors placeholder:text-zinc-700 focus:border-violet-500/35"
             />
           </section>
 
-          <aside className="space-y-4">
-            <div className="rounded-[28px] border border-white/8 bg-white/[0.03] p-5">
-              <p className="text-sm font-semibold text-white">Section guide</p>
-              <p className="mt-3 text-sm leading-7 text-zinc-500">{guide}</p>
-            </div>
-
-            <div className="rounded-[28px] border border-white/8 bg-white/[0.03] p-5">
-              <p className="text-sm font-semibold text-white">Save</p>
-              <p className="mt-3 text-sm leading-7 text-zinc-500">
-                답변은 섹션별로 저장되고, 이후 AI 검수와 PPTX 생성에 사용됩니다.
-              </p>
-              <button
-                type="button"
-                onClick={() => onSave(value.trim())}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white"
-                style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-              >
-                <Save size={14} />
-                Save section
-              </button>
-            </div>
-
+          <div className="mt-5 flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 px-4 py-3 text-sm font-semibold text-zinc-300 transition-colors hover:bg-white/[0.04]"
+              className="inline-flex items-center justify-center rounded-2xl border border-white/8 px-5 py-3 text-sm font-semibold text-zinc-300 transition-colors hover:bg-white/[0.04]"
             >
-              <ArrowLeft size={14} />
-              Close
+              취소
             </button>
-          </aside>
+            <button
+              type="button"
+              onClick={() => onSave(value.trim())}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold text-white"
+              style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+            >
+              <Save size={14} />
+              저장
+            </button>
+          </div>
         </div>
       </div>
     </div>

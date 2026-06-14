@@ -63,7 +63,7 @@ export default function PortfolioPage() {
     navigate('/workspace', { state: { portfolioId: file.id } });
   };
   const viewerUrl = selectedFile?.pptxUrl
-    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(selectedFile.pptxUrl)}`
+    ? `https://docs.google.com/gview?url=${encodeURIComponent(selectedFile.pptxUrl)}&embedded=true`
     : '';
 
   return (
