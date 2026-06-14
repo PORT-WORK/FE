@@ -112,6 +112,15 @@ type SnapshotSource = {
   raw?: Record<string, unknown>;
 };
 
+function mergeSources(previous: SnapshotSource[], next: SnapshotSource[]) {
+  const map = new Map<string, SnapshotSource>();
+  [...previous, ...next].forEach(item => {
+    const key = `${String(item.provider || '').toUpperCase()}:${item.resourceId || item.title || ''}`;
+    map.set(key, item);
+  });
+  return Array.from(map.values());
+}
+
 function asSourceList(snapshot: Record<string, unknown>) {
   const value = snapshot.sources;
   if (!Array.isArray(value)) return [] as SnapshotSource[];
@@ -406,7 +415,12 @@ export default function ProjectEditorPage() {
     setEditingSection(null);
   };
 
-  const handleSelectSources = async (payload: { provider: SourceProvider; sourceIds: string[]; sources: SnapshotSource[] }) => {
+  const handleSelectSources = async (payload: {
+    provider: SourceProvider;
+    sourceIds: string[];
+    sources: SnapshotSource[];
+    sourceSelections?: Array<{ provider: SourceProvider; sourceIds: string[] }>;
+  }) => {
     if (!projectId) {
       setSourceError('Create a project first.');
       return;
@@ -435,9 +449,9 @@ export default function ProjectEditorPage() {
           lastError: null,
           lastSavedAt: new Date().toISOString(),
         }),
-        sourceSnapshot: {
-          provider: payload.provider.toUpperCase(),
-          sources: payload.sources.map(item => ({
+        sourceSnapshot: (() => {
+          const previousSources = asSourceList((prev?.sourceSnapshot || {}) as Record<string, unknown>);
+          const nextSources = payload.sources.map(item => ({
             provider: payload.provider.toUpperCase(),
             resourceId: item.resourceId,
             kind: item.kind,
@@ -448,10 +462,14 @@ export default function ProjectEditorPage() {
             imageUrl: item.imageUrl || null,
             tags: item.tags || [],
             raw: item.raw || {},
-          })),
-        },
+          }));
+          return {
+            provider: payload.provider.toUpperCase(),
+            sources: mergeSources(previousSources, nextSources),
+          };
+        })(),
         selectedProvider: payload.provider.toUpperCase(),
-        selectedSourceIds: payload.sourceIds,
+        selectedSourceIds: Array.from(new Set([...(prev?.selectedSourceIds || []), ...payload.sourceIds])),
         lastSavedAt: new Date().toISOString(),
       }));
       setSourceModalOpen(false);
@@ -463,6 +481,10 @@ export default function ProjectEditorPage() {
         portfolioId,
         provider: payload.provider,
         sourceIds: payload.sourceIds,
+        sourceSelections: payload.sourceSelections?.map(item => ({
+          provider: item.provider,
+          sourceIds: item.sourceIds,
+        })),
       });
       setSession(next);
       setSectionDrafts(prev => buildSectionDraftMap(role, sectionMeta, next.sourceSnapshot || {}, prev));
@@ -647,7 +669,6 @@ export default function ProjectEditorPage() {
     try {
       const next = await createProjectWritingPresentation(projectId);
       setSession(next);
-      setPreviewBlob(null);
       setStep('PPT_CREATED');
       setError(next.lastError || null);
     } catch {
@@ -667,7 +688,7 @@ export default function ProjectEditorPage() {
       a.href = url;
       a.download = `project-${projectId}.pptx`;
       a.click();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
     } finally {
       setDownloadBusy(false);
     }
@@ -952,7 +973,7 @@ export default function ProjectEditorPage() {
                 <button
                   type="button"
                   onClick={() => void downloadPptx()}
-                  disabled={downloadBusy || !previewBlob}
+                  disabled={downloadBusy || (step !== 'PPT_CREATED' && !previewBlob)}
                   className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 px-4 py-4 text-sm font-semibold text-zinc-300 transition-colors hover:bg-white/[0.05] disabled:opacity-40"
                 >
                   {downloadBusy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}

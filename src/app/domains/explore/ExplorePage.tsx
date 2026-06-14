@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ChevronDown, Search, SlidersHorizontal, Users, X } from 'lucide-react';
+import { ChevronDown, SlidersHorizontal, Users } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { listExploreUsers } from '../../api/contentApi';
 
@@ -14,23 +14,17 @@ type ExploreUser = {
   views: number;
   avatar: string;
   thumbnail: string;
+  isPublic: boolean;
 };
 
 function normalizeText(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9가-힣]+/g, '')
-    .replace(/\./g, '');
+  return value.toLowerCase().replace(/[^a-z0-9\uac00-\ud7a3]+/g, '');
 }
 
 function matchesStackValue(skill: string, target: string) {
-  const s = normalizeText(skill);
-  const t = normalizeText(target);
-  if (!s || !t) return false;
-
   const aliases: Record<string, string[]> = {
     react: ['react'],
-    reactnative: ['reactnative', 'reactnativeapp'],
+    reactnative: ['reactnative'],
     kotlin: ['kotlin'],
     swift: ['swift'],
     typescript: ['typescript', 'ts'],
@@ -41,35 +35,20 @@ function matchesStackValue(skill: string, target: string) {
     nodejs: ['nodejs', 'node'],
     nextjs: ['nextjs', 'next'],
   };
-
-  const canonical = (value: string) => {
-    const entry = Object.entries(aliases).find(([, arr]) => arr.includes(value));
-    return entry?.[0] || value;
-  };
-
-  return canonical(s) === canonical(t);
+  const canonical = (value: string) => Object.entries(aliases).find(([, values]) => values.includes(normalizeText(value)))?.[0] || normalizeText(value);
+  return canonical(skill) === canonical(target);
 }
 
 function SkeletonCard() {
-  return (
-    <div className="animate-pulse overflow-hidden rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
-      <div className="h-36" style={{ background: 'rgba(255,255,255,0.04)' }} />
-      <div className="space-y-3 p-4">
-        <div className="h-4 w-2/3 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />
-        <div className="h-3 w-1/2 rounded-full" style={{ background: 'rgba(255,255,255,0.05)' }} />
-        <div className="h-8 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }} />
-      </div>
-    </div>
-  );
+  return <div className="aspect-[16/9] animate-pulse rounded-2xl border border-white/5 bg-white/[0.04]" />;
 }
 
 export default function ExplorePage() {
   const navigate = useNavigate();
-  const { t, privacy, language } = useApp();
+  const { language, followingIds } = useApp();
   const ko = language === 'ko';
 
   const [users, setUsers] = useState<ExploreUser[]>([]);
-  const [search, setSearch] = useState('');
   const [activeRole, setActiveRole] = useState(ko ? '전체' : 'All');
   const [activeStack, setActiveStack] = useState('');
   const [sortOpen, setSortOpen] = useState(false);
@@ -78,8 +57,12 @@ export default function ExplorePage() {
   const [loading, setLoading] = useState(true);
 
   const roleOptions = ko ? ['전체', '개발자', 'PM'] : ['All', 'Developer', 'PM'];
-  const sortOptions = ko ? ['최신', '인기', '조회순'] : ['Latest', 'Popular', 'Most Viewed'];
+  const sortOptions = ko ? ['최신', '인기', '조회순'] : ['Latest', 'Popular', 'Most viewed'];
   const stackOptions = ['React', 'React Native', 'Kotlin', 'Swift', 'TypeScript', 'JavaScript', 'Java', 'Spring Boot', 'Python', 'Node.js', 'Next.js'];
+
+  useEffect(() => {
+    setActiveRole(ko ? '전체' : 'All');
+  }, [ko]);
 
   useEffect(() => {
     let alive = true;
@@ -93,79 +76,55 @@ export default function ExplorePage() {
       .finally(() => {
         if (alive) setLoading(false);
       });
-
     return () => {
       alive = false;
     };
   }, []);
 
-  const filtered = useMemo(() => {
-    return users.filter(user => {
-      if (!privacy.public && user.id === 'u1') return false;
-
-      const query = normalizeText(search);
-      const matchesSearch =
-        !query ||
-        normalizeText(user.name).includes(query) ||
-        normalizeText(user.role).includes(query) ||
-        (user.skills || []).some(skill => normalizeText(skill).includes(query));
-
-      const matchesRole =
-        activeRole === (ko ? '전체' : 'All') ||
-        normalizeText(user.role) === normalizeText(activeRole);
-
+  const sorted = useMemo(() => {
+    const rows = users.filter(user => {
+      if (!user.isPublic) return false;
+      const role = normalizeText(user.role);
+      const matchesRole = activeRole === (ko ? '전체' : 'All') || role === normalizeText(activeRole) || (activeRole === '개발자' && role === 'developer');
       const matchesStack = !activeStack || (user.skills || []).some(skill => matchesStackValue(skill, activeStack));
-      const matchesFollow = !followOnly || ['e1', 'e2'].includes(user.id);
-
-      return matchesSearch && matchesRole && matchesStack && matchesFollow;
+      const matchesFollow = !followOnly || followingIds.includes(user.id);
+      return matchesRole && matchesStack && matchesFollow;
     });
-  }, [activeRole, activeStack, followOnly, ko, privacy.public, search, users]);
-
-  const sorted = [...filtered];
-  if (sortIdx === 1) sorted.sort((a, b) => b.likes - a.likes);
-  if (sortIdx === 2) sorted.sort((a, b) => (b.views || 0) - (a.views || 0));
+    const next = [...rows];
+    if (sortIdx === 1) next.sort((a, b) => b.likes - a.likes);
+    if (sortIdx === 2) next.sort((a, b) => (b.views || 0) - (a.views || 0));
+    return next;
+  }, [activeRole, activeStack, followOnly, followingIds, ko, sortIdx, users]);
 
   return (
     <div className="min-h-full px-8 py-8" style={{ background: '#050505' }} onClick={() => setSortOpen(false)}>
-      <div className="mx-auto mb-8 max-w-5xl">
-        <div className="mb-5 flex items-center gap-3 justify-end">
-          <div className="relative hidden flex-1">
-            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={ko ? '이름, 직무, 기술로 검색...' : t('explore_search')}
-              className="w-full rounded-xl py-2.5 pl-9 pr-9 text-sm text-zinc-300 placeholder-zinc-700 focus:outline-none"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-300">
-                <X size={13} />
-              </button>
-            )}
-          </div>
-
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-5 flex items-center justify-end gap-3">
           <button
             onClick={() => setFollowOnly(prev => !prev)}
-            className="flex flex-shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-xs transition-all"
-            style={{ background: followOnly ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.04)', border: `1px solid ${followOnly ? 'rgba(124,58,237,0.25)' : 'rgba(255,255,255,0.07)'}`, color: followOnly ? '#a78bfa' : '#71717a' }}
+            className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs transition-all"
+            style={{
+              background: followOnly ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${followOnly ? 'rgba(124,58,237,0.25)' : 'rgba(255,255,255,0.07)'}`,
+              color: followOnly ? '#a78bfa' : '#71717a',
+            }}
           >
             <Users size={12} />
             {ko ? '팔로잉만' : 'Following only'}
           </button>
 
-          <div className="relative flex-shrink-0" onClick={e => e.stopPropagation()}>
+          <div className="relative" onClick={e => e.stopPropagation()}>
             <button
               onClick={() => setSortOpen(prev => !prev)}
-              className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs text-zinc-400 transition-all"
+              className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs text-zinc-400"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
             >
               <SlidersHorizontal size={12} />
               {sortOptions[sortIdx]}
-              <ChevronDown size={11} className="text-zinc-600" />
+              <ChevronDown size={11} />
             </button>
             {sortOpen && (
-              <div className="absolute right-0 top-full z-50 mt-1 min-w-[140px] overflow-hidden rounded-xl shadow-xl" style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div className="absolute right-0 top-full z-50 mt-1 min-w-[140px] overflow-hidden rounded-xl border border-white/10 bg-[#111] shadow-xl">
                 {sortOptions.map((option, idx) => (
                   <button
                     key={option}
@@ -173,8 +132,7 @@ export default function ExplorePage() {
                       setSortIdx(idx);
                       setSortOpen(false);
                     }}
-                    className="w-full px-3 py-2.5 text-left text-xs transition-colors"
-                    style={{ color: sortIdx === idx ? '#a78bfa' : '#a1a1aa', background: sortIdx === idx ? 'rgba(124,58,237,0.06)' : 'transparent' }}
+                    className="block w-full px-4 py-3 text-left text-xs text-zinc-400 hover:bg-white/[0.04] hover:text-white"
                   >
                     {option}
                   </button>
@@ -184,80 +142,60 @@ export default function ExplorePage() {
           </div>
         </div>
 
-        <div className="mb-3 flex flex-wrap items-center gap-1.5">
-          {roleOptions.map(role => (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {roleOptions.map(option => (
             <button
-              key={role}
-              onClick={() => setActiveRole(role)}
-              className="rounded-xl px-3 py-1.5 text-xs font-medium transition-all"
-              style={{ background: activeRole === role ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.03)', border: `1px solid ${activeRole === role ? 'rgba(124,58,237,0.25)' : 'rgba(255,255,255,0.06)'}`, color: activeRole === role ? '#a78bfa' : '#71717a' }}
+              key={option}
+              onClick={() => setActiveRole(option)}
+              className="rounded-full px-4 py-2 text-sm"
+              style={{
+                background: activeRole === option ? 'rgba(124,58,237,0.14)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${activeRole === option ? 'rgba(124,58,237,0.35)' : 'rgba(255,255,255,0.07)'}`,
+                color: activeRole === option ? '#c4b5fd' : '#71717a',
+              }}
             >
-              {role}
+              {option}
             </button>
           ))}
         </div>
 
-        <div className="mb-4 flex flex-wrap items-center gap-1.5">
-          {stackOptions.map(stack => (
+        <div className="mb-6 flex flex-wrap gap-2">
+          {stackOptions.map(option => (
             <button
-              key={stack}
-              onClick={() => setActiveStack(activeStack === stack ? '' : stack)}
-              className="rounded-xl px-3 py-1.5 text-xs transition-all"
-              style={{ background: activeStack === stack ? 'rgba(37,99,235,0.12)' : 'rgba(255,255,255,0.02)', border: `1px solid ${activeStack === stack ? 'rgba(37,99,235,0.25)' : 'rgba(255,255,255,0.05)'}`, color: activeStack === stack ? '#60a5fa' : '#52525b' }}
+              key={option}
+              onClick={() => setActiveStack(prev => (prev === option ? '' : option))}
+              className="rounded-full px-4 py-2 text-sm"
+              style={{
+                background: activeStack === option ? 'rgba(37,99,235,0.14)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${activeStack === option ? 'rgba(37,99,235,0.35)' : 'rgba(255,255,255,0.07)'}`,
+                color: activeStack === option ? '#93c5fd' : '#71717a',
+              }}
             >
-              {stack}
+              {option}
             </button>
           ))}
         </div>
 
-        {!loading && <p className="text-xs text-zinc-600">{sorted.length} {ko ? '개의 결과' : t('explore_count')}</p>}
-      </div>
+        <p className="mb-6 text-sm text-zinc-600">{sorted.length}{ko ? '개의 결과' : ' results'}</p>
 
-      <div className="mx-auto grid max-w-5xl grid-cols-3 gap-4">
-        {loading ? (
-          Array.from({ length: 6 }).map((_, idx) => <SkeletonCard key={idx} />)
-        ) : sorted.length === 0 ? (
-          <div className="col-span-3 flex items-center justify-center py-20">
-            <div className="w-full max-w-md rounded-3xl p-8 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl" style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)' }}>
-                <Search size={24} className="text-violet-400" />
-              </div>
-              <p className="mb-2 text-lg font-semibold text-white">{ko ? '검색 결과가 없습니다' : 'No results found'}</p>
-              <p className="mx-auto mb-6 max-w-sm text-sm text-zinc-600">{ko ? '다른 검색어를 입력하거나 필터를 초기화해 보세요.' : 'Try different keywords or reset filters.'}</p>
-              <button
-                onClick={() => {
-                  setSearch('');
-                  setActiveRole(ko ? '전체' : 'All');
-                  setActiveStack('');
-                  setFollowOnly(false);
-                }}
-                className="rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all"
-                style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-              >
-                {ko ? '필터 초기화' : 'Reset filters'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          sorted.map(user => (
-            <div
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {loading ? Array.from({ length: 9 }).map((_, index) => <SkeletonCard key={index} />) : sorted.map(user => (
+            <button
               key={user.id}
+              type="button"
               onClick={() => navigate(`/explore/${user.id}`)}
-              className="group cursor-pointer rounded-2xl transition-all duration-300 hover:-translate-y-1"
+              className="group aspect-[16/9] overflow-hidden rounded-2xl text-left transition-all duration-300 hover:-translate-y-1"
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+              aria-label={user.name}
             >
-              <div className="relative h-36 overflow-hidden rounded-t-2xl">
-                {user.thumbnail ? (
-                  <img src={user.thumbnail} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                ) : (
-                  <div className="h-full w-full" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.25), rgba(37,99,235,0.2))' }} />
-                )}
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.3))' }} />
-              </div>
-              <div className="h-12" />
-            </div>
-          ))
-        )}
+              {user.thumbnail ? (
+                <img src={user.thumbnail} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              ) : (
+                <div className="h-full w-full bg-gradient-to-br from-violet-500/25 to-blue-500/20" />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -9,7 +9,12 @@ type Props = {
   initialProvider?: IntegrationProviderKey | null;
   initialSourceIds?: string[];
   onClose: () => void;
-  onConfirm: (payload: { provider: IntegrationProviderKey; sourceIds: string[]; sources: IntegrationSourceItem[] }) => void;
+  onConfirm: (payload: {
+    provider: IntegrationProviderKey;
+    sourceIds: string[];
+    sources: IntegrationSourceItem[];
+    sourceSelections: Array<{ provider: IntegrationProviderKey; sourceIds: string[] }>;
+  }) => void;
 };
 
 const PROVIDERS: Array<{
@@ -35,7 +40,11 @@ export default function ProjectSourceSelectionModal({
   const [provider, setProvider] = useState<IntegrationProviderKey>(initialProvider);
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<IntegrationSourceItem[]>([]);
-  const [selectedIds, setSelectedIds] = useState<string[]>(initialSourceIds);
+  const [selectedByProvider, setSelectedByProvider] = useState<Record<IntegrationProviderKey, string[]>>({
+    github: initialProvider === 'github' ? initialSourceIds : [],
+    notion: initialProvider === 'notion' ? initialSourceIds : [],
+    figma: initialProvider === 'figma' ? initialSourceIds : [],
+  });
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,14 +52,18 @@ export default function ProjectSourceSelectionModal({
   const cacheRef = useRef<Partial<Record<IntegrationProviderKey, IntegrationSourceItem[]>>>({});
 
   const connected = Boolean(connections[provider]);
+  const selectedIds = selectedByProvider[provider] || [];
 
   useEffect(() => {
     if (!open) return;
     setProvider(initialProvider);
-    setSelectedIds(initialSourceIds);
     setQuery('');
     setError(null);
     providerRef.current = initialProvider;
+    setSelectedByProvider(prev => ({
+      ...prev,
+      [initialProvider]: initialSourceIds,
+    }));
   }, [initialProvider, initialSourceIds, open]);
 
   useEffect(() => {
@@ -58,13 +71,8 @@ export default function ProjectSourceSelectionModal({
 
     let alive = true;
     const cached = cacheRef.current[provider];
-    const providerChanged = providerRef.current !== provider;
     providerRef.current = provider;
     setError(null);
-
-    if (providerChanged) {
-      setSelectedIds([]);
-    }
 
     if (cached) {
       setItems(cached);
@@ -107,9 +115,28 @@ export default function ProjectSourceSelectionModal({
     () => selectedIds.map(id => items.find(item => item.resourceId === id)).filter(Boolean) as IntegrationSourceItem[],
     [items, selectedIds],
   );
+  const allSelectedItems = useMemo(() => {
+    return Object.entries(selectedByProvider).flatMap(([key, ids]) => {
+      const providerKey = key as IntegrationProviderKey;
+      const rows = cacheRef.current[providerKey] || (providerKey === provider ? items : []);
+      return ids.map(id => rows.find(item => item.resourceId === id)).filter(Boolean) as IntegrationSourceItem[];
+    });
+  }, [items, provider, selectedByProvider]);
+  const sourceSelections = useMemo(
+    () => Object.entries(selectedByProvider)
+      .filter(([, ids]) => ids.length > 0)
+      .map(([key, ids]) => ({ provider: key as IntegrationProviderKey, sourceIds: ids })),
+    [selectedByProvider],
+  );
 
   const toggleSelected = (resourceId: string) => {
-    setSelectedIds(prev => (prev.includes(resourceId) ? prev.filter(item => item !== resourceId) : [...prev, resourceId]));
+    setSelectedByProvider(prev => {
+      const current = prev[provider] || [];
+      return {
+        ...prev,
+        [provider]: current.includes(resourceId) ? current.filter(item => item !== resourceId) : [...current, resourceId],
+      };
+    });
   };
 
   const openSourceDetail = (item: IntegrationSourceItem) => {
@@ -146,10 +173,10 @@ export default function ProjectSourceSelectionModal({
               {ko ? '자료 선택' : 'Select sources'}
             </div>
             <h3 className="text-xl font-black text-white">
-              {ko ? '프로젝트 원고에 넣을 자료를 선택하세요' : 'Pick external sources for your project draft'}
+              {ko ? '프로젝트 원고에 넣을 자료를 골라주세요' : 'Pick external sources for your project draft'}
             </h3>
             <p className="mt-1 text-sm text-zinc-500">
-              {ko ? '행을 클릭해 선택/해제하고, 자세한 내용은 버튼으로 확인하세요.' : 'Click a row to select or deselect it. Use the detail button for more.'}
+              {ko ? '각 탭에서 선택한 자료는 유지됩니다. 선택한 뒤 자세히 보기로 내용도 확인하세요.' : 'Selections stay when you switch providers. Use details to review each item.'}
             </p>
           </div>
           <button onClick={onClose} className="rounded-xl p-2 text-zinc-500 transition-colors hover:bg-white/[0.05] hover:text-zinc-200">
@@ -163,6 +190,7 @@ export default function ProjectSourceSelectionModal({
               {PROVIDERS.map(item => {
                 const active = provider === item.key;
                 const isConnected = Boolean(connections[item.key]);
+                const count = selectedByProvider[item.key]?.length || 0;
                 return (
                   <button
                     key={item.key}
@@ -184,8 +212,12 @@ export default function ProjectSourceSelectionModal({
                         </div>
                       </div>
                       <div className={`text-[10px] font-semibold ${isConnected ? 'text-emerald-300' : 'text-zinc-600'}`}>
-                        {isConnected ? (ko ? '연동됨' : 'Connected') : ko ? '연동 필요' : 'Not connected'}
+                        {isConnected ? (ko ? '연결됨' : 'Connected') : ko ? '연결 필요' : 'Not connected'}
                       </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-600">
+                      <span>{integrationProviderLabel(item.key)}</span>
+                      <span>{count} selected</span>
                     </div>
                   </button>
                 );
@@ -218,7 +250,7 @@ export default function ProjectSourceSelectionModal({
 
             {!connected && (
               <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                {ko ? '먼저 설정에서 해당 연동을 완료해주세요.' : 'Connect this provider in Settings first.'}
+                {ko ? '먼저 설정에서 해당 연동을 연결하세요.' : 'Connect this provider in Settings first.'}
               </div>
             )}
 
@@ -308,13 +340,13 @@ export default function ProjectSourceSelectionModal({
             <div className="mt-4 rounded-[26px] border border-white/6 bg-white/[0.02] p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-white">{ko ? '선택된 자료' : 'Selected items'}</p>
+                  <p className="text-sm font-semibold text-white">{ko ? '선택한 자료' : 'Selected items'}</p>
                   <p className="mt-1 text-xs text-zinc-500">{selectedItems.length} {ko ? '개 선택' : 'selected'}</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => onConfirm({ provider, sourceIds: selectedIds, sources: selectedItems })}
-                  disabled={!connected || selectedIds.length === 0 || busy}
+                  onClick={() => onConfirm({ provider, sourceIds: selectedIds, sources: allSelectedItems, sourceSelections })}
+                  disabled={sourceSelections.length === 0 || busy}
                   className="rounded-2xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
                   style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
                 >
@@ -323,7 +355,7 @@ export default function ProjectSourceSelectionModal({
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {selectedItems.length === 0 ? (
-                  <span className="text-xs text-zinc-600">{ko ? '선택된 자료가 없습니다.' : 'No selected sources yet.'}</span>
+                  <span className="text-xs text-zinc-600">{ko ? '선택한 자료가 없습니다.' : 'No selected sources yet.'}</span>
                 ) : (
                   selectedItems.map(item => (
                     <button
@@ -337,7 +369,10 @@ export default function ProjectSourceSelectionModal({
                         size={11}
                         onClick={e => {
                           e.stopPropagation();
-                          setSelectedIds(prev => prev.filter(id => id !== item.resourceId));
+                          setSelectedByProvider(prev => ({
+                            ...prev,
+                            [provider]: (prev[provider] || []).filter(id => id !== item.resourceId),
+                          }));
                         }}
                       />
                     </button>

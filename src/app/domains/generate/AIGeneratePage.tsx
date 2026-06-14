@@ -198,7 +198,7 @@ export default function AIGeneratePage() {
       anchor.href = url;
       anchor.download = `portfolio-${selection.portfolioId}.pptx`;
       anchor.click();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
       window.setTimeout(() => {
         navigate('/portfolio');
       }, 200);

@@ -246,6 +246,7 @@ export async function listExploreUsers() {
     views: item.views ?? item.viewCount ?? 0,
     avatar: item.avatar || item.thumbnailUrl || '',
     thumbnail: item.thumbnail || item.thumbnailUrl || '',
+    isPublic: item.isPublic ?? true,
   }));
 }
 
@@ -502,6 +503,7 @@ export async function selectProjectWritingSources(
     documentIds?: number[];
     provider?: string | null;
     sourceIds?: string[];
+    sourceSelections?: Array<{ provider: string; sourceIds: string[] }>;
   },
 ) {
   return apiRequestStrict<ProjectWritingSession>({ url: `/projects/${projectId}/writing/sources`, method: 'POST', data: payload });
