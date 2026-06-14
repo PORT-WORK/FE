@@ -1,4 +1,5 @@
 import { apiRequest, apiRequestStrict, getCurrentUserId } from './client';
+import type { IntegrationProviderKey } from './integrationProviders';
 
 export type Article = {
   id: string;
@@ -374,26 +375,26 @@ export async function fetchIntegrations() {
   return apiRequestStrict<IntegrationConnection[]>({ url: '/integrations', method: 'GET' });
 }
 
-export async function connectIntegration(provider: string, code: string, workspaceUrl?: string) {
+export async function connectIntegration(provider: IntegrationProviderKey, code: string, workspaceUrl?: string) {
   return apiRequest(
     { url: `/integrations/${provider.toUpperCase()}/callback`, method: 'POST', data: { code, workspaceUrl } },
     async () => undefined,
   );
 }
 
-export async function fetchIntegrationAuthorizeUrl(provider: string) {
+export async function fetchIntegrationAuthorizeUrl(provider: IntegrationProviderKey) {
   return apiRequestStrict<string>({ url: `/integrations/${provider.toUpperCase()}/authorize-url`, method: 'GET' });
 }
 
-export async function fetchIntegrationSources(provider: string) {
+export async function fetchIntegrationSources(provider: IntegrationProviderKey) {
   return apiRequestStrict<IntegrationSourceItem[]>({ url: `/integrations/${provider.toUpperCase()}/sources`, method: 'GET' });
 }
 
-export async function disconnectIntegration(provider: string) {
+export async function disconnectIntegration(provider: IntegrationProviderKey) {
   return apiRequestStrict<void>({ url: `/integrations/${provider.toUpperCase()}`, method: 'DELETE' });
 }
 
-export async function fetchIntegrationPreview(provider: string, resourceId?: string) {
+export async function fetchIntegrationPreview(provider: IntegrationProviderKey, resourceId?: string) {
   return apiRequest<IntegrationPreview>(
     { url: `/integrations/${provider.toUpperCase()}/preview`, method: 'GET', params: resourceId ? { resourceId } : undefined },
     async () => ({ provider, title: '', subtitle: '', url: '', description: '', imageUrl: '', tags: [], raw: null }),

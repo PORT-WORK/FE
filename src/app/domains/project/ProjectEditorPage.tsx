@@ -11,12 +11,13 @@ import {
   selectProjectWritingSources,
   type ProjectWritingSession,
 } from '../../api/contentApi';
+import { INTEGRATION_PROVIDER_KEYS, integrationProviderLabel, type IntegrationProviderKey } from '../../api/integrationProviders';
 import { useApp } from '../../contexts/AppContext';
 import ProjectSourceSelectionModal from './ui/ProjectSourceSelectionModal';
 import { saveDraft as saveLocalDraft, loadDraft as loadLocalDraft, type ProjectWritingDraft as LocalProjectWritingDraft } from '../workspace/projectWriting';
 
 type Role = 'DEVELOPER' | 'PM';
-type SourceProvider = 'github' | 'notion' | 'figma';
+type SourceProvider = IntegrationProviderKey;
 type SectionStatus = 'EMPTY' | 'DRAFT' | 'COMPLETED';
 
 type SectionMeta = {
@@ -92,10 +93,6 @@ function parsePresentation(json: string | null): SlidePreview[] {
   } catch {
     return [];
   }
-}
-
-function providerLabel(provider: SourceProvider) {
-  return provider === 'github' ? 'GitHub' : provider === 'notion' ? 'Notion' : 'Figma';
 }
 
 export default function ProjectEditorPage() {
@@ -808,11 +805,11 @@ export default function ProjectEditorPage() {
             <div className="rounded-[30px] border border-white/8 bg-white/[0.03] p-6">
               <h3 className="text-sm font-bold text-white">{ko ? '연결 상태' : 'Connection'}</h3>
               <div className="mt-4 space-y-3">
-                {(['github', 'notion', 'figma'] as SourceProvider[]).map(provider => {
+                {INTEGRATION_PROVIDER_KEYS.map(provider => {
                   const connected = Boolean(session?.selectedProvider?.toLowerCase() === provider || sourceSnapshot.provider === provider.toUpperCase());
                   return (
                     <div key={provider} className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-3">
-                      <span className="text-sm text-zinc-200">{providerLabel(provider)}</span>
+                      <span className="text-sm text-zinc-200">{integrationProviderLabel(provider)}</span>
                       <span className={`text-[10px] ${connected ? 'text-emerald-300' : 'text-zinc-600'}`}>{connected ? (ko ? '사용 중' : 'In use') : (ko ? '미사용' : 'Idle')}</span>
                     </div>
                   );

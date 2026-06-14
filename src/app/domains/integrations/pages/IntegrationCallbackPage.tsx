@@ -4,23 +4,15 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { connectIntegration } from '../../../api/contentApi';
 import { clearAuthTokens, getAccessToken, setAccessToken, setRefreshToken } from '../../../api/client';
 import { refreshAuthToken } from '../../../api/contentApi';
-
-type ProviderKey = 'github' | 'notion' | 'figma';
-
-const PROVIDER_LABEL: Record<ProviderKey, string> = {
-  github: 'GitHub',
-  notion: 'Notion',
-  figma: 'Figma',
-};
+import { integrationProviderLabel, normalizeIntegrationProviderKey, type IntegrationProviderKey } from '../../../api/integrationProviders';
 
 const WORKSPACE_URL_KEY = 'port-integration-workspace-url';
 
-function normalizeProvider(value: string | null): ProviderKey | null {
-  if (value === 'github' || value === 'notion' || value === 'figma') return value;
-  return null;
+function normalizeProvider(value: string | null): IntegrationProviderKey | null {
+  return normalizeIntegrationProviderKey(value);
 }
 
-export default function IntegrationCallbackPage({ provider }: { provider: ProviderKey }) {
+export default function IntegrationCallbackPage({ provider }: { provider: IntegrationProviderKey }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -72,14 +64,14 @@ export default function IntegrationCallbackPage({ provider }: { provider: Provid
         await connectIntegration(nextProvider, code, workspaceUrl);
         if (!alive) return;
         setStatus('success');
-        setMessage(`${PROVIDER_LABEL[nextProvider]} connected successfully.`);
+        setMessage(`${integrationProviderLabel(nextProvider)} connected successfully.`);
         timer.id = window.setTimeout(() => {
           navigate('/settings', { replace: true });
         }, 700);
       } catch {
         if (!alive) return;
         setStatus('error');
-        setMessage(`Failed to connect ${PROVIDER_LABEL[nextProvider]}.`);
+        setMessage(`Failed to connect ${integrationProviderLabel(nextProvider)}.`);
       }
     };
 

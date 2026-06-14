@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Check, FileText, Figma, Github, Loader2, Lock, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { deleteCurrentUser, disconnectIntegration, fetchCurrentUser, fetchIntegrations, fetchIntegrationAuthorizeUrl, fetchSettings, logoutAccount, updateCurrentUser, updateSettings, type UserProfile } from '../../api/contentApi';
+import { INTEGRATION_PROVIDER_KEYS, type IntegrationProviderKey } from '../../api/integrationProviders';
 import { useApp } from '../../contexts/AppContext';
 
 type LanguageCode = 'ko' | 'en';
@@ -13,7 +14,7 @@ type SettingsDraft = {
   notiMessage: boolean;
 };
 
-type ConnectionKey = 'github' | 'notion' | 'figma';
+type ConnectionKey = IntegrationProviderKey;
 
 const INTEGRATION_META: Array<{
   key: ConnectionKey;
@@ -48,7 +49,7 @@ const DEFAULT_SETTINGS: SettingsDraft = {
   notiMessage: true,
 };
 
-const CONNECTION_KEYS: ConnectionKey[] = ['github', 'notion', 'figma'];
+const CONNECTION_KEYS: ConnectionKey[] = [...INTEGRATION_PROVIDER_KEYS];
 
 export default function SettingsPage() {
   const navigate = useNavigate();

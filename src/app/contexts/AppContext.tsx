@@ -1,12 +1,13 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { buildOauthLoginUrl, clearAuthTokens, resetCurrentUserId, setCurrentUserId } from '../api/client';
 import { fetchCurrentUser, type UserProfile } from '../api/contentApi';
+import { INTEGRATION_PROVIDER_KEYS, type IntegrationProviderKey } from '../api/integrationProviders';
 
 export type Lang = 'ko' | 'en';
 
 type Notifs = { email: boolean; push: boolean; message: boolean };
 type Privacy = { public: boolean; showEmail: boolean };
-type Connections = Record<string, boolean>;
+type Connections = Record<IntegrationProviderKey, boolean>;
 
 export interface AppUser {
   name: string;
@@ -273,7 +274,7 @@ const defaultState = {
   payModal: false,
   notifs: { email: true, push: false, message: true },
   privacy: { public: true, showEmail: false },
-  connections: { github: true, notion: false, figma: false, velog: false },
+  connections: Object.fromEntries(INTEGRATION_PROVIDER_KEYS.map(key => [key, key === 'github'])) as Connections,
 };
 
 const AppContext = createContext<AppContextValue | null>(null);

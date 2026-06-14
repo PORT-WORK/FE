@@ -1,20 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronRight, Figma, FileText, Github, Loader2, Search, Sparkles, X } from 'lucide-react';
 import { fetchIntegrationSources, type IntegrationSourceItem } from '../../../api/contentApi';
+import { integrationProviderLabel, type IntegrationProviderKey } from '../../../api/integrationProviders';
 import { useApp } from '../../../contexts/AppContext';
-
-type ProviderKey = 'github' | 'notion' | 'figma';
 
 type Props = {
   open: boolean;
-  initialProvider?: ProviderKey | null;
+  initialProvider?: IntegrationProviderKey | null;
   initialSourceIds?: string[];
   onClose: () => void;
-  onConfirm: (payload: { provider: ProviderKey; sourceIds: string[] }) => void;
+  onConfirm: (payload: { provider: IntegrationProviderKey; sourceIds: string[] }) => void;
 };
 
 const PROVIDERS: Array<{
-  key: ProviderKey;
+  key: IntegrationProviderKey;
   label: string;
   desc: string;
   icon: JSX.Element;
@@ -24,14 +23,10 @@ const PROVIDERS: Array<{
   { key: 'figma', label: 'Figma', desc: 'File, page, frame, section, node', icon: <Figma size={16} /> },
 ];
 
-function providerLabel(provider: ProviderKey) {
-  return PROVIDERS.find(item => item.key === provider)?.label ?? provider;
-}
-
 export default function ProjectSourceSelectionModal({ open, initialProvider = 'github', initialSourceIds = [], onClose, onConfirm }: Props) {
   const { connections, language } = useApp();
   const ko = language === 'ko';
-  const [provider, setProvider] = useState<ProviderKey>(initialProvider);
+  const [provider, setProvider] = useState<IntegrationProviderKey>(initialProvider);
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<IntegrationSourceItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>(initialSourceIds);
@@ -39,8 +34,8 @@ export default function ProjectSourceSelectionModal({ open, initialProvider = 'g
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const providerRef = useRef<ProviderKey>(initialProvider);
-  const cacheRef = useRef<Partial<Record<ProviderKey, IntegrationSourceItem[]>>>({});
+  const providerRef = useRef<IntegrationProviderKey>(initialProvider);
+  const cacheRef = useRef<Partial<Record<IntegrationProviderKey, IntegrationSourceItem[]>>>({});
   const selectedIdsRef = useRef<string[]>(initialSourceIds);
 
   const connected = Boolean(connections[provider]);
@@ -208,7 +203,7 @@ export default function ProjectSourceSelectionModal({ open, initialProvider = 'g
             </div>
 
             <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-3 text-xs text-zinc-500">
-              <span>{providerLabel(provider)}</span>
+              <span>{integrationProviderLabel(provider)}</span>
               <span>{ko ? '선택해서 원고로 가져갈 수 있습니다.' : 'Select items to use in your draft.'}</span>
             </div>
 

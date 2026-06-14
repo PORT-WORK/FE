@@ -11,7 +11,7 @@ export const currentUser = {
   links: {
     github: 'github.com/minjun',
     notion: 'notion.so/minjun',
-    blog: 'velog.io/@minjun',
+    blog: 'tistory.com/@minjun',
     figma: 'figma.com/@minjun',
   },
 };

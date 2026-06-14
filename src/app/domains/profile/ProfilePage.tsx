@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { Camera, Edit3, FileText, Figma, Github, LogOut, Plus, Trash2, X } from 'lucide-react';
 import { fetchCurrentUser, logoutAccount, updateCurrentUser, type UserProfile } from '../../api/contentApi';
+import { INTEGRATION_PROVIDER_KEYS, integrationProviderLabel, isIntegrationProviderKey, type IntegrationProviderKey } from '../../api/integrationProviders';
 import { useApp } from '../../contexts/AppContext';
 
 type CareerEntry = {
@@ -11,7 +12,7 @@ type CareerEntry = {
   desc: string;
 };
 
-type LinkKey = 'github' | 'notion' | 'figma';
+type LinkKey = IntegrationProviderKey;
 
 type LinkEntry = {
   key: LinkKey;
@@ -28,18 +29,14 @@ type ProfileExtras = {
 const STORAGE_KEY = 'port-profile-extras';
 
 const LINK_META: Record<LinkKey, { label: string; icon: ReactNode }> = {
-  github: { label: 'GitHub', icon: <Github size={14} /> },
-  notion: { label: 'Notion', icon: <FileText size={14} /> },
-  figma: { label: 'Figma', icon: <Figma size={14} /> },
+  github: { label: integrationProviderLabel('github'), icon: <Github size={14} /> },
+  notion: { label: integrationProviderLabel('notion'), icon: <FileText size={14} /> },
+  figma: { label: integrationProviderLabel('figma'), icon: <Figma size={14} /> },
 };
 
 const DEFAULT_EXTRAS: ProfileExtras = {
   career: [],
-  links: [
-    { key: 'github', label: LINK_META.github.label, url: '' },
-    { key: 'notion', label: LINK_META.notion.label, url: '' },
-    { key: 'figma', label: LINK_META.figma.label, url: '' },
-  ],
+  links: INTEGRATION_PROVIDER_KEYS.map(key => ({ key, label: LINK_META[key].label, url: '' })),
   skills: [],
 };
 
@@ -51,9 +48,9 @@ function readExtras(): ProfileExtras {
     const parsed = JSON.parse(raw) as Partial<ProfileExtras>;
     const career = Array.isArray(parsed.career) ? parsed.career : [];
     const skills = Array.isArray(parsed.skills) ? parsed.skills : [];
-    const links = Array.isArray(parsed.links)
-      ? parsed.links.map((item: Partial<LinkEntry>) => {
-          const key: LinkKey = item.key === 'notion' || item.key === 'figma' ? item.key : 'github';
+      const links = Array.isArray(parsed.links)
+        ? parsed.links.map((item: Partial<LinkEntry>) => {
+          const key: LinkKey = isIntegrationProviderKey(item.key) ? item.key : 'github';
           return {
             key,
             label: item.label || LINK_META[key].label,
