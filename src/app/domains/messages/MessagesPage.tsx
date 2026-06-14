@@ -329,6 +329,15 @@ export default function MessagesPage() {
             description={ko ? '연결된 사람이 없으면 메시지 목록이 비어 보입니다.' : 'When there are no connections, the inbox stays empty.'}
             accent="violet"
           />
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={() => navigate('/explore')}
+              className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
+              style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+            >
+              {ko ? '탐색으로 이동' : 'Go to explore'}
+            </button>
+          </div>
         </div>
       </div>
     );

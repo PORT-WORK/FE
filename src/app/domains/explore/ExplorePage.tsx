@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Search, ChevronDown, SlidersHorizontal, X, Users, Eye } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
@@ -6,6 +6,26 @@ import { listExploreUsers } from '../../api/contentApi';
 
 const ROLES = ['All', 'Developer', 'PM'];
 const STACKS = ['React', 'React Native', 'Kotlin', 'Swift', 'TypeScript', 'JavaScript', 'Java', 'Spring Boot', 'Python', 'Node.js', 'Next.js'];
+
+function normalizeText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function matchesStackValue(skill: string, target: string) {
+  const s = normalizeText(skill);
+  const t = normalizeText(target);
+  if (s === t) return true;
+  if (s.includes(t) || t.includes(s)) return true;
+  const aliases: Record<string, string[]> = {
+    reactnative: ['reactnative', 'reactnativeapp'],
+    nextjs: ['nextjs', 'nextjsapp', 'next'],
+    springboot: ['springboot', 'spring'],
+    nodejs: ['nodejs', 'node'],
+    typescript: ['typescript', 'ts'],
+    javascript: ['javascript', 'js'],
+  };
+  return Object.entries(aliases).some(([key, arr]) => (key === s || arr.includes(s)) && (key === t || arr.includes(t)));
+}
 
 function SkeletonCard() {
   return (
@@ -49,15 +69,15 @@ export default function ExplorePage() {
     };
   }, []);
 
-  const filtered = users.filter(user => {
+  const filtered = useMemo(() => users.filter(user => {
     if (!privacy.public && user.id === 'u1') return false;
     const query = search.toLowerCase();
     const matchesSearch = !query || user.name.toLowerCase().includes(query) || user.role.toLowerCase().includes(query) || (user.skills || []).some((skill: string) => skill.toLowerCase().includes(query));
-    const matchesRole = activeRole === 'All' || user.role.toLowerCase().includes(activeRole.toLowerCase());
-    const matchesStack = !activeStack || (user.skills || []).includes(activeStack);
+    const matchesRole = activeRole === 'All' || normalizeText(user.role).includes(normalizeText(activeRole));
+    const matchesStack = !activeStack || (user.skills || []).some((skill: string) => matchesStackValue(skill, activeStack));
     const matchesFollow = !followOnly || ['e1', 'e2'].includes(user.id);
     return matchesSearch && matchesRole && matchesStack && matchesFollow;
-  });
+  }), [activeRole, activeStack, followOnly, privacy.public, search, users]);
 
   const sorted = [...filtered];
   if (sortIdx === 1) sorted.sort((a, b) => b.likes - a.likes);

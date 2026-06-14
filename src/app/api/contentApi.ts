@@ -226,12 +226,20 @@ export async function listExploreUsers() {
     async () => ({ content: [] }),
   );
   const items = asArray<PortfolioSummary>(result);
+  const splitSkills = (value: unknown) => {
+    if (Array.isArray(value)) return value.map(item => String(item)).filter(Boolean);
+    if (typeof value !== 'string') return [];
+    return value
+      .split(/[,/|·]/g)
+      .map(item => item.trim())
+      .filter(Boolean);
+  };
   return items.map((item: any) => ({
     id: String(item.id),
     name: item.name || item.title || 'Portfolio',
     role: item.role || item.jobRole || 'Developer',
     bio: item.bio || item.summary || '',
-    skills: Array.isArray(item.skills) ? item.skills : [],
+    skills: splitSkills(item.skills),
     likes: item.likes ?? item.likeCount ?? 0,
     views: item.views ?? item.viewCount ?? 0,
     avatar: item.avatar || item.thumbnailUrl || '',

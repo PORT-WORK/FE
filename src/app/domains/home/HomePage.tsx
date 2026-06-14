@@ -55,7 +55,6 @@ const HOME_COPY = {
 export default function HomePage() {
   const navigate = useNavigate();
   const { setPayModal, isLoggedIn, language } = useApp();
-  const [input, setInput] = useState('');
   const [activeStep, setActiveStep] = useState(0);
   const ko = language === 'ko';
   const copy = ko ? HOME_COPY.ko : HOME_COPY.en;
@@ -94,24 +93,16 @@ export default function HomePage() {
 
             <p className="mx-auto mb-8 max-w-2xl text-sm leading-relaxed text-zinc-500">{copy.subtitle}</p>
 
-            <div className="mx-auto mb-2 flex max-w-2xl items-stretch overflow-hidden rounded-2xl border border-white/10 bg-[#0d0d0d]">
-              <Sparkles size={16} className="ml-4 mt-4 text-violet-400" />
-              <textarea
-                value={input}
-                onChange={e => {
-                  setInput(e.target.value);
-                  e.currentTarget.style.height = 'auto';
-                  e.currentTarget.style.height = `${Math.min(e.currentTarget.scrollHeight, 128)}px`;
-                }}
-                onKeyDown={e => {
-                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleGenerate();
-                }}
-                placeholder={copy.placeholder}
-                rows={2}
-                className="min-h-[76px] max-h-32 flex-1 resize-none bg-transparent px-4 py-4 text-sm text-white placeholder-zinc-700 focus:outline-none"
-              />
+            <div className="mt-8 flex justify-center">
+              <button
+                onClick={handleGenerate}
+                className="inline-flex items-center gap-2 rounded-2xl px-7 py-4 text-base font-semibold text-white transition-transform hover:-translate-y-0.5"
+                style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 24px rgba(124,58,237,0.3)' }}
+              >
+                <Sparkles size={16} />
+                {ko ? '포트폴리오 생성하기' : 'Create portfolio'}
+              </button>
             </div>
-            <p className="text-xs text-zinc-600">{copy.ctrlEnter}</p>
           </div>
         </div>
 
