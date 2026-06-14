@@ -99,6 +99,127 @@ function parsePresentation(json: string | null) {
   }
 }
 
+type SnapshotSource = {
+  provider?: string;
+  resourceId?: string;
+  kind?: string;
+  title?: string;
+  subtitle?: string;
+  summary?: string;
+  url?: string | null;
+  imageUrl?: string | null;
+  tags?: string[];
+  raw?: Record<string, unknown>;
+};
+
+function asSourceList(snapshot: Record<string, unknown>) {
+  const value = snapshot.sources;
+  if (!Array.isArray(value)) return [] as SnapshotSource[];
+  return value.filter(Boolean) as SnapshotSource[];
+}
+
+function joinSourceText(source: SnapshotSource) {
+  const raw = source.raw && typeof source.raw === 'object' ? JSON.stringify(source.raw).slice(0, 280) : '';
+  return [
+    source.title,
+    source.subtitle,
+    source.kind,
+    source.summary,
+    source.tags?.length ? source.tags.join(', ') : '',
+    source.url || '',
+    raw,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function buildSectionDraftMap(
+  role: Role,
+  sectionMeta: SectionMeta[],
+  sourceSnapshot: Record<string, unknown>,
+  baseDrafts: Record<string, { value: string; status: SectionStatus }>,
+) {
+  const sources = asSourceList(sourceSnapshot);
+  if (sources.length === 0) return baseDrafts;
+
+  const sectionKeys = sectionMeta.map(item => item.key);
+  const merged = Object.fromEntries(
+    sectionKeys.map(key => [
+      key,
+      {
+        value: baseDrafts[key]?.value || '',
+        status: baseDrafts[key]?.status || 'EMPTY',
+      },
+    ]),
+  ) as Record<string, { value: string; status: SectionStatus }>;
+
+  const developerRules: Array<{ key: string; terms: string[] }> = [
+    { key: 'overview', terms: ['readme', 'summary', 'overview', 'project'] },
+    { key: 'role', terms: ['role', 'responsibility', 'scope', 'owner'] },
+    { key: 'problem', terms: ['issue', 'bug', 'problem', 'pain', 'challenge'] },
+    { key: 'tech', terms: ['language', 'stack', 'tech', 'framework', 'library', 'dependency'] },
+    { key: 'architecture', terms: ['architecture', 'system', 'flow', 'diagram', 'figma', 'page', 'frame'] },
+    { key: 'core', terms: ['implementation', 'feature', 'pr', 'pull request', 'code', 'merge'] },
+    { key: 'trouble', terms: ['trouble', 'issue', 'error', 'fix', 'debug', 'incident'] },
+    { key: 'performance', terms: ['performance', 'optimization', 'speed', 'latency', 'benchmark'] },
+    { key: 'result', terms: ['result', 'release', 'outcome', 'impact', 'demo'] },
+    { key: 'retrospective', terms: ['retrospective', 'review', 'lesson', 'improve', 'reflection'] },
+  ];
+  const pmRules: Array<{ key: string; terms: string[] }> = [
+    { key: 'overview', terms: ['project', 'overview', 'summary', 'goal'] },
+    { key: 'problem', terms: ['problem', 'pain', 'issue', 'need'] },
+    { key: 'market', terms: ['market', 'trend', 'opportunity', 'analysis'] },
+    { key: 'competition', terms: ['competitor', 'comparison', 'benchmark'] },
+    { key: 'user', terms: ['user', 'persona', 'target', 'research'] },
+    { key: 'persona', terms: ['persona', 'segment', 'profile'] },
+    { key: 'hypothesis', terms: ['hypothesis', 'assumption', 'validation'] },
+    { key: 'prd', terms: ['prd', 'spec', 'specification'] },
+    { key: 'requirements', terms: ['requirement', 'requirements', 'feature', 'scope'] },
+    { key: 'priority', terms: ['priority', 'roadmap', 'priority list'] },
+    { key: 'ia', terms: ['ia', 'information architecture', 'structure'] },
+    { key: 'userFlow', terms: ['user flow', 'flow', 'journey'] },
+    { key: 'wireframe', terms: ['wireframe', 'screen', 'layout'] },
+    { key: 'policy', terms: ['policy', 'rule', 'exception'] },
+    { key: 'roadmap', terms: ['roadmap', 'timeline', 'schedule'] },
+    { key: 'kpi', terms: ['kpi', 'metric', 'goal'] },
+    { key: 'result', terms: ['result', 'outcome', 'launch', 'release'] },
+    { key: 'retrospective', terms: ['retrospective', 'review', 'lesson', 'improve'] },
+  ];
+
+  const rules = role === 'PM' ? pmRules : developerRules;
+  const fallbackKeys = sectionKeys;
+  let cursor = 0;
+
+  sources.forEach(source => {
+    const text = joinSourceText(source).toLowerCase();
+    let matched = rules.find(rule => rule.terms.some(term => text.includes(term)));
+    if (!matched && source.kind) {
+      matched = rules.find(rule => text.includes(rule.key.toLowerCase())) || null;
+    }
+    const targetKey = matched?.key || fallbackKeys[cursor % fallbackKeys.length];
+    cursor += 1;
+
+    const nextText = [
+      source.title,
+      source.subtitle && source.subtitle !== source.title ? source.subtitle : '',
+      source.summary,
+      source.kind ? `Type: ${source.kind}` : '',
+      source.tags?.length ? `Tags: ${source.tags.join(', ')}` : '',
+      source.url ? `URL: ${source.url}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const current = merged[targetKey]?.value?.trim();
+    merged[targetKey] = {
+      value: current ? `${current}\n\n${nextText}` : nextText,
+      status: 'COMPLETED',
+    };
+  });
+
+  return merged;
+}
+
 export default function ProjectEditorPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -285,7 +406,7 @@ export default function ProjectEditorPage() {
     setEditingSection(null);
   };
 
-  const handleSelectSources = async (payload: { provider: SourceProvider; sourceIds: string[] }) => {
+  const handleSelectSources = async (payload: { provider: SourceProvider; sourceIds: string[]; sources: SnapshotSource[] }) => {
     if (!projectId) {
       setSourceError('Create a project first.');
       return;
@@ -316,7 +437,18 @@ export default function ProjectEditorPage() {
         }),
         sourceSnapshot: {
           provider: payload.provider.toUpperCase(),
-          sources: payload.sourceIds.map(id => ({ resourceId: id, title: id, kind: 'SOURCE', summary: id, tags: [], raw: {} })),
+          sources: payload.sources.map(item => ({
+            provider: payload.provider.toUpperCase(),
+            resourceId: item.resourceId,
+            kind: item.kind,
+            title: item.title,
+            subtitle: item.subtitle,
+            summary: item.summary,
+            url: item.url || null,
+            imageUrl: item.imageUrl || null,
+            tags: item.tags || [],
+            raw: item.raw || {},
+          })),
         },
         selectedProvider: payload.provider.toUpperCase(),
         selectedSourceIds: payload.sourceIds,
@@ -333,6 +465,7 @@ export default function ProjectEditorPage() {
         sourceIds: payload.sourceIds,
       });
       setSession(next);
+      setSectionDrafts(prev => buildSectionDraftMap(role, sectionMeta, next.sourceSnapshot || {}, prev));
       setSourceModalOpen(false);
       setPreviewBlob(null);
       setError(next.lastError || null);
@@ -352,7 +485,8 @@ export default function ProjectEditorPage() {
 
   const createDocument = async () => {
     if (draftMode) {
-      const nextDrafts = fillCompletedStatus(sectionDrafts);
+      const sourceDrafts = buildSectionDraftMap(role, sectionMeta, session?.sourceSnapshot || sourceSnapshot, sectionDrafts);
+      const nextDrafts = fillCompletedStatus(sourceDrafts);
       const content = [
         `PROJECT: ${projectName}`,
         `ROLE: ${role}`,
@@ -410,7 +544,8 @@ export default function ProjectEditorPage() {
     try {
       const next = await createProjectWritingDocument(projectId);
       setSession(next);
-      setSectionDrafts(fillCompletedStatus(sectionDrafts));
+      const sourceDrafts = buildSectionDraftMap(role, sectionMeta, next.sourceSnapshot || session?.sourceSnapshot || sourceSnapshot, sectionDrafts);
+      setSectionDrafts(fillCompletedStatus(sourceDrafts));
       setPreviewBlob(null);
       setStep('DOCUMENT_CREATED');
       setError(next.lastError || null);

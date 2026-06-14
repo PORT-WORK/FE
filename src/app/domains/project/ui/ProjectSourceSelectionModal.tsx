@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronRight, Figma, FileText, Github, Loader2, Search, Sparkles, X } from 'lucide-react';
+import { Check, ExternalLink, Figma, FileText, Github, Loader2, Search, Sparkles, X } from 'lucide-react';
 import { fetchIntegrationSources, type IntegrationSourceItem } from '../../../api/contentApi';
 import { integrationProviderLabel, type IntegrationProviderKey } from '../../../api/integrationProviders';
 import { useApp } from '../../../contexts/AppContext';
@@ -9,7 +9,7 @@ type Props = {
   initialProvider?: IntegrationProviderKey | null;
   initialSourceIds?: string[];
   onClose: () => void;
-  onConfirm: (payload: { provider: IntegrationProviderKey; sourceIds: string[] }) => void;
+  onConfirm: (payload: { provider: IntegrationProviderKey; sourceIds: string[]; sources: IntegrationSourceItem[] }) => void;
 };
 
 const PROVIDERS: Array<{
@@ -36,7 +36,6 @@ export default function ProjectSourceSelectionModal({
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<IntegrationSourceItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>(initialSourceIds);
-  const [previewItem, setPreviewItem] = useState<IntegrationSourceItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +49,6 @@ export default function ProjectSourceSelectionModal({
     setProvider(initialProvider);
     setSelectedIds(initialSourceIds);
     setQuery('');
-    setPreviewItem(null);
     setError(null);
     providerRef.current = initialProvider;
   }, [initialProvider, initialSourceIds, open]);
@@ -65,7 +63,6 @@ export default function ProjectSourceSelectionModal({
     setError(null);
 
     if (providerChanged) {
-      setPreviewItem(null);
       setSelectedIds([]);
     }
 
@@ -87,7 +84,7 @@ export default function ProjectSourceSelectionModal({
       .catch(() => {
         if (!alive) return;
         setItems([]);
-        setError(ko ? '연동 자료를 불러오지 못했습니다.' : 'Failed to load connected sources.');
+        setError(ko ? '연동된 자료를 불러오지 못했습니다.' : 'Failed to load connected sources.');
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -115,6 +112,24 @@ export default function ProjectSourceSelectionModal({
     setSelectedIds(prev => (prev.includes(resourceId) ? prev.filter(item => item !== resourceId) : [...prev, resourceId]));
   };
 
+  const openSourceDetail = (item: IntegrationSourceItem) => {
+    if (item.url) {
+      window.open(item.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const detail = [
+      item.title,
+      item.subtitle,
+      item.summary,
+      item.tags.length ? `Tags: ${item.tags.join(', ')}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    window.alert(detail || item.title);
+  };
+
   if (!open) return null;
 
   return (
@@ -130,9 +145,11 @@ export default function ProjectSourceSelectionModal({
               <Sparkles size={12} />
               {ko ? '자료 선택' : 'Select sources'}
             </div>
-            <h3 className="text-xl font-black text-white">{ko ? '프로젝트에 사용할 자료를 고르세요' : 'Pick external sources for your project draft'}</h3>
+            <h3 className="text-xl font-black text-white">
+              {ko ? '프로젝트 원고에 넣을 자료를 선택하세요' : 'Pick external sources for your project draft'}
+            </h3>
             <p className="mt-1 text-sm text-zinc-500">
-              {ko ? '카드를 눌러 미리보고, 미리보기 안에서 선택하세요.' : 'Open a card to preview it, then select it inside the preview.'}
+              {ko ? '행을 클릭해 선택/해제하고, 자세한 내용은 버튼으로 확인하세요.' : 'Click a row to select or deselect it. Use the detail button for more.'}
             </p>
           </div>
           <button onClick={onClose} className="rounded-xl p-2 text-zinc-500 transition-colors hover:bg-white/[0.05] hover:text-zinc-200">
@@ -167,7 +184,7 @@ export default function ProjectSourceSelectionModal({
                         </div>
                       </div>
                       <div className={`text-[10px] font-semibold ${isConnected ? 'text-emerald-300' : 'text-zinc-600'}`}>
-                        {isConnected ? (ko ? '연결됨' : 'Connected') : (ko ? '연결 필요' : 'Not connected')}
+                        {isConnected ? (ko ? '연동됨' : 'Connected') : ko ? '연동 필요' : 'Not connected'}
                       </div>
                     </div>
                   </button>
@@ -195,13 +212,13 @@ export default function ProjectSourceSelectionModal({
             <div className="mb-4 rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-3 text-xs text-zinc-500">
               <div className="flex items-center justify-between gap-3">
                 <span>{integrationProviderLabel(provider)}</span>
-                <span>{ko ? '카드를 눌러 미리보기로 이동합니다.' : 'Click a card to open preview.'}</span>
+                <span>{ko ? '행을 클릭해 선택/해제하세요.' : 'Click a row to select or deselect.'}</span>
               </div>
             </div>
 
             {!connected && (
               <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                {ko ? '먼저 설정에서 이 연동을 연결해주세요.' : 'Connect this provider in Settings first.'}
+                {ko ? '먼저 설정에서 해당 연동을 완료해주세요.' : 'Connect this provider in Settings first.'}
               </div>
             )}
 
@@ -219,9 +236,17 @@ export default function ProjectSourceSelectionModal({
                 filtered.map(item => {
                   const active = selectedIds.includes(item.resourceId);
                   return (
-                    <button
+                    <div
                       key={item.resourceId}
-                      onClick={() => setPreviewItem(item)}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => toggleSelected(item.resourceId)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggleSelected(item.resourceId);
+                        }
+                      }}
                       className="w-full rounded-3xl p-4 text-left transition-all"
                       style={{
                         background: active ? 'rgba(124,58,237,0.08)' : 'rgba(255,255,255,0.02)',
@@ -256,9 +281,25 @@ export default function ProjectSourceSelectionModal({
                             </div>
                           </div>
                           <p className="mt-3 line-clamp-2 text-xs leading-6 text-zinc-500">{item.summary}</p>
+                          <div className="mt-4 flex items-center justify-between gap-3">
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation();
+                                openSourceDetail(item);
+                              }}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-violet-200 transition-colors hover:text-violet-100"
+                            >
+                              {ko ? '자세히 보기' : 'View details'}
+                              <ExternalLink size={11} />
+                            </button>
+                            <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-600">
+                              {active ? (ko ? '선택됨' : 'Selected') : ko ? '선택 가능' : 'Available'}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </button>
+                    </div>
                   );
                 })
               )}
@@ -267,17 +308,17 @@ export default function ProjectSourceSelectionModal({
             <div className="mt-4 rounded-[26px] border border-white/6 bg-white/[0.02] p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-white">{ko ? '선택한 자료' : 'Selected items'}</p>
-                  <p className="mt-1 text-xs text-zinc-500">{selectedItems.length} {ko ? '개 선택됨' : 'selected'}</p>
+                  <p className="text-sm font-semibold text-white">{ko ? '선택된 자료' : 'Selected items'}</p>
+                  <p className="mt-1 text-xs text-zinc-500">{selectedItems.length} {ko ? '개 선택' : 'selected'}</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => onConfirm({ provider, sourceIds: selectedIds })}
+                  onClick={() => onConfirm({ provider, sourceIds: selectedIds, sources: selectedItems })}
                   disabled={!connected || selectedIds.length === 0 || busy}
                   className="rounded-2xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
                   style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
                 >
-                  {busy ? (ko ? '전달 중...' : 'Applying...') : (ko ? '확인' : 'Confirm')}
+                  {busy ? (ko ? '처리 중...' : 'Applying...') : ko ? '확인' : 'Confirm'}
                 </button>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -288,11 +329,17 @@ export default function ProjectSourceSelectionModal({
                     <button
                       key={item.resourceId}
                       type="button"
-                      onClick={() => setPreviewItem(item)}
+                      onClick={() => toggleSelected(item.resourceId)}
                       className="inline-flex items-center gap-2 rounded-full border border-violet-500/15 bg-violet-500/8 px-3 py-1.5 text-xs text-violet-100"
                     >
                       {item.title}
-                      <X size={11} onClick={e => { e.stopPropagation(); setSelectedIds(prev => prev.filter(id => id !== item.resourceId)); }} />
+                      <X
+                        size={11}
+                        onClick={e => {
+                          e.stopPropagation();
+                          setSelectedIds(prev => prev.filter(id => id !== item.resourceId));
+                        }}
+                      />
                     </button>
                   ))
                 )}
@@ -307,69 +354,6 @@ export default function ProjectSourceSelectionModal({
           </main>
         </div>
       </div>
-
-      {previewItem && (
-        <div className="fixed inset-0 z-[340] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md" onClick={() => setPreviewItem(null)}>
-          <div
-            className="w-full max-w-2xl rounded-[28px] border border-white/10 bg-[#0b0b0b] p-6 shadow-2xl shadow-black/50"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-200">
-                  {integrationProviderLabel(provider)}
-                </div>
-                <h4 className="text-2xl font-black text-white">{previewItem.title}</h4>
-                <p className="mt-2 text-sm text-zinc-500">{previewItem.subtitle}</p>
-              </div>
-              <button onClick={() => setPreviewItem(null)} className="rounded-xl p-2 text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="mt-5 rounded-[24px] border border-white/8 bg-white/[0.02] p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-zinc-600">{previewItem.kind}</p>
-              <p className="mt-3 text-sm leading-7 text-zinc-300">{previewItem.summary}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {previewItem.tags.map(tag => (
-                  <span key={tag} className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] text-zinc-400">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              {previewItem.url && (
-                <a href={previewItem.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1 text-violet-300 hover:text-violet-200">
-                  {ko ? '원본 보기' : 'Open source'}
-                  <ChevronRight size={12} />
-                </a>
-              )}
-            </div>
-
-            <div className="mt-5 flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  toggleSelected(previewItem.resourceId);
-                }}
-                className="rounded-2xl border border-white/8 px-4 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:bg-white/[0.04]"
-              >
-                {selectedIds.includes(previewItem.resourceId) ? (ko ? '선택 해제' : 'Remove') : (ko ? '자료 선택' : 'Select item')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  toggleSelected(previewItem.resourceId);
-                  setPreviewItem(null);
-                }}
-                className="rounded-2xl px-4 py-3 text-sm font-semibold text-white"
-                style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-              >
-                {ko ? '선택 후 닫기' : 'Select and close'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

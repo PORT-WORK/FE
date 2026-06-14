@@ -37,6 +37,47 @@ function serializeBlocks(blocks: EditorBlockModel[]) {
     .trim();
 }
 
+function blockLabel(block: EditorBlockModel) {
+  switch (block.type) {
+    case 'h1':
+      return 'H1';
+    case 'h2':
+      return 'H2';
+    case 'h3':
+      return 'H3';
+    case 'h4':
+      return 'H4';
+    case 'code':
+      return 'Code';
+    case 'quote':
+      return 'Quote';
+    case 'todo':
+      return 'Todo';
+    case 'toggle':
+      return 'Toggle';
+    case 'divider':
+      return 'Divider';
+    case 'callout':
+      return 'Callout';
+    case 'image':
+      return 'Image';
+    case 'table':
+      return 'Table';
+    case 'database':
+      return 'Database';
+    case 'embed':
+      return 'Embed';
+    case 'bookmark':
+      return 'Bookmark';
+    case 'file':
+      return 'File';
+    case 'equation':
+      return 'Equation';
+    default:
+      return 'Text';
+  }
+}
+
 export default function SectionEditorModal({ open, title, guide, initialValue, onClose, onSave }: Props) {
   const [blocks, setBlocks] = useState<EditorBlockModel[]>(() => createBlocks(initialValue));
   const [menu, setMenu] = useState<{ open: boolean; x: number; y: number } | null>(null);
@@ -59,9 +100,9 @@ export default function SectionEditorModal({ open, title, guide, initialValue, o
   };
 
   return (
-    <div className="fixed inset-0 z-[360] flex items-start justify-center overflow-y-auto bg-black/75 px-4 py-6 backdrop-blur-md" onClick={onClose}>
+    <div className="fixed inset-0 z-[360] flex items-start justify-center overflow-y-auto bg-black/80 px-4 py-6 backdrop-blur-md" onClick={onClose}>
       <div
-        className="w-full max-w-5xl rounded-[30px] border border-white/10 bg-[#0a0a0a] shadow-2xl shadow-black/50"
+        className="w-full max-w-[1440px] overflow-hidden rounded-[32px] border border-white/10 bg-[#090909] shadow-2xl shadow-black/50"
         style={{ minHeight: 'calc(100vh - 3rem)' }}
         onClick={e => e.stopPropagation()}
       >
@@ -71,19 +112,29 @@ export default function SectionEditorModal({ open, title, guide, initialValue, o
               Notion-style editor
             </div>
             <h3 className="text-2xl font-black text-white">{title}</h3>
-            <p className="mt-2 text-sm leading-6 text-zinc-500">{guide}</p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">{guide}</p>
           </div>
           <button onClick={onClose} className="rounded-xl p-2 text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200">
             <X size={16} />
           </button>
         </div>
 
-        <div className="grid grid-cols-[1fr_300px] gap-6 px-6 py-6">
-          <div className="rounded-[26px] border border-white/8 bg-black/20 p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="text-xs text-zinc-500">
-                {blockCount} blocks
+        <div className="grid grid-cols-1 gap-6 px-6 py-6 xl:grid-cols-[minmax(0,1.2fr)_360px]">
+          <div className="rounded-[28px] border border-white/8 bg-black/20 p-5">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.26em] text-zinc-600">Page</p>
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-300">
+                    <span className="text-lg">⌘</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{title}</p>
+                    <p className="text-xs text-zinc-500">{blockCount} blocks</p>
+                  </div>
+                </div>
               </div>
+
               <button
                 type="button"
                 onClick={event => setMenu({ open: true, x: event.clientX, y: event.clientY })}
@@ -94,9 +145,16 @@ export default function SectionEditorModal({ open, title, guide, initialValue, o
               </button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               {blocks.map(block => (
-                <div key={block.id} className="rounded-2xl border border-white/6 bg-white/[0.02] p-3">
+                <div
+                  key={block.id}
+                  className="group rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-3 transition-colors hover:border-white/10 hover:bg-white/[0.03]"
+                >
+                  <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-zinc-600">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.04] text-zinc-500">⋮⋮</span>
+                    {blockLabel(block)}
+                  </div>
                   <EditorBlock
                     block={block}
                     onChange={updateBlock}
@@ -108,15 +166,15 @@ export default function SectionEditorModal({ open, title, guide, initialValue, o
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="rounded-[26px] border border-white/8 bg-white/[0.03] p-5">
+          <aside className="space-y-4">
+            <div className="rounded-[28px] border border-white/8 bg-white/[0.03] p-5">
               <p className="text-sm font-semibold text-white">Section guide</p>
-              <p className="mt-2 text-sm leading-7 text-zinc-500">{guide}</p>
+              <p className="mt-3 text-sm leading-7 text-zinc-500">{guide}</p>
             </div>
 
-            <div className="rounded-[26px] border border-white/8 bg-white/[0.03] p-5">
+            <div className="rounded-[28px] border border-white/8 bg-white/[0.03] p-5">
               <p className="text-sm font-semibold text-white">Save</p>
-              <p className="mt-2 text-sm leading-7 text-zinc-500">
+              <p className="mt-3 text-sm leading-7 text-zinc-500">
                 Write naturally, then save to reflect the section back into the project flow.
               </p>
               <button
@@ -138,7 +196,7 @@ export default function SectionEditorModal({ open, title, guide, initialValue, o
               <ArrowLeft size={14} />
               Close
             </button>
-          </div>
+          </aside>
         </div>
       </div>
 
