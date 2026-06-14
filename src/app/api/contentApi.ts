@@ -242,6 +242,64 @@ function asArray<T>(value: unknown): T[] {
   return [];
 }
 
+function readField<T = unknown>(value: unknown, ...keys: string[]) {
+  if (!value || typeof value !== 'object') return undefined as T | undefined;
+  const record = value as Record<string, unknown>;
+  for (const key of keys) {
+    if (key in record && record[key] !== undefined && record[key] !== null) {
+      return record[key] as T;
+    }
+  }
+  return undefined as T | undefined;
+}
+
+function normalizeSkills(value: unknown) {
+  if (Array.isArray(value)) return value.map(item => String(item)).filter(Boolean);
+  if (typeof value !== 'string') return [];
+  return value
+    .split(/[,/|]/g)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function normalizePortfolioSummary(item: unknown): PortfolioSummary {
+  const record = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
+  return {
+    id: Number(readField(record, 'id') || 0),
+    userId: Number(readField(record, 'userId', 'user_id', 'ownerId', 'owner_id', 'portfolioUserId', 'portfolio_user_id') || 0),
+    title: String(readField(record, 'title', 'name') || ''),
+    jobRole: String(readField(record, 'jobRole', 'job_role', 'role') || ''),
+    thumbnailUrl: (readField<string | null>(record, 'thumbnailUrl', 'thumbnail_url', 'thumbnail') || null) as string | null,
+    summary: (readField<string | null>(record, 'summary', 'description') || null) as string | null,
+    skills: normalizeSkills(readField(record, 'skills', 'skill', 'skill_list')),
+    pptxUrl: (readField<string | null>(record, 'pptxUrl', 'pptx_url') || null) as string | null,
+    isPublic: Boolean(readField(record, 'isPublic', 'is_public', 'public') ?? true),
+    viewCount: Number(readField(record, 'viewCount', 'view_count', 'views') || 0),
+    likeCount: Number(readField(record, 'likeCount', 'like_count', 'likes') || 0),
+    bookmarkCount: Number(readField(record, 'bookmarkCount', 'bookmark_count') || 0),
+  };
+}
+
+function normalizePortfolioDetail(item: unknown): PortfolioDetail {
+  const record = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
+  return {
+    id: Number(readField(record, 'id') || 0),
+    userId: Number(readField(record, 'userId', 'user_id', 'ownerId', 'owner_id') || 0),
+    title: String(readField(record, 'title', 'name') || ''),
+    jobRole: String(readField(record, 'jobRole', 'job_role', 'role') || ''),
+    thumbnailUrl: (readField<string | null>(record, 'thumbnailUrl', 'thumbnail_url', 'thumbnail') || null) as string | null,
+    summary: (readField<string | null>(record, 'summary', 'description') || null) as string | null,
+    skills: normalizeSkills(readField(record, 'skills', 'skill', 'skill_list')),
+    templateId: readField<number | null>(record, 'templateId', 'template_id', 'template') ?? null,
+    pptxUrl: (readField<string | null>(record, 'pptxUrl', 'pptx_url') || null) as string | null,
+    customDomain: (readField<string | null>(record, 'customDomain', 'custom_domain') || null) as string | null,
+    isPublic: Boolean(readField(record, 'isPublic', 'is_public', 'public') ?? false),
+    viewCount: Number(readField(record, 'viewCount', 'view_count', 'views') || 0),
+    likeCount: Number(readField(record, 'likeCount', 'like_count', 'likes') || 0),
+    bookmarkCount: Number(readField(record, 'bookmarkCount', 'bookmark_count') || 0),
+  };
+}
+
 function formatTime(value?: string | null) {
   if (!value) return '';
   const date = new Date(value);
@@ -255,27 +313,19 @@ export async function listExploreUsers() {
     async () => ({ content: [] }),
   );
   const items = asArray<PortfolioSummary>(result);
-  const splitSkills = (value: unknown) => {
-    if (Array.isArray(value)) return value.map(item => String(item)).filter(Boolean);
-    if (typeof value !== 'string') return [];
-    return value
-      .split(/[,/|·]/g)
-      .map(item => item.trim())
-      .filter(Boolean);
-  };
-  return items.map((item: any) => ({
-    id: String(item.userId ?? item.ownerId ?? item.user?.id ?? item.id),
+  return items.map(item => ({
+    id: String(item.userId || item.id),
     portfolioId: item.id,
-    name: item.name || item.title || 'Portfolio',
-    role: item.role || item.jobRole || 'Developer',
-    bio: item.bio || item.summary || '',
-    skills: splitSkills(item.skills),
-    likes: item.likes ?? item.likeCount ?? 0,
-    views: item.views ?? item.viewCount ?? 0,
-    avatar: item.avatar || item.thumbnailUrl || '',
-    thumbnail: item.thumbnail || item.thumbnailUrl || '',
+    name: item.title || 'Portfolio',
+    role: item.jobRole || 'Developer',
+    bio: item.summary || '',
+    skills: item.skills,
+    likes: item.likeCount || 0,
+    views: item.viewCount || 0,
+    avatar: item.thumbnailUrl || '',
+    thumbnail: item.thumbnailUrl || '',
     pptxUrl: item.pptxUrl || '',
-    isPublic: item.isPublic ?? true,
+    isPublic: item.isPublic,
   }));
 }
 
@@ -392,7 +442,8 @@ export async function fetchPublicProfile(userId: number) {
 }
 
 export async function fetchPublicUserPortfolios(userId: number) {
-  return apiRequestStrict<PortfolioSummary[]>({ url: `/users/${userId}/portfolios`, method: 'GET' });
+  const result = await apiRequestStrict<PortfolioSummary[]>({ url: `/users/${userId}/portfolios`, method: 'GET' });
+  return Array.isArray(result) ? result.map(normalizePortfolioSummary) : [];
 }
 
 export async function fetchSettings() {
@@ -466,11 +517,12 @@ export async function fetchIntegrationPreview(provider: IntegrationProviderKey, 
 }
 
 export async function listMyPortfolios() {
-  return apiRequestStrict<PortfolioSummary[]>({ url: '/portfolios/me', method: 'GET' });
+  const result = await apiRequestStrict<PortfolioSummary[]>({ url: '/portfolios/me', method: 'GET' });
+  return Array.isArray(result) ? result.map(normalizePortfolioSummary) : [];
 }
 
 export async function fetchPortfolioDetail(portfolioId: number) {
-  return apiRequest<PortfolioDetail>(
+  const result = await apiRequest<PortfolioDetail>(
     { url: `/portfolios/${portfolioId}`, method: 'GET' },
     async () => ({
       id: portfolioId,
@@ -489,6 +541,7 @@ export async function fetchPortfolioDetail(portfolioId: number) {
       bookmarkCount: 0,
     }),
   );
+  return normalizePortfolioDetail(result);
 }
 
 export async function listPortfolioProjects(portfolioId: number) {

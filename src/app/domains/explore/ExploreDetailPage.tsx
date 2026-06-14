@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Bookmark, Heart, MessageSquare, User } from 'lucide-react';
 import {
@@ -10,6 +10,7 @@ import {
   type PublicUserProfile,
 } from '../../api/contentApi';
 import { useApp } from '../../contexts/AppContext';
+import { buildPptxTabUrl, buildPptxViewerUrl } from '../../utils/pptxViewer';
 
 export default function ExploreDetailPage() {
   const { id } = useParams();
@@ -32,6 +33,7 @@ export default function ExploreDetailPage() {
   useEffect(() => {
     if (!userId || Number.isNaN(userId)) return;
     let alive = true;
+
     Promise.all([
       fetchPublicProfile(userId),
       fetchPublicUserPortfolios(userId).catch(() => [] as PortfolioSummary[]),
@@ -42,6 +44,7 @@ export default function ExploreDetailPage() {
       setPortfolios(publicRows);
       setSelectedId(publicRows[0]?.id ?? null);
     });
+
     return () => {
       alive = false;
     };
@@ -53,6 +56,7 @@ export default function ExploreDetailPage() {
       return;
     }
     let alive = true;
+
     fetchPortfolioDetail(selectedId)
       .then(next => {
         if (alive) setDetail(next);
@@ -60,21 +64,28 @@ export default function ExploreDetailPage() {
       .catch(() => {
         if (alive) setDetail(null);
       });
+
     return () => {
       alive = false;
     };
   }, [selectedId]);
 
-  const publicProfile = profile as (PublicUserProfile & {
-    githubUrl?: string | null;
-    notionUrl?: string | null;
-    figmaUrl?: string | null;
-  }) | null;
+  const publicProfile = profile as
+    | (PublicUserProfile & {
+        githubUrl?: string | null;
+        notionUrl?: string | null;
+        figmaUrl?: string | null;
+      })
+    | null;
+
   const links = [
     { label: 'GitHub', url: publicProfile?.githubUrl },
     { label: 'Notion', url: publicProfile?.notionUrl },
     { label: 'Figma', url: publicProfile?.figmaUrl },
   ];
+
+  const viewerUrl = useMemo(() => buildPptxViewerUrl(detail?.pptxUrl || null), [detail?.pptxUrl]);
+  const openTabUrl = useMemo(() => buildPptxTabUrl(detail?.pptxUrl || null), [detail?.pptxUrl]);
 
   const toggleFollow = () => {
     setFollowingIds(prev => (prev.includes(targetKey) ? prev.filter(item => item !== targetKey) : [...prev, targetKey]));
@@ -104,8 +115,15 @@ export default function ExploreDetailPage() {
               <div className="h-28 bg-gradient-to-br from-violet-500/30 via-blue-500/20 to-cyan-400/10" />
               <div className="-mt-10 px-5 pb-5">
                 <div className="flex items-end gap-3">
-                  <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-[22px] ring-4 ring-[#050505]" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-                    {profile?.profileImageUrl ? <img src={profile.profileImageUrl} alt="" className="h-full w-full object-cover" /> : <User size={26} className="text-white" />}
+                  <div
+                    className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-[22px] ring-4 ring-[#050505]"
+                    style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                  >
+                    {profile?.profileImageUrl ? (
+                      <img src={profile.profileImageUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <User size={26} className="text-white" />
+                    )}
                   </div>
                   <div className="pb-1">
                     <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">{ko ? '프로필' : 'Profile'}</p>
@@ -113,7 +131,10 @@ export default function ExploreDetailPage() {
                     <p className="text-sm text-zinc-500">{profile?.location || '-'}</p>
                   </div>
                 </div>
-                <p className="mt-4 text-sm leading-6 text-zinc-400">{profile?.bio || (ko ? '소개가 없습니다.' : 'No bio available.')}</p>
+
+                <p className="mt-4 text-sm leading-6 text-zinc-400">
+                  {profile?.bio || (ko ? '소개가 없습니다.' : 'No bio available.')}
+                </p>
 
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   {links.map(link => (
@@ -155,34 +176,38 @@ export default function ExploreDetailPage() {
           <main className="space-y-4">
             <section className="rounded-[30px] border border-white/8 bg-white/[0.03] p-5">
               <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">{ko ? 'PPT 보기' : 'PPT viewer'}</p>
-              <h2 className="mt-2 text-2xl font-black text-white">{detail?.title || (ko ? '포트폴리오를 선택하세요' : 'Select a portfolio')}</h2>
-              <p className="mt-1 text-sm text-zinc-500">{detail?.jobRole || (ko ? '오른쪽 목록에서 PPT를 선택하면 표시됩니다.' : 'Pick a PPT from the list.')}</p>
+              <h2 className="mt-2 text-2xl font-black text-white">
+                {detail?.title || (ko ? '포트폴리오를 선택하세요' : 'Select a portfolio')}
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                {detail?.jobRole || (ko ? '오른쪽 목록에서 PPT를 선택하면 표시됩니다.' : 'Pick a PPT from the list.')}
+              </p>
             </section>
 
             <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
               <div className="overflow-hidden rounded-[30px] border border-white/8 bg-black/30">
-                {detail?.pptxUrl ? (
-                  <div className="flex h-[680px] items-center justify-center bg-[#070707] p-8 text-center">
-                    <div className="max-w-lg">
-                      {detail.thumbnailUrl ? (
-                        <img src={detail.thumbnailUrl} alt="" className="mx-auto mb-6 max-h-[360px] rounded-3xl border border-white/10 object-contain" />
-                      ) : (
-                        <div className="mx-auto mb-6 flex h-48 w-80 items-center justify-center rounded-3xl border border-violet-500/25 bg-violet-500/10 text-5xl font-black text-violet-200">
-                          PPT
-                        </div>
-                      )}
-                      <p className="text-xl font-black text-white">{detail.title}</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-500">
-                        {ko ? 'PPT 파일이 준비되었습니다. 브라우저 미리보기가 막혀도 새 탭 또는 다운로드로 확인할 수 있습니다.' : 'The PPT file is ready. If browser preview is blocked, open or download the file.'}
-                      </p>
-                      <div className="mt-6 flex justify-center gap-2">
-                        <a href={detail.pptxUrl} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200">
-                          {ko ? '새 탭으로 열기' : 'Open in new tab'}
-                        </a>
-                        <a href={detail.pptxUrl} download className="rounded-2xl px-4 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
-                          {ko ? '다운로드' : 'Download'}
-                        </a>
+                {viewerUrl ? (
+                  <div className="relative h-[680px] bg-[#070707]">
+                    <iframe
+                      key={viewerUrl}
+                      src={viewerUrl}
+                      title={detail?.title || 'PPT preview'}
+                      className="h-full w-full"
+                      allow="fullscreen"
+                      loading="eager"
+                    />
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-4 py-4">
+                      <div className="rounded-2xl border border-white/10 bg-black/55 px-4 py-2 text-xs font-semibold text-zinc-200 shadow-lg backdrop-blur">
+                        {ko ? '실제 PPT 미리보기' : 'Live PPT preview'}
                       </div>
+                      <a
+                        href={openTabUrl || detail.pptxUrl || '#'}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="pointer-events-auto rounded-2xl border border-white/10 bg-black/70 px-4 py-2 text-xs font-semibold text-zinc-100 shadow-lg backdrop-blur"
+                      >
+                        {ko ? '새 탭으로 열기' : 'Open in new tab'}
+                      </a>
                     </div>
                   </div>
                 ) : (
@@ -192,7 +217,9 @@ export default function ExploreDetailPage() {
                         <Bookmark size={22} />
                       </div>
                       <p className="text-lg font-black text-white">{ko ? 'PPT 파일이 없습니다' : 'No PPT file'}</p>
-                      <p className="mt-2 text-sm text-zinc-500">{ko ? 'pptxUrl이 있는 공개 포트폴리오만 표시됩니다.' : 'Only public portfolios with pptxUrl can be shown.'}</p>
+                      <p className="mt-2 text-sm text-zinc-500">
+                        {ko ? 'pptxUrl이 있는 공개 포트폴리오만 표시됩니다.' : 'Only public portfolios with pptxUrl can be shown.'}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -220,8 +247,10 @@ export default function ExploreDetailPage() {
                 </section>
 
                 <section className="rounded-[28px] border border-white/8 bg-white/[0.03] p-4">
-                  <p className="text-sm font-semibold text-white">{detail?.title || (ko ? '선택된 포트폴리오' : 'Selected portfolio')}</p>
-                  <p className="mt-3 text-sm leading-6 text-zinc-500">{detail?.summary || (ko ? '선택한 PPT 정보를 확인합니다.' : 'Review selected PPT information.')}</p>
+                  <p className="text-sm font-semibold text-white">{detail?.title || (ko ? '선택한 포트폴리오' : 'Selected portfolio')}</p>
+                  <p className="mt-3 text-sm leading-6 text-zinc-500">
+                    {detail?.summary || (ko ? '선택한 PPT 정보를 확인합니다.' : 'Review selected PPT information.')}
+                  </p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {[
                       { key: 'saved' as const, active: saved, icon: Bookmark, label: ko ? '저장됨' : 'Saved' },
