@@ -188,7 +188,7 @@ export default function ExploreDetailPage() {
 
           <main className="space-y-4">
             <section className="rounded-[30px] border border-white/8 bg-white/[0.03] p-5">
-              <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">{ko ? 'PPT 보기' : 'PPT viewer'}</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">{ko ? 'PDF 보기' : 'PDF viewer'}</p>
               <h2 className="mt-2 text-2xl font-black text-white">
                 {detail?.title || (ko ? '포트폴리오를 선택하세요' : 'Select a portfolio')}
               </h2>
@@ -211,10 +211,10 @@ export default function ExploreDetailPage() {
                     />
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-4 py-4">
                       <div className="rounded-2xl border border-white/10 bg-black/55 px-4 py-2 text-xs font-semibold text-zinc-200 shadow-lg backdrop-blur">
-                        {ko ? '실제 PPT 미리보기' : 'Live PPT preview'}
+                        {ko ? '실제 PDF 미리보기' : 'Live PDF preview'}
                       </div>
                       <a
-                        href={openTabUrl || detail.pptxUrl || '#'}
+                        href={openTabUrl || detail.pdfUrl || detail.pptxUrl || '#'}
                         target="_blank"
                         rel="noreferrer"
                         className="pointer-events-auto rounded-2xl border border-white/10 bg-black/70 px-4 py-2 text-xs font-semibold text-zinc-100 shadow-lg backdrop-blur"
@@ -229,9 +229,9 @@ export default function ExploreDetailPage() {
                       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-violet-500/20 bg-violet-500/10 text-violet-300">
                         <Bookmark size={22} />
                       </div>
-                      <p className="text-lg font-black text-white">{ko ? 'PPT 파일이 없습니다' : 'No PPT file'}</p>
+                      <p className="text-lg font-black text-white">{ko ? 'PDF 파일이 없습니다' : 'No PDF file'}</p>
                       <p className="mt-2 text-sm text-zinc-500">
-                        {ko ? 'pptxUrl이 있는 공개 포트폴리오만 표시됩니다.' : 'Only public portfolios with pptxUrl can be shown.'}
+                        {ko ? 'pdfUrl이 있는 공개 포트폴리오만 표시됩니다.' : 'Only public portfolios with pdfUrl can be shown.'}
                       </p>
                     </div>
                   </div>

@@ -394,6 +394,7 @@ export default function MessagesPage() {
     setEditId(null);
     try {
       await updateMessage(editId, nextText);
+      setLoadError(null);
       void reloadConversations(true).catch(() => undefined);
     } catch {
       setLoadError('메시지를 수정하지 못했습니다.');
@@ -407,6 +408,7 @@ export default function MessagesPage() {
     if (editId === id) setEditId(null);
     try {
       await deleteMessage(id);
+      setLoadError(null);
       void reloadConversations(true).catch(() => undefined);
     } catch {
       setLoadError('메시지를 삭제하지 못했습니다.');

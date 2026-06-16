@@ -54,7 +54,7 @@ export default function ExplorePage() {
 
   const [users, setUsers] = useState<ExploreUser[]>([]);
   const [activeRole, setActiveRole] = useState(ko ? '전체' : 'All');
-  const [activeStack, setActiveStack] = useState('');
+  const [activeStacks, setActiveStacks] = useState<string[]>([]);
   const [sortOpen, setSortOpen] = useState(false);
   const [sortIdx, setSortIdx] = useState(0);
   const [followOnly, setFollowOnly] = useState(false);
@@ -97,7 +97,9 @@ export default function ExplorePage() {
         activeRole === (ko ? '전체' : 'All') ||
         role === normalizeText(activeRole) ||
         (activeRole === '개발자' && role === 'developer');
-      const matchesStack = !activeStack || (user.skills || []).some(skill => matchesStackValue(skill, activeStack));
+      const matchesStack =
+        activeStacks.length === 0 ||
+        activeStacks.some(stack => (user.skills || []).some(skill => matchesStackValue(skill, stack)));
       const matchesFollow = !followOnly || followingIds.includes(String(user.userId));
       return matchesRole && matchesStack && matchesFollow;
     });
@@ -105,7 +107,7 @@ export default function ExplorePage() {
     if (sortIdx === 1) next.sort((a, b) => b.likes - a.likes);
     if (sortIdx === 2) next.sort((a, b) => (b.views || 0) - (a.views || 0));
     return next;
-  }, [activeRole, activeStack, followOnly, followingIds, ko, sortIdx, users]);
+  }, [activeRole, activeStacks, followOnly, followingIds, ko, sortIdx, users]);
 
   return (
     <div className="min-h-full px-8 py-8" style={{ background: '#050505' }} onClick={() => setSortOpen(false)}>
@@ -174,12 +176,12 @@ export default function ExplorePage() {
           {stackOptions.map(option => (
             <button
               key={option}
-              onClick={() => setActiveStack(prev => (prev === option ? '' : option))}
+              onClick={() => setActiveStacks(prev => (prev.includes(option) ? prev.filter(item => item !== option) : [...prev, option]))}
               className="rounded-full px-4 py-2 text-sm"
               style={{
-                background: activeStack === option ? 'rgba(37,99,235,0.14)' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${activeStack === option ? 'rgba(37,99,235,0.35)' : 'rgba(255,255,255,0.07)'}`,
-                color: activeStack === option ? '#93c5fd' : '#71717a',
+                background: activeStacks.includes(option) ? 'rgba(37,99,235,0.14)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${activeStacks.includes(option) ? 'rgba(37,99,235,0.35)' : 'rgba(255,255,255,0.07)'}`,
+                color: activeStacks.includes(option) ? '#93c5fd' : '#71717a',
               }}
             >
               {option}

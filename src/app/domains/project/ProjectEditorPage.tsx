@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { ArrowLeft, Check, Clock3, Download, FileText, Loader2, Sparkles, Wand2 } from 'lucide-react';
+import { ArrowLeft, Bookmark, Check, Clock3, Download, FileText, Loader2, Sparkles, Wand2 } from 'lucide-react';
 import {
   createProjectWritingDocument,
   createProjectWritingPresentation,
@@ -442,7 +442,6 @@ export default function ProjectEditorPage() {
   const progress = useMemo(() => (sectionMeta.length === 0 ? 0 : Math.round((completedCount / sectionMeta.length) * 100)), [completedCount, sectionMeta.length]);
   const allSectionsCompleted = sectionMeta.length > 0 && completedCount === sectionMeta.length;
   const activeSection = sectionMeta.find(item => item.key === activeKey) || sectionMeta[0];
-  const activeDraft = activeSection ? sectionDrafts[activeSection.key] : null;
   const nextSectionKey = sectionMeta[(sectionMeta.findIndex(item => item.key === activeKey) + 1) % sectionMeta.length]?.key || sectionMeta[0]?.key || '';
   const sourceSnapshot = session?.sourceSnapshot || {};
   const selectedProvider = (session?.selectedProvider || String(sourceSnapshot.provider || '')).toLowerCase();
@@ -1074,25 +1073,6 @@ export default function ProjectEditorPage() {
                 })}
               </div>
 
-              <div className="mt-5 rounded-[26px] border border-white/8 bg-black/20 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-white">{activeSection?.title}</p>
-                    <p className="mt-1 text-xs text-zinc-500">{ko ? '섹션을 더블클릭하면 편집할 수 있습니다.' : 'Double-click a section to edit in a modal.'}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEditingSection(activeSection.key)}
-                    className="rounded-full border border-white/8 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-white/[0.05]"
-                  >
-                    {ko ? '편집' : 'Edit'}
-                  </button>
-                </div>
-                <div className="mt-4 rounded-2xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-5 text-sm text-zinc-500">
-                  {activeDraft?.value?.trim() ? activeDraft.value.slice(0, 180) : (ko ? '아직 작성된 내용이 없습니다. 섹션 카드를 더블클릭해 작성해보세요.' : 'No content yet. Double-click the section card to write it.')}
-                </div>
-              </div>
-
               {error && (
                 <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                   {error}
@@ -1165,6 +1145,15 @@ export default function ProjectEditorPage() {
                 >
                   {documentBusy ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
                   {ko ? '문서 생성' : 'Create document'}
+                </button>
+                <button
+                  type="button"
+                  onClick={saveDocumentSnapshot}
+                  disabled={!documentText.trim() && !reviewedText.trim()}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 px-4 py-4 text-sm font-semibold text-zinc-200 transition-colors hover:bg-white/[0.04] disabled:opacity-40"
+                >
+                  <Bookmark size={14} />
+                  {ko ? '저장' : 'Save'}
                 </button>
                 {false && (
                   <button

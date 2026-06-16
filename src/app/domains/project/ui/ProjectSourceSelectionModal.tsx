@@ -511,11 +511,11 @@ export default function ProjectSourceSelectionModal({ open, initialProvider = 'g
                       ? ko
                         ? '상세 내용을 불러오는 중...'
                         : 'Loading details...'
-                      : detailPreview?.description
-                        ? detailPreview.description
-                        : detailPreview?.raw
-                          ? JSON.stringify(detailPreview.raw, null, 2)
-                          : buildSourceExcerpt(detailItem)}
+                      : [
+                          buildSourceExcerpt(detailItem),
+                          typeof detailPreview?.description === 'string' ? detailPreview.description.trim() : '',
+                          detailPreview?.raw ? JSON.stringify(detailPreview.raw, null, 2) : '',
+                        ].filter(Boolean).join('\n\n')}
                   </div>
                 </div>
                 <div className="space-y-3">

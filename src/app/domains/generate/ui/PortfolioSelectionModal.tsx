@@ -17,17 +17,16 @@ type Props = {
 };
 
 function extractSummary(data: PortfolioDataResponse['projects'][number]) {
-  return (
-    data.project.summary ||
-    data.documents
-      .flatMap(item => item.blocks)
-      .map(block => {
-        const content = block.content && typeof block.content === 'object' ? Object.values(block.content).filter(Boolean).join(' ') : '';
-        return content.trim();
-      })
-      .filter(Boolean)
-      .join(' ')
-  );
+  const blockText = data.documents
+    .flatMap(item => item.blocks)
+    .map(block => {
+      const content = block.content && typeof block.content === 'object' ? Object.values(block.content).filter(Boolean).join(' ') : '';
+      return content.trim();
+    })
+    .filter(Boolean)
+    .join(' ');
+
+  return data.project.summary || blockText;
 }
 
 export default function PortfolioSelectionModal({ open, portfolioId, onClose, onConfirm }: Props) {
@@ -49,6 +48,7 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
 
     let alive = true;
     setLoading(true);
+
     void fetchPortfolioData(portfolioId)
       .then(data => {
         if (alive) setPortfolioData(data);
@@ -116,7 +116,7 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
               <Sparkles size={12} />
               프로젝트 선택
             </div>
-            <h3 className="text-xl font-black text-white">프로젝트만 선택해서 PPTX로 보냅니다</h3>
+            <h3 className="text-xl font-black text-white">프로젝트만 선택해서 PPT로 보냅니다</h3>
             <p className="mt-1 text-sm text-zinc-500">게시글 선택은 제외하고, 프로젝트 순서만 정렬한 뒤 생성합니다.</p>
           </div>
           <button onClick={onClose} className="rounded-xl p-2 text-zinc-500 transition-colors hover:bg-white/[0.05] hover:text-zinc-200">
@@ -253,7 +253,7 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
                 className="flex-1 rounded-2xl py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
                 style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 24px rgba(124,58,237,0.32)' }}
               >
-                포트폴리오 만들기
+                선택
               </button>
               <button onClick={onClose} className="rounded-2xl border border-white/8 px-4 py-3 text-sm font-semibold text-zinc-300">
                 닫기

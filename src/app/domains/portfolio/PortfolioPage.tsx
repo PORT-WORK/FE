@@ -79,7 +79,7 @@ export default function PortfolioPage() {
           <EmptyStatePanel
             emoji="📄"
             title={ko ? '저장된 포트폴리오가 없습니다' : 'No saved portfolios yet.'}
-            description={ko ? '프로젝트 문서에서 만든 PPTX가 여기에 저장됩니다.' : 'PPTX results from projects will appear here.'}
+            description={ko ? '프로젝트 문서에서 만든 PDF가 여기에 저장됩니다.' : 'PDF results from projects will appear here.'}
             actionLabel={ko ? '포트폴리오 생성하기' : 'Create portfolio'}
             onAction={openGenerate}
             accent="violet"
@@ -101,7 +101,7 @@ export default function PortfolioPage() {
                   )}
                 {file.pdfUrl || file.pptxUrl ? (
                   <div className="absolute right-3 top-3 rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-1 text-[10px] font-semibold text-violet-200">
-                      {file.pdfUrl ? 'PDF' : 'PPTX'}
+                      PDF
                   </div>
                 ) : null}
               </div>
@@ -130,7 +130,7 @@ export default function PortfolioPage() {
           >
             <div className="flex items-center justify-between border-b border-white/6 px-5 py-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-zinc-600">PPTX</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-zinc-600">PDF</p>
                 <h3 className="mt-1 text-lg font-black text-white">{selectedFile.title}</h3>
               </div>
               <button onClick={() => setViewerOpen(false)} className="rounded-xl p-2 text-zinc-500 transition-colors hover:bg-white/[0.05] hover:text-white">
@@ -170,11 +170,11 @@ export default function PortfolioPage() {
                   <div className="flex h-[680px] items-center justify-center bg-[#070707] p-8 text-center">
                     <div className="max-w-lg">
                       <div className="mx-auto mb-6 flex h-48 w-80 items-center justify-center rounded-3xl border border-violet-500/25 bg-violet-500/10 text-5xl font-black text-violet-200">
-                        PPT
+                        PDF
                       </div>
                       <p className="text-xl font-black text-white">{selectedFile.title}</p>
                       <p className="mt-2 text-sm leading-6 text-zinc-500">
-                        {ko ? 'PPTX 파일을 미리볼 수 없습니다.' : 'The PPTX file cannot be previewed.'}
+                        {ko ? 'PDF 파일을 미리볼 수 없습니다.' : 'The PDF file cannot be previewed.'}
                       </p>
                     </div>
                   </div>
@@ -189,7 +189,7 @@ export default function PortfolioPage() {
                   <p>{selectedFile.skills?.join(', ') || ''}</p>
                 </div>
                 <a
-                  href={tabUrl || selectedFile.pptxUrl || '#'}
+                  href={tabUrl || selectedFile.pdfUrl || selectedFile.pptxUrl || '#'}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white"
@@ -202,8 +202,9 @@ export default function PortfolioPage() {
                   type="button"
                   onClick={() => {
                     const link = document.createElement('a');
-                    link.href = selectedFile.pptxUrl || '';
-                    link.download = `${encodeURIComponent(selectedFile.title || 'portfolio')}.pptx`;
+                    const nextUrl = selectedFile.pdfUrl || selectedFile.pptxUrl || '';
+                    link.href = nextUrl;
+                    link.download = `${encodeURIComponent(selectedFile.title || 'portfolio')}.${selectedFile.pdfUrl ? 'pdf' : 'pptx'}`;
                     link.click();
                   }}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 px-4 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:bg-white/[0.04]"
