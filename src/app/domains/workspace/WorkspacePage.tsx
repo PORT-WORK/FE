@@ -5,11 +5,20 @@ import { useApp } from '../../contexts/AppContext';
 import EmptyStatePanel from '../../components/EmptyStatePanel';
 import { listMyPortfolios, listPortfolioProjects, type PortfolioSummary, type ProjectItem } from '../../api/contentApi';
 import ProjectCreateModal from './ui/ProjectCreateModal';
+import { getLocalProjectListEventName, loadLocalProjectItems } from './projectWriting';
 import type { ProjectRole } from '../projectWriting';
 
 function parseRole(value: string | null): ProjectRole | null {
   if (value === 'PM' || value === 'DEVELOPER') return value;
   return null;
+}
+
+function mergeProjects(primary: ProjectItem[], secondary: ProjectItem[]) {
+  const map = new Map<number, ProjectItem>();
+  [...secondary, ...primary].forEach(item => {
+    map.set(item.id, item);
+  });
+  return Array.from(map.values()).sort((a, b) => (b.orderIndex || 0) - (a.orderIndex || 0));
 }
 
 export default function WorkspacePage() {
@@ -21,6 +30,7 @@ export default function WorkspacePage() {
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [localProjects, setLocalProjects] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [initialRole, setInitialRole] = useState<ProjectRole>('DEVELOPER');
@@ -49,13 +59,25 @@ export default function WorkspacePage() {
         setPortfolios([]);
         setSelectedPortfolioId(null);
         setProjects([]);
-        setError(ko ? '프로젝트 데이터를 불러오지 못했습니다.' : 'Failed to load projects.');
+        setError(ko ? '포트폴리오를 불러오지 못했습니다.' : 'Failed to load portfolios.');
       });
 
     return () => {
       alive = false;
     };
   }, [ko]);
+
+  useEffect(() => {
+    const refreshLocalProjects = () => setLocalProjects(loadLocalProjectItems());
+    refreshLocalProjects();
+    const eventName = getLocalProjectListEventName();
+    window.addEventListener(eventName, refreshLocalProjects);
+    window.addEventListener('storage', refreshLocalProjects);
+    return () => {
+      window.removeEventListener(eventName, refreshLocalProjects);
+      window.removeEventListener('storage', refreshLocalProjects);
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedPortfolioId) {
@@ -74,7 +96,7 @@ export default function WorkspacePage() {
       .catch(() => {
         if (!alive) return;
         setProjects([]);
-        setError(ko ? '프로젝트 데이터를 불러오지 못했습니다.' : 'Failed to load projects.');
+        setError(ko ? '프로젝트를 불러오지 못했습니다.' : 'Failed to load projects.');
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -90,6 +112,16 @@ export default function WorkspacePage() {
     [portfolios, selectedPortfolioId],
   );
 
+  const visibleProjects = useMemo(() => {
+    if (!selectedPortfolioId) {
+      return localProjects;
+    }
+    return mergeProjects(
+      projects.filter(item => item.portfolioId === selectedPortfolioId),
+      localProjects.filter(item => item.portfolioId === selectedPortfolioId),
+    );
+  }, [localProjects, projects, selectedPortfolioId]);
+
   const openProjectCreate = () => {
     setError(null);
     setInitialRole('DEVELOPER');
@@ -98,8 +130,8 @@ export default function WorkspacePage() {
 
   const emptyTitle = ko ? '프로젝트가 없습니다' : 'No projects yet';
   const emptyDescription = ko
-    ? '프로젝트를 먼저 만들어야 글과 포트폴리오 작업을 이어갈 수 있습니다.'
-    : 'Create a project first, then organize the posts that will become a portfolio.';
+    ? '새 프로젝트를 만들고 문서를 작성해보세요.'
+    : 'Create a project first, then organize the documents that become a portfolio.';
 
   return (
     <div className="h-full overflow-y-auto" style={{ background: '#050505' }}>
@@ -109,11 +141,15 @@ export default function WorkspacePage() {
         initialRole={initialRole}
         onClose={() => setModalOpen(false)}
         onCreated={project => {
-          if (selectedPortfolioId && project.portfolioId > 0) {
+          if (project.portfolioId === 0) {
+            setLocalProjects(loadLocalProjectItems());
+          } else if (selectedPortfolioId && project.portfolioId > 0) {
             void listPortfolioProjects(selectedPortfolioId).then(setProjects).catch(() => undefined);
           }
           setModalOpen(false);
-          navigate(`/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}${project.portfolioId > 0 ? '' : '&draft=1'}`);
+          navigate(
+            `/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}${project.portfolioId > 0 ? '' : '&draft=1'}`,
+          );
         }}
       />
 
@@ -135,25 +171,25 @@ export default function WorkspacePage() {
           </div>
         )}
 
-        {!selectedPortfolio || portfolios.length === 0 ? (
+        {!selectedPortfolio && portfolios.length === 0 && visibleProjects.length === 0 ? (
           <EmptyStatePanel
-            emoji="📁"
+            emoji="🗂"
             title={emptyTitle}
-            description={ko ? '새 프로젝트를 만들면 여기에서 이어서 관리할 수 있습니다.' : 'There is no portfolio available for projects yet.'}
+            description={ko ? '프로젝트를 먼저 만들어 주세요.' : 'Create a project first to organize your writing.'}
             actionLabel={ko ? '새 프로젝트' : 'New project'}
             onAction={openProjectCreate}
             accent="blue"
           />
-        ) : loading ? (
+        ) : loading && Boolean(selectedPortfolioId) ? (
           <EmptyStatePanel
             emoji="⏳"
             title={ko ? '불러오는 중' : 'Loading'}
-            description={ko ? '프로젝트를 불러오고 있습니다.' : 'Loading your project data.'}
+            description={ko ? '프로젝트 목록을 불러오고 있습니다.' : 'Loading your project data.'}
             accent="violet"
           />
-        ) : projects.length === 0 ? (
+        ) : visibleProjects.length === 0 ? (
           <EmptyStatePanel
-            emoji="🗂️"
+            emoji="📝"
             title={emptyTitle}
             description={emptyDescription}
             actionLabel={ko ? '새 프로젝트' : 'New project'}
@@ -162,10 +198,14 @@ export default function WorkspacePage() {
           />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {projects.map(project => (
+            {visibleProjects.map(project => (
               <button
                 key={project.id}
-                onClick={() => navigate(`/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}`)}
+                onClick={() =>
+                  navigate(
+                    `/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}`,
+                  )
+                }
                 className="overflow-hidden rounded-3xl text-left transition-all duration-300 hover:-translate-y-0.5"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
               >

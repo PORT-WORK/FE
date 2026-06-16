@@ -15,7 +15,13 @@ import { type IntegrationProviderKey } from '../../api/integrationProviders';
 import { useApp } from '../../contexts/AppContext';
 import ProjectSourceSelectionModal from './ui/ProjectSourceSelectionModal';
 import SectionEditorModal from './ui/SectionEditorModal';
-import { saveDraft as saveLocalDraft, loadDraft as loadLocalDraft, type ProjectWritingDraft as LocalProjectWritingDraft } from '../workspace/projectWriting';
+import {
+  loadDraft as loadLocalDraft,
+  notifyLocalProjectItemsChanged,
+  saveDraft as saveLocalDraft,
+  type ProjectWritingDraft as LocalProjectWritingDraft,
+  upsertLocalProjectItem,
+} from '../workspace/projectWriting';
 
 type Role = 'DEVELOPER' | 'PM';
 type SourceProvider = IntegrationProviderKey;
@@ -97,6 +103,22 @@ function parsePresentation(json: string | null) {
   } catch {
     return [];
   }
+}
+
+function extractProjectSummary(documentText: string, reviewedText: string, projectName: string) {
+  const source = (reviewedText || documentText || '').trim();
+  if (!source) return `${projectName} 프로젝트`;
+  const normalized = source.replace(/\s+/g, ' ').trim();
+  return normalized.length > 140 ? `${normalized.slice(0, 137)}...` : normalized;
+}
+
+function extractProjectSkills(drafts: Record<string, { value: string; status: SectionStatus }>) {
+  const tech = drafts.tech?.value || '';
+  return tech
+    .split(/[,/|]/g)
+    .map(item => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
 }
 
 type SnapshotSource = {
@@ -281,6 +303,31 @@ export default function ProjectEditorPage() {
   const [documentModalOpen, setDocumentModalOpen] = useState(false);
   const saveTimer = useRef<number | null>(null);
 
+  const persistLocalProjectListing = (
+    nextDocumentText: string,
+    nextReviewedText: string,
+    nextStatus: string,
+    nextDraftSnapshot: Record<string, { value: string; status: SectionStatus }> = sectionDrafts,
+  ) => {
+    if (!draftMode && portfolioId > 0) return;
+    const summary = extractProjectSummary(nextDocumentText, nextReviewedText, projectName);
+    const nextCompletedCount = countCompletedSections(nextDraftSnapshot);
+    upsertLocalProjectItem({
+      id: projectId || Number(Date.now()),
+      portfolioId: portfolioId || 0,
+      name: session?.projectName || projectName,
+      role,
+      summary,
+      thumbnailUrl: null,
+      skills: extractProjectSkills(nextDraftSnapshot),
+      isSynced: nextStatus === 'REVIEWED' || nextStatus === 'PPT_CREATED',
+      startDate: null,
+      endDate: null,
+      orderIndex: Number(session?.progress || nextCompletedCount || 0),
+    });
+    notifyLocalProjectItemsChanged();
+  };
+
   useEffect(() => {
     if (sectionMeta.length > 0 && !activeKey) {
       setActiveKey(sectionMeta[0].key);
@@ -378,6 +425,7 @@ export default function ProjectEditorPage() {
         document: documentText,
         updatedAt: new Date().toISOString(),
       });
+      persistLocalProjectListing(documentText, reviewedText, step);
       return;
     }
 
@@ -504,6 +552,12 @@ export default function ProjectEditorPage() {
       setSectionDrafts(prev => buildSectionDraftMap(role, sectionMeta, next.sourceSnapshot || {}, prev));
       setSourceModalOpen(false);
       setError(next.lastError || null);
+      persistLocalProjectListing(
+        next.documentText || buildDocumentFromDrafts(sectionDrafts),
+        next.reviewedDocument || '',
+        next.reviewedDocument ? 'REVIEWED' : 'DOCUMENT_CREATED',
+        sectionDrafts,
+      );
     } catch {
       setSourceError(ko ? '자료를 연결하지 못했습니다.' : 'Failed to apply selected sources.');
     }
@@ -576,6 +630,7 @@ export default function ProjectEditorPage() {
         lastError: null,
         lastSavedAt: new Date().toISOString(),
       } as ProjectWritingSession));
+      persistLocalProjectListing(content, '', 'DOCUMENT_CREATED', nextDrafts);
       setDocumentBusy(false);
       return;
     }
@@ -589,9 +644,11 @@ export default function ProjectEditorPage() {
       setDocumentText(next.documentText || buildDocumentFromDrafts(sectionDrafts));
       setDocumentModalOpen(true);
       const sourceDrafts = buildSectionDraftMap(role, sectionMeta, next.sourceSnapshot || session?.sourceSnapshot || sourceSnapshot, sectionDrafts);
-      setSectionDrafts(fillCompletedStatus(sourceDrafts));
+      const nextDrafts = fillCompletedStatus(sourceDrafts);
+      setSectionDrafts(nextDrafts);
       setStep('DOCUMENT_CREATED');
       setError(next.lastError || null);
+      persistLocalProjectListing(next.documentText || buildDocumentFromDrafts(nextDrafts), '', 'DOCUMENT_CREATED', nextDrafts);
     } catch {
       setError(ko ? '문서 생성에 실패했습니다.' : 'Failed to create the document.');
     } finally {
@@ -638,6 +695,7 @@ export default function ProjectEditorPage() {
         status: 'REVIEWED',
         lastSavedAt: new Date().toISOString(),
       } as ProjectWritingSession));
+      persistLocalProjectListing(localDocument, reviewed, 'REVIEWED');
       setReviewBusy(false);
       return;
     }
@@ -655,6 +713,7 @@ export default function ProjectEditorPage() {
       setDocumentModalOpen(true);
       setStep('REVIEWED');
       setError(next.lastError || null);
+      persistLocalProjectListing(next.documentText || localDocument, next.reviewedDocument || '', 'REVIEWED', sectionDrafts);
     } catch {
       setError(ko ? 'AI 검수에 실패했습니다.' : 'Failed to review the document.');
     } finally {
@@ -724,6 +783,38 @@ export default function ProjectEditorPage() {
     } finally {
       setDownloadBusy(false);
     }
+  };
+
+  const saveDocumentSnapshot = () => {
+    const nextDocument = documentText.trim();
+    const nextReviewed = reviewedText.trim();
+
+    if (draftMode || !portfolioId) {
+      saveLocalDraft({
+        projectId: projectId || Number(Date.now()),
+        portfolioId: portfolioId || null,
+        projectName,
+        role,
+        writingStatus: nextReviewed ? 'REVIEWED' : 'DOCUMENT_CREATED',
+        sections: sectionDrafts,
+        selectedProjectIds: session?.selectedProjectIds || [],
+        selectedArticleIds: session?.selectedSourceIds || [],
+        reviewedDocument: nextReviewed,
+        document: nextDocument,
+        updatedAt: new Date().toISOString(),
+      });
+      persistLocalProjectListing(nextDocument, nextReviewed, nextReviewed ? 'REVIEWED' : 'DOCUMENT_CREATED', sectionDrafts);
+    }
+
+    setSession(prev => (prev ? {
+      ...prev,
+      documentText: nextDocument || prev.documentText,
+      reviewedDocument: nextReviewed || prev.reviewedDocument,
+      status: nextReviewed ? 'REVIEWED' : 'DOCUMENT_CREATED',
+      lastSavedAt: new Date().toISOString(),
+    } : prev));
+    setStep(nextReviewed ? 'REVIEWED' : 'DOCUMENT_CREATED');
+    setDocumentModalOpen(false);
   };
 
   if (loading) {
@@ -835,10 +926,7 @@ export default function ProjectEditorPage() {
               <button onClick={() => void createDocument()} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-zinc-300">재시도</button>
               {reviewedText ? (
                 <button
-                  onClick={() => {
-                    setDocumentModalOpen(false);
-                    setStep('REVIEWED');
-                  }}
+                  onClick={saveDocumentSnapshot}
                   className="rounded-2xl px-5 py-3 text-sm font-semibold text-white"
                   style={{ background: 'linear-gradient(135deg,#22c55e,#2563eb)' }}
                 >

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, Sparkles, X } from 'lucide-react';
 import { createPortfolioProject, type ProjectItem } from '../../../api/contentApi';
 import { type ProjectRole, WRITING_ROLES } from '../projectWriting';
+import { notifyLocalProjectItemsChanged, upsertLocalProjectItem } from '../projectWriting';
 
 type Props = {
   open: boolean;
@@ -61,6 +62,10 @@ export default function ProjectCreateModal({ open, portfolioId, initialRole = 'D
             orderIndex: 0,
           } satisfies ProjectItem);
 
+      if (created.portfolioId === 0) {
+        upsertLocalProjectItem(created);
+        notifyLocalProjectItemsChanged();
+      }
       onCreated?.(created);
       reset();
       onClose();

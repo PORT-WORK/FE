@@ -74,6 +74,27 @@ function toDataUrl(file: File) {
   });
 }
 
+async function compressAvatarDataUrl(value: string | null, maxSize = 720, quality = 0.82) {
+  if (!value || !value.startsWith('data:image/')) return value;
+
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = value;
+  });
+
+  const ratio = Math.min(1, maxSize / Math.max(image.width, image.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.width * ratio));
+  canvas.height = Math.max(1, Math.round(image.height * ratio));
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return value;
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { logout, language } = useApp();
@@ -153,9 +174,10 @@ export default function ProfilePage() {
     setError(null);
 
     try {
+      const compressedAvatar = await compressAvatarDataUrl(avatarDraft);
       const updated = await updateCurrentUser({
         name: user.name?.trim() || 'PORT User',
-        profileImageUrl: avatarDraft,
+        profileImageUrl: compressedAvatar,
         location: user.location,
         experienceYears: user.experienceYears,
         bio: user.bio,

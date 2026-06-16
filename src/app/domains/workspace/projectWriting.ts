@@ -1,3 +1,5 @@
+import type { ProjectItem } from '../../api/contentApi';
+
 export type ProjectRole = 'DEVELOPER' | 'PM';
 
 export type ProjectWritingStatus =
@@ -55,6 +57,13 @@ export type ProjectWritingDraft = {
   document: string;
   updatedAt: string | null;
 };
+
+type StoredProjectItem = ProjectItem & {
+  updatedAt?: string | null;
+};
+
+const PROJECT_LIST_STORAGE_KEY = 'port-local-project-list';
+const PROJECT_LIST_EVENT = 'port:project-list-updated';
 
 export const WRITING_ROLES: Array<{ key: ProjectRole; label: string; description: string }> = [
   { key: 'DEVELOPER', label: 'DEVELOPER', description: 'GitHub, Notion, Figma 자료를 기반으로 기술 포트폴리오를 씁니다.' },
@@ -138,4 +147,82 @@ export function loadDraft(projectId: number): ProjectWritingDraft | null {
 
 export function saveDraft(draft: ProjectWritingDraft) {
   localStorage.setItem(getDraftStorageKey(draft.projectId), JSON.stringify({ ...draft, updatedAt: new Date().toISOString() }));
+}
+
+function safeWindow() {
+  return typeof window === 'undefined' ? null : window;
+}
+
+function readStoredProjects(): StoredProjectItem[] {
+  const win = safeWindow();
+  if (!win) return [];
+  try {
+    const raw = win.localStorage.getItem(PROJECT_LIST_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(item => item && typeof item === 'object') as StoredProjectItem[];
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredProjects(items: StoredProjectItem[]) {
+  const win = safeWindow();
+  if (!win) return;
+  win.localStorage.setItem(PROJECT_LIST_STORAGE_KEY, JSON.stringify(items));
+  win.dispatchEvent(new Event(PROJECT_LIST_EVENT));
+}
+
+function normalizeProjectItem(item: Partial<ProjectItem> & { updatedAt?: string | null }): StoredProjectItem {
+  return {
+    id: Number(item.id || 0),
+    portfolioId: Number(item.portfolioId || 0),
+    name: item.name || 'New project',
+    role: item.role || 'DEVELOPER',
+    summary: item.summary ?? null,
+    thumbnailUrl: item.thumbnailUrl ?? null,
+    skills: Array.isArray(item.skills) ? item.skills : [],
+    isSynced: Boolean(item.isSynced),
+    startDate: item.startDate ?? null,
+    endDate: item.endDate ?? null,
+    orderIndex: Number(item.orderIndex ?? Date.now()),
+    updatedAt: item.updatedAt ?? new Date().toISOString(),
+  };
+}
+
+export function loadLocalProjectItems(): ProjectItem[] {
+  return readStoredProjects()
+    .map(item => {
+      const { updatedAt: _updatedAt, ...rest } = normalizeProjectItem(item);
+      return rest;
+    })
+    .sort((a, b) => (b.orderIndex || 0) - (a.orderIndex || 0));
+}
+
+export function upsertLocalProjectItem(item: Partial<ProjectItem> & { updatedAt?: string | null }) {
+  const next = normalizeProjectItem(item);
+  const current = readStoredProjects();
+  const index = current.findIndex(entry => entry.id === next.id);
+  if (index >= 0) {
+    current[index] = { ...current[index], ...next, updatedAt: next.updatedAt };
+  } else {
+    current.unshift(next);
+  }
+  writeStoredProjects(current);
+}
+
+export function removeLocalProjectItem(projectId: number) {
+  const current = readStoredProjects().filter(item => item.id !== projectId);
+  writeStoredProjects(current);
+}
+
+export function notifyLocalProjectItemsChanged() {
+  const win = safeWindow();
+  if (!win) return;
+  win.dispatchEvent(new Event(PROJECT_LIST_EVENT));
+}
+
+export function getLocalProjectListEventName() {
+  return PROJECT_LIST_EVENT;
 }

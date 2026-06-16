@@ -251,7 +251,8 @@ export default function MessagesPage() {
   }, [activeCard?.latestMessageId]);
 
   const send = async () => {
-    if (!input.trim() || !activeCard) return;
+    const receiverId = activeCard?.userId || targetUserId;
+    if (!input.trim() || !receiverId) return;
     const text = input.trim();
     const optimisticId = `local-${Date.now()}`;
     setInput('');
@@ -263,10 +264,11 @@ export default function MessagesPage() {
       type: 'text',
     }]);
     try {
-      const sent = await sendMessage(activeCard.userId, text);
+      const sent = await sendMessage(receiverId, text);
       setChats(prev => prev.map(item => (
         item.id === optimisticId ? { ...item, id: String((sent as { id?: string | number }).id ?? optimisticId) } : item
       )));
+      void reloadConversations(true).catch(() => undefined);
       setLoadError(null);
     } catch {
       setChats(prev => prev.filter(item => item.id !== optimisticId));
