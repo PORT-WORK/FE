@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Bookmark, Heart, MessageSquare, User } from 'lucide-react';
 import {
   fetchPortfolioDetail,
@@ -15,20 +15,25 @@ import { buildPptxTabUrl, buildPptxViewerUrl } from '../../utils/pptxViewer';
 export default function ExploreDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { language, followingIds, setFollowingIds, savedCollections, setSavedCollections } = useApp();
   const ko = language === 'ko';
   const userId = Number(id);
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const initialPortfolioId = Number(searchParams.get('portfolioId') || 0);
 
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(initialPortfolioId || null);
   const [detail, setDetail] = useState<PortfolioDetail | null>(null);
 
-  const targetKey = String(userId);
-  const following = followingIds.includes(targetKey);
-  const saved = savedCollections.saved.includes(targetKey);
-  const liked = savedCollections.liked.includes(targetKey);
-  const archived = savedCollections.archived.includes(targetKey);
+  const selectedPortfolio = portfolios.find(item => item.id === selectedId) || null;
+  const portfolioKey = selectedPortfolio ? `portfolio:${selectedPortfolio.id}` : initialPortfolioId ? `portfolio:${initialPortfolioId}` : '';
+  const targetUserKey = String(userId);
+  const following = followingIds.includes(targetUserKey);
+  const saved = portfolioKey ? savedCollections.saved.includes(portfolioKey) : false;
+  const liked = portfolioKey ? savedCollections.liked.includes(portfolioKey) : false;
+  const archived = portfolioKey ? savedCollections.archived.includes(portfolioKey) : false;
 
   useEffect(() => {
     if (!userId || Number.isNaN(userId)) return;
@@ -42,13 +47,16 @@ export default function ExploreDetailPage() {
       const publicRows = rows.filter(item => item.isPublic !== false);
       setProfile(nextProfile);
       setPortfolios(publicRows);
-      setSelectedId(publicRows[0]?.id ?? null);
+      const matchedId = initialPortfolioId && publicRows.some(item => item.id === initialPortfolioId)
+        ? initialPortfolioId
+        : publicRows[0]?.id ?? null;
+      setSelectedId(matchedId);
     });
 
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [initialPortfolioId, userId]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -84,7 +92,6 @@ export default function ExploreDetailPage() {
     { label: 'Figma', url: publicProfile?.figmaUrl },
   ];
 
-  const selectedPortfolio = portfolios.find(item => item.id === selectedId) || null;
   const previewSource = {
     pdfUrl: detail?.pdfUrl || selectedPortfolio?.pdfUrl || null,
     pptxUrl: detail?.pptxUrl || selectedPortfolio?.pptxUrl || null,
@@ -93,13 +100,14 @@ export default function ExploreDetailPage() {
   const openTabUrl = useMemo(() => buildPptxTabUrl(previewSource), [previewSource]);
 
   const toggleFollow = () => {
-    setFollowingIds(prev => (prev.includes(targetKey) ? prev.filter(item => item !== targetKey) : [...prev, targetKey]));
+    setFollowingIds(prev => (prev.includes(targetUserKey) ? prev.filter(item => item !== targetUserKey) : [...prev, targetUserKey]));
   };
 
   const toggleCollection = (key: 'saved' | 'liked' | 'archived') => {
+    if (!portfolioKey) return;
     setSavedCollections(prev => ({
       ...prev,
-      [key]: prev[key].includes(targetKey) ? prev[key].filter(item => item !== targetKey) : [...prev[key], targetKey],
+      [key]: prev[key].includes(portfolioKey) ? prev[key].filter(item => item !== portfolioKey) : [...prev[key], portfolioKey],
     }));
   };
 

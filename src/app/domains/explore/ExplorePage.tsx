@@ -6,6 +6,7 @@ import { listExploreUsers } from '../../api/contentApi';
 
 type ExploreUser = {
   id: string;
+  userId: number;
   portfolioId?: number;
   name: string;
   role: string;
@@ -97,7 +98,7 @@ export default function ExplorePage() {
         role === normalizeText(activeRole) ||
         (activeRole === '개발자' && role === 'developer');
       const matchesStack = !activeStack || (user.skills || []).some(skill => matchesStackValue(skill, activeStack));
-      const matchesFollow = !followOnly || followingIds.includes(user.id);
+      const matchesFollow = !followOnly || followingIds.includes(String(user.userId));
       return matchesRole && matchesStack && matchesFollow;
     });
     const next = [...rows];
@@ -199,10 +200,12 @@ export default function ExplorePage() {
                   key={user.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => navigate(`/explore/${user.id}`)}
                   onKeyDown={event => {
-                    if (event.key === 'Enter' || event.key === ' ') navigate(`/explore/${user.id}`);
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      navigate(`/explore/${user.userId}?portfolioId=${user.portfolioId || ''}`);
+                    }
                   }}
+                  onClick={() => navigate(`/explore/${user.userId}?portfolioId=${user.portfolioId || ''}`)}
                   className="group aspect-[16/9] overflow-hidden rounded-2xl text-left transition-all duration-300 hover:-translate-y-1"
                   style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
                   aria-label={user.name}

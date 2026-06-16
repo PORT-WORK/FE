@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { ArrowLeft, Check, Clock3, Download, FileText, Loader2, Sparkles, Wand2 } from 'lucide-react';
 import {
@@ -37,26 +37,26 @@ type SectionMeta = {
 const roleSections: Record<Role, (lang: 'ko' | 'en') => SectionMeta[]> = {
   DEVELOPER: lang => [
     { key: 'overview', title: lang === 'ko' ? '프로젝트 개요' : 'Project overview', guide: lang === 'ko' ? '무엇을 만들었는지, 어떤 문제를 풀었는지 먼저 설명합니다.' : 'Explain what you built and which problem it solved.', placeholder: lang === 'ko' ? '프로젝트 배경과 목표를 적어주세요.' : 'Write the background and goal.' },
-    { key: 'role', title: lang === 'ko' ? '담당 역할' : 'Role', guide: lang === 'ko' ? '본인이 맡은 범위를 분리해서 적습니다.' : 'Separate your own scope clearly.', placeholder: lang === 'ko' ? '맡은 역할을 적어주세요.' : 'Write your responsibilities.' },
+    { key: 'role', title: lang === 'ko' ? '담당 역할' : 'Role', guide: lang === 'ko' ? '본인의 범위를 분리해서 적습니다.' : 'Separate your own scope clearly.', placeholder: lang === 'ko' ? '맡은 역할을 적어주세요.' : 'Write your responsibilities.' },
     { key: 'problem', title: lang === 'ko' ? '문제 정의' : 'Problem definition', guide: lang === 'ko' ? '해결하려는 문제를 사용자 관점에서 설명합니다.' : 'Describe the problem from the user perspective.', placeholder: lang === 'ko' ? '문제를 적어주세요.' : 'Write the problem.' },
     { key: 'tech', title: lang === 'ko' ? '기술 스택' : 'Tech stack', guide: lang === 'ko' ? '실제로 사용한 기술만 적습니다.' : 'List only the technologies you actually used.', placeholder: 'React, TypeScript, Spring Boot...' },
-    { key: 'architecture', title: lang === 'ko' ? '시스템 아키텍처' : 'System architecture', guide: lang === 'ko' ? '구조와 데이터 흐름을 짧게 정리합니다.' : 'Summarize the structure and data flow.', placeholder: lang === 'ko' ? '구조를 적어주세요.' : 'Describe the architecture.' },
+    { key: 'architecture', title: lang === 'ko' ? '시스템 아키텍처' : 'System architecture', guide: lang === 'ko' ? '구조와 데이터 흐름을 간단하게 정리합니다.' : 'Summarize the structure and data flow.', placeholder: lang === 'ko' ? '구조를 적어주세요.' : 'Describe the architecture.' },
     { key: 'core', title: lang === 'ko' ? '핵심 구현' : 'Core implementation', guide: lang === 'ko' ? '가장 중요한 구현 포인트를 적습니다.' : 'Write the key implementation points.', placeholder: lang === 'ko' ? '핵심 구현을 적어주세요.' : 'Write the core implementation.' },
     { key: 'trouble', title: lang === 'ko' ? '트러블슈팅' : 'Troubleshooting', guide: lang === 'ko' ? '문제-원인-해결-결과 순으로 적습니다.' : 'Use problem, cause, fix, and result.', placeholder: lang === 'ko' ? '문제 해결 과정을 적어주세요.' : 'Explain how you solved problems.' },
     { key: 'performance', title: lang === 'ko' ? '성능 개선' : 'Performance', guide: lang === 'ko' ? '전후 비교가 있으면 좋습니다.' : 'Add before/after if possible.', placeholder: lang === 'ko' ? '성능 개선 내용을 적어주세요.' : 'Write the improvement.' },
     { key: 'result', title: lang === 'ko' ? '결과' : 'Result', guide: lang === 'ko' ? '정량/정성 결과를 적습니다.' : 'Add quantitative and qualitative results.', placeholder: lang === 'ko' ? '결과를 적어주세요.' : 'Describe the result.' },
-    { key: 'retrospective', title: lang === 'ko' ? '회고' : 'Retrospective', guide: lang === 'ko' ? '잘한 점과 개선점을 적습니다.' : 'Write what went well and what to improve.', placeholder: lang === 'ko' ? '회고를 적어주세요.' : 'Write your retrospective.' },
+    { key: 'retrospective', title: lang === 'ko' ? '회고' : 'Retrospective', guide: lang === 'ko' ? '배운 점과 개선점을 적습니다.' : 'Write what went well and what to improve.', placeholder: lang === 'ko' ? '회고를 적어주세요.' : 'Write your retrospective.' },
   ],
   PM: lang => [
     { key: 'overview', title: lang === 'ko' ? '프로젝트 개요' : 'Project overview', guide: lang === 'ko' ? '목표와 문제를 간단히 정리합니다.' : 'Summarize the goal and problem.', placeholder: lang === 'ko' ? '프로젝트 개요를 적어주세요.' : 'Write the overview.' },
-    { key: 'problem', title: lang === 'ko' ? '문제 정의' : 'Problem definition', guide: lang === 'ko' ? '왜 이 문제가 중요한지 적습니다.' : 'Explain why the problem matters.', placeholder: lang === 'ko' ? '문제 정의를 적어주세요.' : 'Write the problem.' },
+    { key: 'problem', title: lang === 'ko' ? '문제 정의' : 'Problem definition', guide: lang === 'ko' ? '왜 중요한 문제인지 설명합니다.' : 'Explain why the problem matters.', placeholder: lang === 'ko' ? '문제 정의를 적어주세요.' : 'Write the problem.' },
     { key: 'market', title: lang === 'ko' ? '시장 분석' : 'Market analysis', guide: lang === 'ko' ? '시장과 기회를 정리합니다.' : 'Summarize the market and opportunity.', placeholder: lang === 'ko' ? '시장 분석을 적어주세요.' : 'Write market analysis.' },
-    { key: 'competition', title: lang === 'ko' ? '경쟁사 분석' : 'Competitor analysis', guide: lang === 'ko' ? '비교 기준을 중심으로 적습니다.' : 'Compare with clear criteria.', placeholder: lang === 'ko' ? '경쟁사 분석을 적어주세요.' : 'Write competitor analysis.' },
-    { key: 'user', title: lang === 'ko' ? '사용자 분석' : 'User analysis', guide: lang === 'ko' ? '어떤 사용자가 쓰는지 설명합니다.' : 'Describe the target users.', placeholder: lang === 'ko' ? '사용자 분석을 적어주세요.' : 'Write user analysis.' },
-    { key: 'persona', title: lang === 'ko' ? '페르소나' : 'Persona', guide: lang === 'ko' ? '대표 사용자를 한 명 정리합니다.' : 'Create one representative user.', placeholder: lang === 'ko' ? '페르소나를 적어주세요.' : 'Write persona.' },
+    { key: 'competition', title: lang === 'ko' ? '경쟁사 분석' : 'Competitor analysis', guide: lang === 'ko' ? '비교 기준을 명확히 적습니다.' : 'Compare with clear criteria.', placeholder: lang === 'ko' ? '경쟁사 분석을 적어주세요.' : 'Write competitor analysis.' },
+    { key: 'user', title: lang === 'ko' ? '사용자 분석' : 'User analysis', guide: lang === 'ko' ? '누가 쓰는지 설명합니다.' : 'Describe the target users.', placeholder: lang === 'ko' ? '사용자 분석을 적어주세요.' : 'Write user analysis.' },
+    { key: 'persona', title: lang === 'ko' ? '퍼소나' : 'Persona', guide: lang === 'ko' ? '대표 사용자를 한 명 정리합니다.' : 'Create one representative user.', placeholder: lang === 'ko' ? '퍼소나를 적어주세요.' : 'Write persona.' },
     { key: 'hypothesis', title: lang === 'ko' ? '핵심 가설' : 'Hypothesis', guide: lang === 'ko' ? '검증 가능한 형태로 적습니다.' : 'Write a testable hypothesis.', placeholder: lang === 'ko' ? '가설을 적어주세요.' : 'Write hypothesis.' },
     { key: 'prd', title: 'PRD', guide: lang === 'ko' ? '목표와 범위를 적습니다.' : 'Focus on goal and scope.', placeholder: 'Write PRD.' },
-    { key: 'requirements', title: lang === 'ko' ? '요구사항 정의' : 'Requirements', guide: lang === 'ko' ? '기능별로 나눠 적습니다.' : 'Split requirements by feature.', placeholder: lang === 'ko' ? '요구사항을 적어주세요.' : 'Write requirements.' },
+    { key: 'requirements', title: lang === 'ko' ? '요구사항 정의' : 'Requirements', guide: lang === 'ko' ? '기능별로 정리합니다.' : 'Split requirements by feature.', placeholder: lang === 'ko' ? '요구사항을 적어주세요.' : 'Write requirements.' },
     { key: 'priority', title: lang === 'ko' ? '기능 우선순위' : 'Priority', guide: lang === 'ko' ? '우선순위 기준을 적습니다.' : 'Explain why the order makes sense.', placeholder: lang === 'ko' ? '우선순위를 적어주세요.' : 'Write priority.' },
     { key: 'ia', title: 'IA', guide: lang === 'ko' ? '정보 구조를 정리합니다.' : 'Keep information architecture simple.', placeholder: 'Write IA.' },
     { key: 'userFlow', title: 'User Flow', guide: lang === 'ko' ? '사용자 흐름을 적습니다.' : 'Describe the user flow step by step.', placeholder: 'Write user flow.' },
@@ -107,7 +107,7 @@ function parsePresentation(json: string | null) {
 
 function extractProjectSummary(documentText: string, reviewedText: string, projectName: string) {
   const source = (reviewedText || documentText || '').trim();
-  if (!source) return `${projectName} 프로젝트`;
+  if (!source) return `${projectName} ?꾨줈?앺듃`;
   const normalized = source.replace(/\s+/g, ' ').trim();
   return normalized.length > 140 ? `${normalized.slice(0, 137)}...` : normalized;
 }
@@ -177,7 +177,7 @@ function joinSourceText(source: SnapshotSource) {
     raw,
   ]
     .filter(Boolean)
-    .join(' · ');
+    .join(' 쨌 ');
 }
 
 function buildSectionDraftMap(
@@ -276,7 +276,7 @@ export default function ProjectEditorPage() {
 
   const projectId = Number(query.get('projectId') || 0);
   const portfolioId = Number(query.get('portfolioId') || 0);
-  const projectName = query.get('name') || (ko ? '새 프로젝트' : 'New project');
+  const projectName = query.get('name') || (ko ? '???꾨줈?앺듃' : 'New project');
   const role = (query.get('role') === 'PM' ? 'PM' : 'DEVELOPER') as Role;
   const draftMode = query.get('draft') === '1' || !projectId || portfolioId === 0;
   const viewMode = query.get('view') === '1';
@@ -294,6 +294,8 @@ export default function ProjectEditorPage() {
   const [generateBusy, setGenerateBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [documentText, setDocumentText] = useState('');
   const [reviewedText, setReviewedText] = useState('');
@@ -450,7 +452,7 @@ export default function ProjectEditorPage() {
       setSession(updated);
       setError(updated.lastError || null);
     } catch {
-      setError(ko ? '임시 저장에 실패했습니다.' : 'Failed to save draft.');
+      setError(ko ? '?꾩떆 ??μ뿉 ?ㅽ뙣?덉뒿?덈떎.' : 'Failed to save draft.');
     } finally {
       setSaving(false);
     }
@@ -568,7 +570,7 @@ export default function ProjectEditorPage() {
         sectionDrafts,
       );
     } catch {
-      setSourceError(ko ? '자료를 연결하지 못했습니다.' : 'Failed to apply selected sources.');
+      setSourceError(ko ? '?먮즺瑜??곌껐?섏? 紐삵뻽?듬땲??' : 'Failed to apply selected sources.');
     }
   };
 
@@ -659,7 +661,7 @@ export default function ProjectEditorPage() {
       setError(next.lastError || null);
       persistLocalProjectListing(next.documentText || buildDocumentFromDrafts(nextDrafts), '', 'DOCUMENT_CREATED', nextDrafts);
     } catch {
-      setError(ko ? '문서 생성에 실패했습니다.' : 'Failed to create the document.');
+      setError(ko ? '臾몄꽌 ?앹꽦???ㅽ뙣?덉뒿?덈떎.' : 'Failed to create the document.');
     } finally {
       setDocumentBusy(false);
     }
@@ -668,7 +670,7 @@ export default function ProjectEditorPage() {
   const reviewDocument = async () => {
     const localDocument = documentText.trim() || buildDocumentFromDrafts(sectionDrafts);
     if (!localDocument) {
-      setError(ko ? '먼저 섹션 답변을 작성해주세요.' : 'Write at least one section first.');
+      setError(ko ? '癒쇱? ?뱀뀡 ?듬????묒꽦?댁＜?몄슂.' : 'Write at least one section first.');
       return;
     }
 
@@ -724,7 +726,7 @@ export default function ProjectEditorPage() {
       setError(next.lastError || null);
       persistLocalProjectListing(next.documentText || localDocument, next.reviewedDocument || '', 'REVIEWED', sectionDrafts);
     } catch {
-      setError(ko ? 'AI 검수에 실패했습니다.' : 'Failed to review the document.');
+      setError(ko ? 'AI 寃?섏뿉 ?ㅽ뙣?덉뒿?덈떎.' : 'Failed to review the document.');
     } finally {
       setReviewBusy(false);
     }
@@ -772,7 +774,7 @@ export default function ProjectEditorPage() {
       setStep('PPT_CREATED');
       setError(next.lastError || null);
     } catch {
-      setError(ko ? 'PPTX 생성에 실패했습니다.' : 'Failed to generate PPTX.');
+      setError(ko ? 'PPTX ?앹꽦???ㅽ뙣?덉뒿?덈떎.' : 'Failed to generate PPTX.');
     } finally {
       setGenerateBusy(false);
     }
@@ -831,7 +833,7 @@ export default function ProjectEditorPage() {
       <div className="flex h-full items-center justify-center bg-[#050505]">
         <div className="flex items-center gap-2 text-sm text-zinc-500">
           <Loader2 size={14} className="animate-spin" />
-          {ko ? '프로젝트를 불러오는 중...' : 'Loading project draft...'}
+          {ko ? '????? ???? ?...' : 'Loading project draft...'}
         </div>
       </div>
     );
@@ -844,21 +846,20 @@ export default function ProjectEditorPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-violet-500/20 bg-violet-500/10 text-violet-300">
             <FileText size={22} />
           </div>
-          <h1 className="text-xl font-black text-white">{ko ? '프로젝트가 필요합니다' : 'Project required'}</h1>
-          <p className="mt-2 text-sm text-zinc-500">{ko ? '프로젝트를 먼저 만들고 다시 열어주세요.' : 'Create a project first, then reopen this page.'}</p>
+          <h1 className="text-xl font-black text-white">{ko ? '????? ?????' : 'Project required'}</h1>
+          <p className="mt-2 text-sm text-zinc-500">{ko ? '????? ?? ??? ?? ?????.' : 'Create a project first, then reopen this page.'}</p>
           <button
             type="button"
             onClick={() => navigate('/workspace')}
             className="mt-6 rounded-2xl px-4 py-3 text-sm font-semibold text-white"
             style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
           >
-            {ko ? '워크스페이스로 이동' : 'Go to workspace'}
+            {ko ? '??????? ??' : 'Go to workspace'}
           </button>
         </div>
       </div>
     );
   }
-
   return (
     <div className="min-h-full overflow-y-auto bg-[#050505] px-6 py-6 lg:px-8">
       <ProjectSourceSelectionModal
@@ -889,8 +890,8 @@ export default function ProjectEditorPage() {
         <div className="fixed inset-0 z-[390] flex items-center justify-center bg-black/75 px-4 backdrop-blur-md">
           <div className="rounded-[28px] border border-white/10 bg-[#101010] px-8 py-7 text-center shadow-2xl">
             <Loader2 size={22} className="mx-auto mb-4 animate-spin text-violet-300" />
-            <p className="text-lg font-black text-white">{documentBusy ? '문서를 생성하는 중입니다' : 'AI가 문서를 검수하는 중입니다'}</p>
-            <p className="mt-2 text-sm text-zinc-500">잠시만 기다려주세요.</p>
+            <p className="text-lg font-black text-white">{documentBusy ? '??? ???? ????' : 'AI? ??? ???? ????'}</p>
+            <p className="mt-2 text-sm text-zinc-500">??? ??????.</p>
           </div>
         </div>
       )}
@@ -901,14 +902,14 @@ export default function ProjectEditorPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.22em] text-violet-300">Project document</p>
-                <h3 className="mt-2 text-2xl font-black text-white">생성된 프로젝트 문서</h3>
+                <h3 className="mt-2 text-2xl font-black text-white">??? ???? ??</h3>
               </div>
-              <button onClick={() => setDocumentModalOpen(false)} className="rounded-xl p-2 text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200">×</button>
+              <button onClick={() => setDocumentModalOpen(false)} className="rounded-xl p-2 text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200">?</button>
             </div>
             {reviewedText ? (
               <div className="mt-5 grid gap-4 lg:grid-cols-2">
                 <div>
-                  <p className="mb-2 text-sm font-semibold text-zinc-300">{ko ? '이전 버전' : 'Before'}</p>
+                  <p className="mb-2 text-sm font-semibold text-zinc-300">{ko ? '?? ??' : 'Before'}</p>
                   <textarea
                     value={documentText}
                     onChange={event => setDocumentText(event.target.value)}
@@ -916,7 +917,7 @@ export default function ProjectEditorPage() {
                   />
                 </div>
                 <div>
-                  <p className="mb-2 text-sm font-semibold text-zinc-300">{ko ? '검수 버전' : 'Reviewed'}</p>
+                  <p className="mb-2 text-sm font-semibold text-zinc-300">{ko ? '?? ??' : 'Reviewed'}</p>
                   <textarea
                     value={reviewedText}
                     onChange={event => setReviewedText(event.target.value)}
@@ -932,17 +933,19 @@ export default function ProjectEditorPage() {
               />
             )}
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => void createDocument()} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-zinc-300">재시도</button>
+              <button onClick={() => void createDocument()} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-zinc-300">{ko ? '?? ??' : 'Recreate'}</button>
               {reviewedText ? (
                 <button
                   onClick={saveDocumentSnapshot}
                   className="rounded-2xl px-5 py-3 text-sm font-semibold text-white"
                   style={{ background: 'linear-gradient(135deg,#22c55e,#2563eb)' }}
                 >
-                  {ko ? '저장' : 'Save'}
+                  {ko ? '??' : 'Save'}
                 </button>
               ) : (
-                <button onClick={() => void reviewDocument()} className="rounded-2xl px-5 py-3 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>AI 검수</button>
+                <button onClick={() => void reviewDocument()} className="rounded-2xl px-5 py-3 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
+                  {ko ? 'AI ??' : 'AI Review'}
+                </button>
               )}
             </div>
           </div>
@@ -957,17 +960,17 @@ export default function ProjectEditorPage() {
             className="inline-flex items-center gap-2 text-sm text-zinc-500 transition-colors hover:text-zinc-200"
           >
             <ArrowLeft size={14} />
-            {ko ? '워크스페이스로 돌아가기' : 'Back to workspace'}
+            {ko ? '??????? ????' : 'Back to workspace'}
           </button>
           <div className="flex items-center gap-3 text-xs text-zinc-500">
             <Clock3 size={12} />
-            {ko ? '마지막 저장' : 'Last saved'} {session?.lastSavedAt ? new Date(session.lastSavedAt).toLocaleString() : '-'}
+            {ko ? '??? ??' : 'Last saved'} {session?.lastSavedAt ? new Date(session.lastSavedAt).toLocaleString() : '-'}
           </div>
         </div>
 
         {resumable && (
           <div className="rounded-2xl border border-violet-500/18 bg-violet-500/8 px-4 py-3 text-sm text-violet-100">
-            {ko ? '작성 중인 초안이 있습니다. 이어서 작성할 수 있습니다.' : 'A draft exists. You can continue writing from here.'}
+            {ko ? '?? ?? ??? ????. ??? ??? ? ????.' : 'A draft exists. You can continue writing from here.'}
           </div>
         )}
 
@@ -978,11 +981,11 @@ export default function ProjectEditorPage() {
                 <div>
                   <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-200">
                     <Sparkles size={12} />
-                    {ko ? '프로젝트 작성' : 'Project draft'}
+                    {ko ? '???? ??' : 'Project draft'}
                   </div>
                   <h1 className="text-3xl font-black tracking-tight text-white">{session?.projectName || projectName}</h1>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                    {ko ? '외부 자료를 고르고, 섹션을 하나씩 편집하고, AI 검수 한 번 후 PPTX로 내보냅니다.' : 'Choose sources, edit sections one by one, review once with AI, then export the PPTX.'}
+                    {ko ? '??? ??? ??? ??? ??? ?, AI ??? ?? PPTX? ?????.' : 'Choose sources, edit sections one by one, review once with AI, then export the PPTX.'}
                   </p>
                 </div>
                 <button
@@ -991,19 +994,15 @@ export default function ProjectEditorPage() {
                   className="hidden rounded-2xl px-4 py-3 text-sm font-semibold text-white shadow-[0_0_24px_rgba(124,58,237,0.28)]"
                   style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
                 >
-                  {ko ? '자료 선택' : 'Select sources'}
+                  {ko ? '?? ??' : 'Select sources'}
                 </button>
               </div>
 
               <div className="mt-6 rounded-[24px] border border-white/8 bg-black/20 p-4">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                   <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1">{session?.role || role}</span>
-                  <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1">
-                    {ko ? `${selectedSourceCount}개 자료` : `${selectedSourceCount} sources`}
-                  </span>
-                  <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1">
-                    {ko ? `${completedCount}/${sectionMeta.length} 완료` : `Completed ${completedCount}/${sectionMeta.length}`}
-                  </span>
+                  <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1">{ko ? `${selectedSourceCount}? ??` : `${selectedSourceCount} sources`}</span>
+                  <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1">{ko ? `${completedCount}/${sectionMeta.length} ??` : `Completed ${completedCount}/${sectionMeta.length}`}</span>
                   <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1">{progress}%</span>
                   {session?.status && (
                     <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-emerald-200">
@@ -1023,10 +1022,7 @@ export default function ProjectEditorPage() {
                   <h2 className="text-xl font-black text-white">{activeSection?.title}</h2>
                   <p className="mt-2 text-sm leading-6 text-zinc-500">{activeSection?.guide}</p>
                 </div>
-                <div className="text-right text-xs text-zinc-600">
-                  <div className="uppercase tracking-[0.24em]">{activeDraft?.status || 'EMPTY'}</div>
-                  <div className="mt-1">{saving ? (ko ? '저장 중...' : 'Saving...') : ko ? '자동 저장' : 'Auto save'}</div>
-                </div>
+                <div className="mt-1">{saving ? (ko ? '?? ?...' : 'Saving...') : ko ? '?? ??' : 'Auto save'}</div>
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -1058,18 +1054,18 @@ export default function ProjectEditorPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-white">{activeSection?.title}</p>
-                    <p className="mt-1 text-xs text-zinc-500">{ko ? '더블클릭하면 노션 스타일 편집창이 열립니다.' : 'Double-click a section to edit in a Notion-style modal.'}</p>
+                    <p className="mt-1 text-xs text-zinc-500">{ko ? '?????? ?? ???? ????.' : 'Double-click a section to edit in a Notion-style modal.'}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setEditingSection(activeSection.key)}
                     className="rounded-full border border-white/8 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-white/[0.05]"
                   >
-                    {ko ? '편집' : 'Edit'}
+                    {ko ? '??' : 'Edit'}
                   </button>
                 </div>
                 <div className="mt-4 rounded-2xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-5 text-sm text-zinc-500">
-                  {activeDraft?.value?.trim() ? activeDraft.value.slice(0, 180) : (ko ? '아직 내용이 없습니다. 섹션을 더블클릭해 작성하세요.' : 'No content yet. Double-click the section card to write it.')}
+                  {activeDraft?.value?.trim() ? activeDraft.value.slice(0, 180) : (ko ? '?? ??? ????. ?? ??? ????? ??? ???.' : 'No content yet. Double-click the section card to write it.')}
                 </div>
               </div>
 
@@ -1086,25 +1082,23 @@ export default function ProjectEditorPage() {
               )}
             </div>
           </section>
-
           <aside className="space-y-6">
             <div className="rounded-[30px] border border-white/8 bg-white/[0.03] p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-black text-white">{ko ? '생성 흐름' : 'Generation pipeline'}</h2>
-                  <p className="mt-1 text-xs text-zinc-500">{ko ? '자료 작성 → AI 검수 → PPTX 생성' : 'Draft writing → AI review → PPTX generation'}</p>
+                  <h2 className="text-lg font-black text-white">{ko ? '?? ??' : 'Generation pipeline'}</h2>
+                  <p className="mt-1 text-xs text-zinc-500">{ko ? '?? ?? ? AI ?? ? PPTX ??' : 'Draft writing ? AI review ? PPTX generation'}</p>
                 </div>
                 <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-1 text-[10px] text-violet-200">{step}</span>
               </div>
 
-              <div className="mt-5 space-y-3">
+              <div className="mt-4 space-y-3">
                 {[
-                  { key: 'draft', title: ko ? '자료 작성' : 'Write draft', desc: ko ? '섹션별 내용을 직접 작성합니다.' : 'Write each section manually.' },
-                  { key: 'review', title: ko ? 'AI 검수 1회' : 'AI review once', desc: ko ? '문서 생성 후 열린 창에서 문장과 흐름만 다듬습니다.' : 'Review from the generated document modal only.' },
-                  { key: 'ppt', title: ko ? 'PPTX 생성' : 'Build PPTX', desc: ko ? '검수된 문서로 PPT를 만듭니다.' : 'Generate the PPT from the reviewed document.' },
-                ].filter(item => item.key !== 'ppt').map((item, index) => {
-                  const active = (index === 0 && step === 'WRITING') || (index === 1 && step === 'DOCUMENT_CREATED') || (index === 2 && (step === 'REVIEWED' || step === 'PPT_CREATED'));
-                  const done = (index === 0 && ['DOCUMENT_CREATED', 'REVIEWED', 'PPT_CREATED'].includes(step)) || (index === 1 && ['REVIEWED', 'PPT_CREATED'].includes(step)) || (index === 2 && step === 'PPT_CREATED');
+                  { key: 'draft', title: ko ? '?? ??' : 'Write draft', desc: ko ? '? ??? ?? ?????.' : 'Write each section manually.' },
+                  { key: 'review', title: ko ? 'AI ?? 1?' : 'AI review once', desc: ko ? '??? ??? ???? ?????.' : 'Review the generated document in the modal.' },
+                ].map((item, index) => {
+                  const active = (index === 0 && step === 'WRITING') || (index === 1 && step === 'DOCUMENT_CREATED');
+                  const done = (index === 0 && ['DOCUMENT_CREATED', 'REVIEWED', 'PPT_CREATED'].includes(step)) || (index === 1 && ['REVIEWED', 'PPT_CREATED'].includes(step));
                   return (
                     <div
                       key={item.key}
@@ -1128,14 +1122,14 @@ export default function ProjectEditorPage() {
             </div>
 
             <div className="rounded-[30px] border border-white/8 bg-white/[0.03] p-6">
-              <h3 className="text-sm font-bold text-white">{ko ? '실행' : 'Actions'}</h3>
+              <h3 className="text-sm font-bold text-white">{ko ? '??' : 'Actions'}</h3>
               <div className="mt-4 space-y-3">
                 <button
                   type="button"
                   onClick={() => setSourceModalOpen(true)}
                   className="hidden w-full items-center justify-between rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-4 text-left text-sm text-zinc-200 transition-colors hover:bg-white/[0.05]"
                 >
-                  <span>{ko ? '자료 선택' : 'Select sources'}</span>
+                  <span>{ko ? '?? ??' : 'Select sources'}</span>
                   <Sparkles size={14} className="text-violet-300" />
                 </button>
                 <button
@@ -1146,33 +1140,37 @@ export default function ProjectEditorPage() {
                   style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
                 >
                   {documentBusy ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
-                  {ko ? '문서 생성' : 'Create document'}
+                  {ko ? '?? ??' : 'Create document'}
                 </button>
-                {false && <button
-                  type="button"
-                  onClick={() => void generatePptx()}
-                  disabled={generateBusy}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-semibold text-white disabled:opacity-40"
-                  style={{ background: 'linear-gradient(135deg,#22c55e,#2563eb)' }}
-                >
-                  {generateBusy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
-                  {ko ? 'PPTX 생성' : 'Generate PPTX'}
-                </button>}
-                {false && <button
-                  type="button"
-                  onClick={() => void downloadPptx()}
-                  disabled={downloadBusy || (step !== 'PPT_CREATED' && !previewBlob)}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 px-4 py-4 text-sm font-semibold text-zinc-300 transition-colors hover:bg-white/[0.05] disabled:opacity-40"
-                >
-                  {downloadBusy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                  {ko ? '다운로드' : 'Download'}
-                </button>}
+                {false && (
+                  <button
+                    type="button"
+                    onClick={() => void generatePptx()}
+                    disabled={generateBusy}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-semibold text-white disabled:opacity-40"
+                    style={{ background: 'linear-gradient(135deg,#22c55e,#2563eb)' }}
+                  >
+                    {generateBusy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
+                    {ko ? 'PPTX ??' : 'Generate PPTX'}
+                  </button>
+                )}
+                {false && (
+                  <button
+                    type="button"
+                    onClick={() => void downloadPptx()}
+                    disabled={downloadBusy || (step !== 'PPT_CREATED' && !previewBlob)}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 px-4 py-4 text-sm font-semibold text-zinc-300 transition-colors hover:bg-white/[0.05] disabled:opacity-40"
+                  >
+                    {downloadBusy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                    {ko ? '????' : 'Download'}
+                  </button>
+                )}
               </div>
             </div>
 
             <div className="hidden rounded-[30px] border border-white/8 bg-white/[0.03] p-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-white">{ko ? 'PPT 미리보기' : 'PPT preview'}</h3>
+                <h3 className="text-sm font-bold text-white">{ko ? 'PPT ????' : 'PPT preview'}</h3>
                 <span className="text-xs text-zinc-500">{selectedSlides.length}</span>
               </div>
               <div className="mt-4 space-y-3">
@@ -1183,30 +1181,80 @@ export default function ProjectEditorPage() {
                         <span className="text-[10px] uppercase tracking-[0.24em] text-violet-300">{slide.type || `SLIDE ${index + 1}`}</span>
                         <span className="text-[10px] text-zinc-500">{index + 1}</span>
                       </div>
-                      <p className="mt-2 text-sm font-semibold text-white">{slide.title || (ko ? '제목 없음' : 'Untitled')}</p>
+                      <p className="mt-2 text-sm font-semibold text-white">{slide.title || (ko ? '?? ??' : 'Untitled')}</p>
                       <p className="mt-2 line-clamp-3 text-xs leading-6 text-zinc-500">{slide.content || ''}</p>
                     </div>
                   ))
                 ) : (
                   <div className="rounded-2xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-8 text-center text-sm text-zinc-500">
-                    {ko ? 'PPTX를 생성하면 미리보기가 나타납니다.' : 'A preview appears after generation.'}
+                    {ko ? 'PPTX? ???? ????? ?????.' : 'A preview appears after generation.'}
                   </div>
                 )}
               </div>
             </div>
-
             <div className="rounded-[30px] border border-white/8 bg-white/[0.03] p-6">
-              <h3 className="text-sm font-bold text-white">{ko ? '연결 상태' : 'Connection'}</h3>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white">{ko ? '이미지 추가' : 'Add images'}</h3>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {ko ? '프로젝트 화면, 캡처, 디자인 시안을 URL로 추가할 수 있습니다.' : 'Add screenshots or design references by URL.'}
+                  </p>
+                </div>
+                <span className="text-[10px] uppercase tracking-[0.24em] text-violet-300">{imageUrls.length}</span>
+              </div>
+              <div className="mt-4 flex gap-2">
+                <input
+                  value={imageUrlInput}
+                  onChange={event => setImageUrlInput(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter') {
+                      const value = imageUrlInput.trim();
+                      if (!value) return;
+                      setImageUrls(prev => (prev.includes(value) ? prev : [...prev, value]));
+                      setImageUrlInput('');
+                    }
+                  }}
+                  placeholder={ko ? '이미지 URL을 입력하세요' : 'Paste image URL'}
+                  className="min-w-0 flex-1 rounded-2xl border border-white/8 bg-black/20 px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-600"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const value = imageUrlInput.trim();
+                    if (!value) return;
+                    setImageUrls(prev => (prev.includes(value) ? prev : [...prev, value]));
+                    setImageUrlInput('');
+                  }}
+                  className="rounded-2xl px-4 py-3 text-sm font-semibold text-white"
+                  style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+                >
+                  {ko ? '추가' : 'Add'}
+                </button>
+              </div>
               <div className="mt-4 space-y-3">
-                {['github', 'notion', 'figma'].map(provider => {
-                  const connected = Boolean(session?.selectedProvider?.toLowerCase() === provider || sourceSnapshot.provider === provider.toUpperCase());
-                  return (
-                    <div key={provider} className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-3">
-                      <span className="text-sm text-zinc-200">{provider.toUpperCase()}</span>
-                      <span className={`text-[10px] ${connected ? 'text-emerald-300' : 'text-zinc-600'}`}>{connected ? (ko ? '사용 중' : 'In use') : (ko ? '비활성' : 'Idle')}</span>
+                {imageUrls.length > 0 ? (
+                  imageUrls.map(url => (
+                    <div key={url} className="overflow-hidden rounded-2xl border border-white/8 bg-black/20">
+                      <div className="flex items-center justify-between gap-3 border-b border-white/6 px-4 py-3">
+                        <p className="truncate text-xs text-zinc-400">{url}</p>
+                        <button
+                          type="button"
+                          onClick={() => setImageUrls(prev => prev.filter(item => item !== url))}
+                          className="text-xs text-zinc-500 transition-colors hover:text-white"
+                        >
+                          {ko ? '삭제' : 'Remove'}
+                        </button>
+                      </div>
+                      <div className="aspect-[16/9] bg-[#0b0b0b]">
+                        <img src={url} alt="" className="h-full w-full object-cover" />
+                      </div>
                     </div>
-                  );
-                })}
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-8 text-center text-sm text-zinc-500">
+                    {ko ? '추가된 이미지가 없습니다.' : 'No images added yet.'}
+                  </div>
+                )}
               </div>
             </div>
           </aside>

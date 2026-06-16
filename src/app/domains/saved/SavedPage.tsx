@@ -9,11 +9,17 @@ type SavedTab = 'saved' | 'liked' | 'archived';
 
 type SavedItem = {
   id: string;
+  userId: number;
+  portfolioId?: number;
   name: string;
   role: string;
   pptxUrl?: string;
   thumbnail?: string;
 };
+
+function getPortfolioKey(item: SavedItem) {
+  return `portfolio:${item.portfolioId ?? Number(item.id)}`;
+}
 
 export default function SavedPage() {
   const navigate = useNavigate();
@@ -38,7 +44,7 @@ export default function SavedPage() {
 
   const visible = useMemo(() => {
     const ids = savedCollections[tab];
-    return items.filter(item => ids.includes(item.id));
+    return items.filter(item => ids.includes(getPortfolioKey(item)));
   }, [items, savedCollections, tab]);
 
   const tabs = [
@@ -83,7 +89,7 @@ export default function SavedPage() {
               <button
                 key={`${tab}-${item.id}`}
                 type="button"
-                onClick={() => navigate(`/explore/${item.id}`)}
+                onClick={() => navigate(`/explore/${item.userId}?portfolioId=${item.portfolioId || item.id}`)}
                 className="aspect-[16/9] overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03]"
               >
                 {item.thumbnail ? (

@@ -19,6 +19,13 @@ const STEPS = [
 function buildSourceText(data: PortfolioDataResponse, selection: Selection, notes: string) {
   const selectedProjectIds = new Set(selection.projectIds);
   const selectedArticleIds = new Set(selection.articleIds.map(String));
+  const projectDocuments = data.projects
+    .filter(item => selectedProjectIds.has(item.project.id))
+    .flatMap(item => item.documents.map(doc => ({
+      project: item.project,
+      document: doc.document,
+      blocks: doc.blocks,
+    })));
 
   const projectText = data.projects
     .filter(item => selectedProjectIds.has(item.project.id))
@@ -30,13 +37,7 @@ function buildSourceText(data: PortfolioDataResponse, selection: Selection, note
     ].join('\n'))
     .join('\n\n');
 
-  const articleText = data.projects
-    .flatMap(item => item.documents.map(doc => ({
-      project: item.project,
-      document: doc.document,
-      blocks: doc.blocks,
-    })))
-    .filter(item => selectedArticleIds.has(String(item.document.id)))
+  const articleText = (selectedArticleIds.size > 0 ? projectDocuments.filter(item => selectedArticleIds.has(String(item.document.id))) : projectDocuments)
     .map(item => {
       const blockText = item.blocks
         .map(block => {

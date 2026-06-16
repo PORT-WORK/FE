@@ -369,7 +369,8 @@ export async function listExploreUsers() {
   );
   const items = asArray<PortfolioSummary>(result);
   return items.map(item => ({
-    id: String(item.userId || item.id),
+    id: String(item.id),
+    userId: Number(item.userId || item.id),
     portfolioId: item.id,
     name: item.title || 'Portfolio',
     role: item.jobRole || 'Developer',
