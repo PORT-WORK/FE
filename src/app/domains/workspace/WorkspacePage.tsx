@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { FileText, Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import EmptyStatePanel from '../../components/EmptyStatePanel';
 import {
@@ -61,52 +61,21 @@ function ProjectCard({ project, onOpen, onDelete }: { project: ProjectItem; onOp
             <span className="rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[10px] font-semibold text-zinc-200 backdrop-blur">
               {project.role || 'DEVELOPER'}
             </span>
-            {project.isSynced && (
-              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-200 backdrop-blur">
-                완료 문서
-              </span>
-            )}
           </div>
-
-          {project.imageUrls?.length ? (
-            <div className="absolute bottom-4 left-4 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-[10px] font-semibold text-zinc-200 backdrop-blur">
-              이미지 {project.imageUrls.length}장
-            </div>
-          ) : null}
         </div>
 
         <div className="space-y-3 p-5">
-          <div>
-            <div className="flex items-center gap-2">
-              <p className="truncate text-base font-black text-white">{project.name}</p>
-            </div>
-            <p className="mt-1 text-xs text-zinc-500">{project.summary || '프로젝트 요약이 없습니다.'}</p>
-          </div>
-
-          {project.skills?.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {project.skills.slice(0, 4).map(skill => (
-                <span key={skill} className="rounded-full border border-white/8 bg-white/[0.02] px-2.5 py-1 text-[10px] text-zinc-400">
-                  {skill}
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-center justify-between text-[11px] text-zinc-600">
-            <span className="inline-flex items-center gap-1">
-              <FileText size={11} />
-              {project.portfolioId > 0 ? 'Portfolio project' : 'Local draft'}
-            </span>
+          <div className="flex items-center justify-between gap-3">
+            <p className="truncate text-base font-black text-white">{project.name}</p>
             <button
               type="button"
               onClick={e => {
                 e.stopPropagation();
                 void onDelete();
               }}
-              className="inline-flex items-center gap-1 font-semibold text-zinc-500 transition-colors hover:text-red-300"
+              className="inline-flex items-center gap-1 text-[10px] font-semibold text-zinc-500 transition-colors hover:text-red-300"
             >
-              <Trash2 size={11} />
+              <Trash2 size={10} />
               삭제
             </button>
           </div>

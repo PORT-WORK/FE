@@ -66,7 +66,7 @@ function DateSeparator({ label }: { label: string }) {
 }
 
 function buildInitialChats(card?: ConversationCard | null): ChatMsg[] {
-  if (!card) return [];
+  if (!card || !card.lastMsg || card.lastMsg.includes('새 대화를 시작')) return [];
   return [
     {
       id: `seed-${card.id}`,
@@ -391,17 +391,26 @@ export default function MessagesPage() {
     const nextText = editText.trim();
     if (!nextText) return;
     setChats(prev => prev.map(msg => (msg.id === editId ? { ...msg, text: nextText, edited: true } : msg)));
-    await updateMessage(editId, nextText);
-    void reloadConversations(true).catch(() => undefined);
     setEditId(null);
+    try {
+      await updateMessage(editId, nextText);
+      void reloadConversations(true).catch(() => undefined);
+    } catch {
+      setLoadError('메시지를 수정하지 못했습니다.');
+    }
   };
 
   const deleteMsg = async (id: string) => {
     const confirmed = window.confirm(ko ? '메시지를 삭제할까요?' : 'Delete this message?');
     if (!confirmed) return;
-    await deleteMessage(id);
     setChats(prev => prev.filter(msg => msg.id !== id));
-    void reloadConversations(true).catch(() => undefined);
+    if (editId === id) setEditId(null);
+    try {
+      await deleteMessage(id);
+      void reloadConversations(true).catch(() => undefined);
+    } catch {
+      setLoadError('메시지를 삭제하지 못했습니다.');
+    }
   };
 
   const renderedChats: Array<ChatMsg | { _sep: string; id: string }> = [];
@@ -510,7 +519,6 @@ export default function MessagesPage() {
             <div className="h-full min-h-[420px] flex items-center justify-center">
               <div className="max-w-sm w-full rounded-[28px] p-8 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <p className="text-lg font-bold text-white">{ko ? '대화를 시작할 사람이 없습니다' : 'No conversation selected'}</p>
-                <p className="text-sm text-zinc-600 mt-2">{ko ? '탐색 화면에서 메시지를 눌러 대화를 시작할 수 있습니다.' : 'Open a profile from Explore and start a message.'}</p>
               </div>
             </div>
           ) : renderedChats.map(item => {
@@ -534,7 +542,7 @@ export default function MessagesPage() {
                         className="w-full px-3 py-2 rounded-2xl text-sm text-zinc-200 outline-none resize-none"
                         style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
                       />
-                      <button onClick={saveEdit} className="px-3 py-2 rounded-xl text-xs text-violet-400" style={{ border: '1px solid rgba(124,58,237,0.3)' }}>
+                      <button type="button" onClick={saveEdit} className="px-3 py-2 rounded-xl text-xs text-violet-200" style={{ border: '1px solid rgba(124,58,237,0.3)', background: 'rgba(124,58,237,0.12)' }}>
                         Save
                       </button>
                     </div>
@@ -577,14 +585,14 @@ export default function MessagesPage() {
 
         <div className="flex-shrink-0 px-6 pb-4">
           <div className="max-w-3xl mx-auto">
-            <div className="flex items-end gap-3 rounded-[26px] p-4 transition-all" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <button onClick={() => imgInputRef.current?.click()} className="flex-shrink-0 p-2 rounded-xl text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04] transition-colors">
+            <div className="flex items-center gap-3 rounded-[26px] p-4 transition-all" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <button onClick={() => imgInputRef.current?.click()} className="flex-shrink-0 rounded-xl p-2 text-zinc-600 transition-colors hover:bg-white/[0.04] hover:text-zinc-300">
                 <Image size={14} />
               </button>
-              <button onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 p-2 rounded-xl text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04] transition-colors">
+              <button onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 rounded-xl p-2 text-zinc-600 transition-colors hover:bg-white/[0.04] hover:text-zinc-300">
                 <Paperclip size={14} />
               </button>
-              <button onClick={recording ? stopRecording : startRecording} className={`flex-shrink-0 p-2 rounded-xl transition-colors ${recording ? 'text-red-400 hover:bg-red-500/10' : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04]'}`}>
+              <button onClick={recording ? stopRecording : startRecording} className={`flex-shrink-0 rounded-xl p-2 transition-colors ${recording ? 'text-red-400 hover:bg-red-500/10' : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04]'}`}>
                 {recording ? <Square size={14} /> : <Mic size={14} />}
               </button>
               <div className="min-w-0 flex-1">
@@ -607,7 +615,7 @@ export default function MessagesPage() {
                   }}
                 />
               </div>
-              <button onClick={() => void send()} disabled={!input.trim()} className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all" style={{ background: input.trim() ? 'linear-gradient(135deg,#7c3aed,#2563eb)' : 'rgba(255,255,255,0.05)', boxShadow: input.trim() ? '0 0 14px rgba(124,58,237,0.4)' : 'none' }}>
+              <button onClick={() => void send()} disabled={!input.trim()} className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl transition-all" style={{ background: input.trim() ? 'linear-gradient(135deg,#7c3aed,#2563eb)' : 'rgba(255,255,255,0.05)', boxShadow: input.trim() ? '0 0 14px rgba(124,58,237,0.4)' : 'none' }}>
                 <Send size={13} className={input.trim() ? 'text-white' : 'text-zinc-700'} />
               </button>
               <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleFile(e, 'image')} />

@@ -30,7 +30,7 @@ export default function PortfolioPage() {
   const hasFiles = files.length > 0;
   const openGenerate = () => navigate('/generate');
   const openPortfolio = (file: PortfolioSummary) => {
-    if (file.pptxUrl) {
+    if (file.pdfUrl || file.pptxUrl) {
       setSelectedFile(file);
       setViewerOpen(true);
       return;
@@ -99,12 +99,12 @@ export default function PortfolioPage() {
                   ) : (
                     <FileText size={28} className="text-zinc-700" />
                   )}
-                  {file.pptxUrl && (
-                    <div className="absolute right-3 top-3 rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-1 text-[10px] font-semibold text-violet-200">
-                      PPTX
-                    </div>
-                  )}
-                </div>
+                {file.pdfUrl || file.pptxUrl ? (
+                  <div className="absolute right-3 top-3 rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-1 text-[10px] font-semibold text-violet-200">
+                      {file.pdfUrl ? 'PDF' : 'PPTX'}
+                  </div>
+                ) : null}
+              </div>
                 <div className="p-5">
                   <p className="mb-1 text-sm font-semibold text-white">{file.title}</p>
                   <p className="mb-3 text-xs text-zinc-500">{file.jobRole}</p>
@@ -141,14 +141,31 @@ export default function PortfolioPage() {
             <div className="grid gap-4 p-5 lg:grid-cols-[1fr_280px]">
               <div className="min-h-[680px] overflow-hidden rounded-[26px] border border-white/8 bg-black/20">
                 {viewerUrl ? (
-                  <iframe
-                    key={viewerUrl}
-                    src={viewerUrl}
-                    title={selectedFile.title}
-                    className="h-[680px] w-full bg-[#070707]"
-                    allow="fullscreen"
-                    loading="eager"
-                  />
+                  selectedFile?.pdfUrl ? (
+                    <object
+                      data={viewerUrl}
+                      type="application/pdf"
+                      className="h-[680px] w-full bg-[#070707]"
+                    >
+                      <iframe
+                        key={viewerUrl}
+                        src={viewerUrl}
+                        title={selectedFile.title}
+                        className="h-[680px] w-full bg-[#070707]"
+                        allow="fullscreen"
+                        loading="eager"
+                      />
+                    </object>
+                  ) : (
+                    <iframe
+                      key={viewerUrl}
+                      src={viewerUrl}
+                      title={selectedFile.title}
+                      className="h-[680px] w-full bg-[#070707]"
+                      allow="fullscreen"
+                      loading="eager"
+                    />
+                  )
                 ) : (
                   <div className="flex h-[680px] items-center justify-center bg-[#070707] p-8 text-center">
                     <div className="max-w-lg">

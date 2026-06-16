@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown, ChevronUp, FileText, X } from 'lucide-react';
 import { fetchPortfolioData, type PortfolioDataResponse } from '../../../api/contentApi';
+import { loadLocalProjectItems } from '../../workspace/projectWriting';
 
 type Selection = {
   portfolioId: number;
@@ -86,6 +87,11 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
   }, [open, portfolioId]);
 
   const projects = portfolioData?.projects.map(item => item.project) ?? [];
+  const localProjects = useMemo(
+    () => loadLocalProjectItems().filter(item => (portfolioId ? item.portfolioId === portfolioId : true)),
+    [portfolioId],
+  );
+  const visibleProjects = projects.length > 0 ? projects : localProjects;
 
   const documents = useMemo(() => {
     if (!portfolioData) return [];
@@ -168,10 +174,10 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
           <section className="p-4" style={{ borderRight: '1px solid rgba(255,255,255,0.06)', background: 'linear-gradient(180deg, rgba(34,211,238,0.06), rgba(255,255,255,0.01))' }}>
             <div className="flex items-center justify-between mb-3">
               <span className={`text-[10px] uppercase tracking-[0.28em] ${SECTION.project.accent}`}>{SECTION.project.title}</span>
-              <span className="text-[10px] text-zinc-500">{loading ? '...' : projects.length}</span>
+              <span className="text-[10px] text-zinc-500">{loading ? '...' : visibleProjects.length}</span>
             </div>
             <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 'calc(100vh - 12rem)' }}>
-              {projects.map(project => {
+              {visibleProjects.map(project => {
                 const active = selectedProjectIds.includes(project.id);
                 return (
                   <button
@@ -194,9 +200,14 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
                   </button>
                 );
               })}
-              {projects.length === 0 && !loading && (
+              {visibleProjects.length === 0 && !loading && (
                 <div className="rounded-2xl p-4 text-center text-xs text-zinc-400" style={{ border: `1px dashed ${SECTION.project.border}`, background: 'rgba(255,255,255,0.01)' }}>
                   프로젝트가 없습니다.
+                </div>
+              )}
+              {projects.length === 0 && localProjects.length > 0 && !loading && (
+                <div className="rounded-2xl p-4 text-center text-xs text-cyan-200" style={{ border: `1px dashed ${SECTION.project.border}`, background: 'rgba(34,211,238,0.06)' }}>
+                  API 프로젝트가 비어 있어 로컬 저장 프로젝트를 대신 보여줍니다.
                 </div>
               )}
             </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, ExternalLink, Figma, FileText, Github, Loader2, Search, Sparkles, X } from 'lucide-react';
-import { addFigmaFileSource, fetchIntegrationSources, type IntegrationSourceItem } from '../../../api/contentApi';
+import { addFigmaFileSource, fetchIntegrationPreview, fetchIntegrationSources, type IntegrationPreview, type IntegrationSourceItem } from '../../../api/contentApi';
 import { integrationProviderLabel, type IntegrationProviderKey } from '../../../api/integrationProviders';
 import { useApp } from '../../../contexts/AppContext';
 
@@ -16,6 +16,33 @@ type Props = {
     sourceSelections: Array<{ provider: IntegrationProviderKey; sourceIds: string[] }>;
   }) => void;
 };
+
+function getObjectText(value: unknown) {
+  if (!value || typeof value !== 'object') return '';
+  const record = value as Record<string, unknown>;
+  return [
+    record.title,
+    record.subtitle,
+    record.description,
+    record.summary,
+    record.content,
+    record.body,
+    record.text,
+    record.readme,
+    record.markdown,
+    record.note,
+  ]
+    .map(item => (typeof item === 'string' ? item.trim() : ''))
+    .filter(Boolean)
+    .join('\n');
+}
+
+function buildSourceExcerpt(item: IntegrationSourceItem) {
+  const rawText = getObjectText(item.raw);
+  const summary = [item.summary, rawText].filter(Boolean).join('\n').trim();
+  if (summary) return summary;
+  return item.tags.length ? `Tags: ${item.tags.join(', ')}` : '';
+}
 
 const PROVIDERS: Array<{
   key: IntegrationProviderKey;
@@ -52,6 +79,11 @@ export default function ProjectSourceSelectionModal({
   const [figmaFileUrl, setFigmaFileUrl] = useState('');
   const [figmaBusy, setFigmaBusy] = useState(false);
   const [figmaError, setFigmaError] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailItem, setDetailItem] = useState<IntegrationSourceItem | null>(null);
+  const [detailPreview, setDetailPreview] = useState<IntegrationPreview | null>(null);
   const [selectedOpen, setSelectedOpen] = useState(true);
   const providerRef = useRef<IntegrationProviderKey>(initialProvider);
   const cacheRef = useRef<Partial<Record<IntegrationProviderKey, IntegrationSourceItem[]>>>({});
@@ -64,6 +96,10 @@ export default function ProjectSourceSelectionModal({
     setProvider(initialProvider);
     setQuery('');
     setError(null);
+    setDetailOpen(false);
+    setDetailPreview(null);
+    setDetailItem(null);
+    setDetailError(null);
     providerRef.current = initialProvider;
     setSelectedByProvider(prev => ({
       ...prev,
@@ -144,22 +180,21 @@ export default function ProjectSourceSelectionModal({
     });
   };
 
-  const openSourceDetail = (item: IntegrationSourceItem) => {
-    if (item.url) {
-      window.open(item.url, '_blank', 'noopener,noreferrer');
-      return;
+  const openSourceDetail = async (item: IntegrationSourceItem) => {
+    setDetailOpen(true);
+    setDetailItem(item);
+    setDetailLoading(true);
+    setDetailError(null);
+    setDetailPreview(null);
+
+    try {
+      const preview = await fetchIntegrationPreview(provider, item.resourceId);
+      setDetailPreview(preview);
+    } catch {
+      setDetailError(ko ? '상세 내용을 불러오지 못했습니다.' : 'Failed to load details.');
+    } finally {
+      setDetailLoading(false);
     }
-
-    const detail = [
-      item.title,
-      item.subtitle,
-      item.summary,
-      item.tags.length ? `Tags: ${item.tags.join(', ')}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n');
-
-    window.alert(detail || item.title);
   };
 
   const addFigmaFile = async () => {
@@ -358,13 +393,15 @@ export default function ProjectSourceSelectionModal({
                               {active && <Check size={14} className="text-violet-300" />}
                             </div>
                           </div>
-                          <p className="mt-3 line-clamp-2 text-xs leading-6 text-zinc-500">{item.summary}</p>
+                          <p className="mt-3 line-clamp-4 whitespace-pre-line text-xs leading-6 text-zinc-400">
+                            {buildSourceExcerpt(item)}
+                          </p>
                           <div className="mt-4 flex items-center justify-between gap-3">
                             <button
                               type="button"
                               onClick={e => {
                                 e.stopPropagation();
-                                openSourceDetail(item);
+                                void openSourceDetail(item);
                               }}
                               className="inline-flex items-center gap-1 text-xs font-semibold text-violet-200 transition-colors hover:text-violet-100"
                             >
@@ -438,6 +475,75 @@ export default function ProjectSourceSelectionModal({
           </main>
         </div>
       </div>
+      {detailOpen && detailItem && (
+        <div className="fixed inset-0 z-[435] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm" onClick={() => setDetailOpen(false)}>
+          <div className="w-full max-w-3xl rounded-[28px] border border-white/10 bg-[#101010] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">{integrationProviderLabel(provider)}</p>
+                <h4 className="mt-2 truncate text-xl font-black text-white">{detailItem.title}</h4>
+                <p className="mt-2 text-sm text-zinc-500">
+                  {detailPreview?.subtitle || detailItem.subtitle || detailItem.kind}
+                </p>
+              </div>
+              <button type="button" onClick={() => setDetailOpen(false)} className="rounded-xl p-2 text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-[1fr_240px]">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">{ko ? '상세 내용' : 'Preview'}</p>
+                <div className="mt-3 max-h-[320px] overflow-y-auto whitespace-pre-line rounded-2xl border border-white/8 bg-black/20 p-4 text-sm leading-7 text-zinc-200">
+                  {detailLoading
+                    ? (ko ? '상세 내용을 불러오는 중...' : 'Loading details...')
+                    : detailPreview?.description
+                      ? detailPreview.description
+                      : detailPreview?.raw
+                        ? JSON.stringify(detailPreview.raw, null, 2)
+                        : buildSourceExcerpt(detailItem)}
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">{ko ? '태그' : 'Tags'}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(detailPreview?.tags?.length ? detailPreview.tags : detailItem.tags).map(tag => (
+                      <span key={tag} className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[10px] text-zinc-300">
+                        {tag}
+                      </span>
+                    ))}
+                    {(detailPreview?.tags?.length ?? detailItem.tags.length) === 0 && (
+                      <span className="text-xs text-zinc-600">{ko ? '없음' : 'None'}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">{ko ? '원본 링크' : 'Source URL'}</p>
+                  <a
+                    href={detailPreview?.url || detailItem.url || '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 block break-all text-sm text-violet-200 hover:text-violet-100"
+                  >
+                    {detailPreview?.url || detailItem.url || (ko ? '링크 없음' : 'No url')}
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDetailOpen(false)}
+                  className="w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-zinc-300"
+                >
+                  {ko ? '닫기' : 'Close'}
+                </button>
+              </div>
+            </div>
+
+            {detailError && <p className="mt-3 text-sm text-red-300">{detailError}</p>}
+          </div>
+        </div>
+      )}
+
       {figmaModalOpen && (
         <div className="fixed inset-0 z-[440] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm" onClick={() => setFigmaModalOpen(false)}>
           <div className="w-full max-w-lg rounded-[28px] border border-white/10 bg-[#101010] p-6 shadow-2xl" onClick={e => e.stopPropagation()}>

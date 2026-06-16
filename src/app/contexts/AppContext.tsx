@@ -338,12 +338,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let alive = true;
     void fetchCurrentUser()
       .then(profile => {
-        if (!alive) return;
-        const nextUser = mapProfileToUser(profile);
-        setCurrentUserId(profile.id);
-        setUser(nextUser);
-        setFollowingIds(defaultState.followingIds);
-        setAiCount((value) => Math.max(value, 1));
+      if (!alive) return;
+      const nextUser = mapProfileToUser(profile);
+      setCurrentUserId(profile.id);
+      setUser(nextUser);
+      setFollowingIds(defaultState.followingIds);
+      setSavedCollections(defaultState.savedCollections);
+      setAiCount((value) => Math.max(value, 1));
       })
       .catch(() => {
         if (!alive) return;
@@ -374,6 +375,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setAiCount(0);
     setPayModal(false);
+    setFollowingIds(defaultState.followingIds);
+    setSavedCollections(defaultState.savedCollections);
   };
 
   const value = useMemo<AppContextValue>(() => ({
