@@ -386,7 +386,7 @@ export default function EditorPage() {
                       value={current?.value || ''}
                       onChange={e => updateSection(section.key, e.target.value)}
                       placeholder={section.placeholder}
-                      rows={section.key === 'overview' || section.key === 'problem' || section.key === 'prd' ? 7 : 5}
+                      rows={section.key === 'problem' || section.key === 'prd' ? 7 : 5}
                       className="w-full rounded-2xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-700 outline-none resize-none"
                       style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
                     />

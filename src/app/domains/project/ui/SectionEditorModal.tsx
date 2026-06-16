@@ -37,7 +37,7 @@ export default function SectionEditorModal({
         <div className="flex items-start justify-between gap-4 border-b border-white/6 px-6 py-5">
           <div>
             <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-200">
-              Interview section
+              섹션 편집
             </div>
             <h3 className="text-2xl font-black text-white">{title}</h3>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">{guide}</p>
@@ -69,7 +69,7 @@ export default function SectionEditorModal({
             <textarea
               value={value}
               onChange={event => setValue(event.target.value)}
-              placeholder="질문에 대한 답변을 자연스럽게 작성해주세요. 필요한 경우 자료 불러오기로 GitHub, Notion, Figma 내용을 보조 자료로 추가할 수 있습니다."
+              placeholder="질문에 대한 답변을 자연스럽게 작성하세요. 필요하면 자료 불러오기에서 GitHub, Notion, Figma 내용을 참고할 수 있습니다."
               className="min-h-[430px] w-full resize-none rounded-[24px] border border-white/8 bg-white/[0.03] px-5 py-4 text-sm leading-7 text-zinc-100 outline-none transition-colors placeholder:text-zinc-700 focus:border-violet-500/35"
             />
           </section>
