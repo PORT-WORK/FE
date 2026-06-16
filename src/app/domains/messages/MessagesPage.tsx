@@ -79,6 +79,37 @@ function buildInitialChats(card?: ConversationCard | null): ChatMsg[] {
   ];
 }
 
+async function buildFallbackConversation(targetUserId: number, ko: boolean): Promise<ConversationCard> {
+  try {
+    const profile = await fetchPublicProfile(targetUserId);
+    return {
+      id: String(targetUserId),
+      latestMessageId: 0,
+      userId: targetUserId,
+      user: profile.name,
+      role: profile.location || 'Portfolio contact',
+      lastMsg: ko ? '새 대화를 시작하세요.' : 'Start a new conversation.',
+      time: '',
+      createdAt: new Date().toISOString(),
+      unread: 0,
+      avatar: profile.profileImageUrl || '',
+    };
+  } catch {
+    return {
+      id: String(targetUserId),
+      latestMessageId: 0,
+      userId: targetUserId,
+      user: ko ? '대화 상대' : 'Conversation',
+      role: ko ? 'Portfolio contact' : 'Portfolio contact',
+      lastMsg: ko ? '새 대화를 시작하세요.' : 'Start a new conversation.',
+      time: '',
+      createdAt: new Date().toISOString(),
+      unread: 0,
+      avatar: '',
+    };
+  }
+}
+
 export default function MessagesPage() {
   const { t, language } = useApp();
   const ko = language === 'ko';
@@ -121,19 +152,7 @@ export default function MessagesPage() {
         if (!alive) return;
         let nextData = data;
         if (targetUserId > 0 && !data.some(item => item.userId === targetUserId)) {
-          const profile = await fetchPublicProfile(targetUserId);
-          nextData = [{
-            id: String(targetUserId),
-            latestMessageId: 0,
-            userId: targetUserId,
-            user: profile.name,
-            role: profile.location || 'Portfolio contact',
-            lastMsg: ko ? '새 대화를 시작하세요.' : 'Start a new conversation.',
-            time: '',
-            createdAt: new Date().toISOString(),
-            unread: 0,
-            avatar: profile.profileImageUrl || '',
-          }, ...data];
+          nextData = [await buildFallbackConversation(targetUserId, ko), ...data];
         }
         setConversations(nextData);
         setLoadError(null);
@@ -141,6 +160,15 @@ export default function MessagesPage() {
       })
       .catch(() => {
         if (!alive) return;
+        if (targetUserId > 0) {
+          void buildFallbackConversation(targetUserId, ko).then(card => {
+            if (!alive) return;
+            setConversations([card]);
+            setActive(card.id);
+            setLoadError(null);
+          });
+          return;
+        }
         setConversations([]);
         setActive('');
         setChats([]);
@@ -511,7 +539,7 @@ export default function MessagesPage() {
                       </button>
                     </div>
                   ) : (
-                    <div className={`relative rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${msg.from === 'me' ? 'rounded-tr-sm' : 'rounded-tl-sm'}`} style={{ background: msg.from === 'me' ? 'linear-gradient(135deg,rgba(124,58,237,0.25),rgba(37,99,235,0.25))' : 'rgba(255,255,255,0.04)', border: `1px solid ${msg.from === 'me' ? 'rgba(124,58,237,0.25)' : 'rgba(255,255,255,0.06)'}`, color: '#e4e4e7' }}>
+                  <div className={`relative w-full max-w-[min(72%,44rem)] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words ${msg.from === 'me' ? 'rounded-tr-sm' : 'rounded-tl-sm'}`} style={{ background: msg.from === 'me' ? 'linear-gradient(135deg,rgba(124,58,237,0.25),rgba(37,99,235,0.25))' : 'rgba(255,255,255,0.04)', border: `1px solid ${msg.from === 'me' ? 'rgba(124,58,237,0.25)' : 'rgba(255,255,255,0.06)'}`, color: '#e4e4e7' }}>
                       {msg.text}
                       {msg.edited && <span className="ml-2 text-[10px] text-zinc-600">(edited)</span>}
                       {msg.from === 'me' && (
@@ -549,7 +577,7 @@ export default function MessagesPage() {
 
         <div className="flex-shrink-0 px-6 pb-4">
           <div className="max-w-3xl mx-auto">
-            <div className="flex items-end gap-3 p-3 rounded-2xl transition-all" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="flex items-end gap-3 rounded-[26px] p-4 transition-all" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <button onClick={() => imgInputRef.current?.click()} className="flex-shrink-0 p-2 rounded-xl text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04] transition-colors">
                 <Image size={14} />
               </button>
@@ -559,24 +587,26 @@ export default function MessagesPage() {
               <button onClick={recording ? stopRecording : startRecording} className={`flex-shrink-0 p-2 rounded-xl transition-colors ${recording ? 'text-red-400 hover:bg-red-500/10' : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04]'}`}>
                 {recording ? <Square size={14} /> : <Mic size={14} />}
               </button>
-              <textarea
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    void send();
-                  }
-                }}
-                placeholder={t('msg_placeholder')}
-                rows={3}
-                className="flex-1 min-h-[76px] bg-transparent text-sm text-zinc-300 placeholder-zinc-700 outline-none resize-none"
-                onInput={e => {
-                  const el = e.target as HTMLTextAreaElement;
-                  el.style.height = 'auto';
-                  el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
-                }}
-              />
+              <div className="min-w-0 flex-1">
+                <textarea
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      void send();
+                    }
+                  }}
+                  placeholder={t('msg_placeholder')}
+                  rows={3}
+                  className="min-h-[96px] w-full resize-none bg-transparent text-sm leading-6 text-zinc-300 placeholder-zinc-700 outline-none break-words overflow-y-auto"
+                  onInput={e => {
+                    const el = e.target as HTMLTextAreaElement;
+                    el.style.height = 'auto';
+                    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+                  }}
+                />
+              </div>
               <button onClick={() => void send()} disabled={!input.trim()} className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all" style={{ background: input.trim() ? 'linear-gradient(135deg,#7c3aed,#2563eb)' : 'rgba(255,255,255,0.05)', boxShadow: input.trim() ? '0 0 14px rgba(124,58,237,0.4)' : 'none' }}>
                 <Send size={13} className={input.trim() ? 'text-white' : 'text-zinc-700'} />
               </button>

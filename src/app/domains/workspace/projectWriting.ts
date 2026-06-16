@@ -182,6 +182,7 @@ function normalizeProjectItem(item: Partial<ProjectItem> & { updatedAt?: string 
     role: item.role || 'DEVELOPER',
     summary: item.summary ?? null,
     thumbnailUrl: item.thumbnailUrl ?? null,
+    imageUrls: Array.isArray(item.imageUrls) ? item.imageUrls.filter(Boolean).map(String) : [],
     skills: Array.isArray(item.skills) ? item.skills : [],
     isSynced: Boolean(item.isSynced),
     startDate: item.startDate ?? null,

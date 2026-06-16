@@ -1,24 +1,37 @@
-const OFFICE_VIEWER_BASE = 'https://view.officeapps.live.com/op/embed.aspx?src=';
-const OFFICE_VIEWER_TAB_BASE = 'https://view.officeapps.live.com/op/view.aspx?src=';
+const GOOGLE_VIEWER_BASE = 'https://docs.google.com/gview?embedded=1&url=';
 
 function isViewableUrl(value: string) {
   return /^https?:\/\//i.test(value) || value.startsWith('blob:') || value.startsWith('data:');
 }
 
-export function buildPptxViewerUrl(pptxUrl?: string | null) {
-  if (!pptxUrl) return '';
-  const trimmed = pptxUrl.trim();
+type PreviewInput = {
+  pdfUrl?: string | null;
+  pptxUrl?: string | null;
+};
+
+export function buildPptxViewerUrl(input?: string | PreviewInput | null) {
+  if (!input) return '';
+  if (typeof input === 'object') {
+    const pdfUrl = input.pdfUrl?.trim() || '';
+    if (pdfUrl) return pdfUrl;
+    return buildPptxViewerUrl(input.pptxUrl || null);
+  }
+  const trimmed = input.trim();
   if (!trimmed) return '';
+  if (/\.pdf(?:$|\?)/i.test(trimmed)) return trimmed;
   if (/view\.officeapps\.live\.com|docs\.google\.com/i.test(trimmed)) return trimmed;
   if (!isViewableUrl(trimmed)) return trimmed;
-  return `${OFFICE_VIEWER_BASE}${encodeURIComponent(trimmed)}`;
+  return `${GOOGLE_VIEWER_BASE}${encodeURIComponent(trimmed)}`;
 }
 
-export function buildPptxTabUrl(pptxUrl?: string | null) {
-  if (!pptxUrl) return '';
-  const trimmed = pptxUrl.trim();
+export function buildPptxTabUrl(input?: string | PreviewInput | null) {
+  if (!input) return '';
+  if (typeof input === 'object') {
+    const pdfUrl = input.pdfUrl?.trim() || '';
+    if (pdfUrl) return pdfUrl;
+    return buildPptxTabUrl(input.pptxUrl || null);
+  }
+  const trimmed = input.trim();
   if (!trimmed) return '';
-  if (/view\.officeapps\.live\.com|docs\.google\.com/i.test(trimmed)) return trimmed;
-  if (!isViewableUrl(trimmed)) return trimmed;
-  return `${OFFICE_VIEWER_TAB_BASE}${encodeURIComponent(trimmed)}`;
+  return trimmed;
 }

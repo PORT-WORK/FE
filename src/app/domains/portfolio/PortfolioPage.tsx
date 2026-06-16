@@ -38,8 +38,8 @@ export default function PortfolioPage() {
     navigate('/workspace', { state: { portfolioId: file.id } });
   };
 
-  const viewerUrl = buildPptxViewerUrl(selectedFile?.pptxUrl || null);
-  const tabUrl = buildPptxTabUrl(selectedFile?.pptxUrl || null);
+  const viewerUrl = buildPptxViewerUrl(selectedFile ? { pdfUrl: selectedFile.pdfUrl, pptxUrl: selectedFile.pptxUrl } : null);
+  const tabUrl = buildPptxTabUrl(selectedFile ? { pdfUrl: selectedFile.pdfUrl, pptxUrl: selectedFile.pptxUrl } : null);
 
   return (
     <div className="flex h-full" style={{ background: '#050505' }}>

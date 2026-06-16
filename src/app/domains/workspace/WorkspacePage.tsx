@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { Plus, Trash2 } from 'lucide-react';
+import { FileText, Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import EmptyStatePanel from '../../components/EmptyStatePanel';
-import { deletePortfolioProject, listMyPortfolios, listPortfolioProjects, type PortfolioSummary, type ProjectItem } from '../../api/contentApi';
+import {
+  deletePortfolioProject,
+  listMyPortfolios,
+  listPortfolioProjects,
+  type PortfolioSummary,
+  type ProjectItem,
+} from '../../api/contentApi';
 import ProjectCreateModal from './ui/ProjectCreateModal';
 import { getLocalProjectListEventName, loadLocalProjectItems, removeLocalProjectItem } from './projectWriting';
 import type { ProjectRole } from '../projectWriting';
@@ -13,12 +19,101 @@ function parseRole(value: string | null): ProjectRole | null {
   return null;
 }
 
-function mergeProjects(primary: ProjectItem[], secondary: ProjectItem[]) {
+function mergeProjects(serverProjects: ProjectItem[], localProjects: ProjectItem[]) {
   const map = new Map<number, ProjectItem>();
-  [...secondary, ...primary].forEach(item => {
-    map.set(item.id, item);
+  [...serverProjects, ...localProjects].forEach(item => {
+    const current = map.get(item.id);
+    map.set(item.id, current ? { ...current, ...item, imageUrls: item.imageUrls?.length ? item.imageUrls : current.imageUrls } : item);
   });
   return Array.from(map.values()).sort((a, b) => (b.orderIndex || 0) - (a.orderIndex || 0));
+}
+
+function ProjectCard({ project, onOpen, onDelete }: { project: ProjectItem; onOpen: () => void; onDelete: () => void }) {
+  const thumbnail = project.thumbnailUrl || project.imageUrls?.[0] || '';
+
+  return (
+    <div
+      className="group overflow-hidden rounded-[30px] border border-white/7 bg-white/[0.025] transition-all duration-300 hover:-translate-y-1"
+      style={{ boxShadow: '0 16px 50px rgba(0,0,0,0.18)' }}
+    >
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onOpen();
+          }
+        }}
+        className="block w-full cursor-pointer text-left"
+      >
+        <div className="relative aspect-[16/10] overflow-hidden border-b border-white/6 bg-black/30">
+          {thumbnail ? (
+            <img src={thumbnail} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-500/20 via-blue-500/15 to-cyan-400/10">
+              <ImageIcon size={30} className="text-zinc-700" />
+            </div>
+          )}
+
+          <div className="absolute left-4 top-4 flex gap-2">
+            <span className="rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[10px] font-semibold text-zinc-200 backdrop-blur">
+              {project.role || 'DEVELOPER'}
+            </span>
+            {project.isSynced && (
+              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-200 backdrop-blur">
+                완료 문서
+              </span>
+            )}
+          </div>
+
+          {project.imageUrls?.length ? (
+            <div className="absolute bottom-4 left-4 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-[10px] font-semibold text-zinc-200 backdrop-blur">
+              이미지 {project.imageUrls.length}장
+            </div>
+          ) : null}
+        </div>
+
+        <div className="space-y-3 p-5">
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="truncate text-base font-black text-white">{project.name}</p>
+            </div>
+            <p className="mt-1 text-xs text-zinc-500">{project.summary || '프로젝트 요약이 없습니다.'}</p>
+          </div>
+
+          {project.skills?.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {project.skills.slice(0, 4).map(skill => (
+                <span key={skill} className="rounded-full border border-white/8 bg-white/[0.02] px-2.5 py-1 text-[10px] text-zinc-400">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between text-[11px] text-zinc-600">
+            <span className="inline-flex items-center gap-1">
+              <FileText size={11} />
+              {project.portfolioId > 0 ? 'Portfolio project' : 'Local draft'}
+            </span>
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                void onDelete();
+              }}
+              className="inline-flex items-center gap-1 font-semibold text-zinc-500 transition-colors hover:text-red-300"
+            >
+              <Trash2 size={11} />
+              삭제
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function WorkspacePage() {
@@ -46,26 +141,21 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     let alive = true;
-
     void listMyPortfolios()
       .then(items => {
         if (!alive) return;
         setPortfolios(items);
         setSelectedPortfolioId(items[0]?.id ?? null);
-        setError(null);
       })
       .catch(() => {
         if (!alive) return;
         setPortfolios([]);
         setSelectedPortfolioId(null);
-        setProjects([]);
-        setError(ko ? '포트폴리오를 불러오지 못했습니다.' : 'Failed to load portfolios.');
       });
-
     return () => {
       alive = false;
     };
-  }, [ko]);
+  }, []);
 
   useEffect(() => {
     const refreshLocalProjects = () => setLocalProjects(loadLocalProjectItems());
@@ -82,6 +172,7 @@ export default function WorkspacePage() {
   useEffect(() => {
     if (!selectedPortfolioId) {
       setProjects([]);
+      setLoading(false);
       return;
     }
 
@@ -91,12 +182,10 @@ export default function WorkspacePage() {
       .then(items => {
         if (!alive) return;
         setProjects(items);
-        setError(null);
       })
       .catch(() => {
         if (!alive) return;
         setProjects([]);
-        setError(ko ? '프로젝트를 불러오지 못했습니다.' : 'Failed to load projects.');
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -105,12 +194,10 @@ export default function WorkspacePage() {
     return () => {
       alive = false;
     };
-  }, [ko, selectedPortfolioId]);
+  }, [selectedPortfolioId]);
 
   const visibleProjects = useMemo(() => {
-    if (!selectedPortfolioId) {
-      return localProjects;
-    }
+    if (!selectedPortfolioId) return localProjects;
     return mergeProjects(
       projects.filter(item => item.portfolioId === selectedPortfolioId),
       localProjects.filter(item => item.portfolioId === selectedPortfolioId),
@@ -124,7 +211,7 @@ export default function WorkspacePage() {
   };
 
   const deleteProject = async (project: ProjectItem) => {
-    const confirmed = window.confirm(ko ? '이 프로젝트를 삭제할까요?' : 'Delete this project?');
+    const confirmed = window.confirm(ko ? '프로젝트를 삭제할까요?' : 'Delete this project?');
     if (!confirmed) return;
     try {
       if (project.portfolioId > 0) {
@@ -133,20 +220,14 @@ export default function WorkspacePage() {
           const items = await listPortfolioProjects(project.portfolioId);
           setProjects(items);
         }
-      } else {
-        removeLocalProjectItem(project.id);
-        setLocalProjects(loadLocalProjectItems());
       }
+      removeLocalProjectItem(project.id);
+      setLocalProjects(loadLocalProjectItems());
       setError(null);
     } catch {
       setError(ko ? '프로젝트를 삭제하지 못했습니다.' : 'Failed to delete the project.');
     }
   };
-
-  const emptyTitle = ko ? '프로젝트가 없습니다' : 'No projects yet';
-  const emptyDescription = ko
-    ? '새 프로젝트를 만들어 문서를 작성해보세요.'
-    : 'Create a project first, then organize the documents that become a portfolio.';
 
   return (
     <div className="h-full overflow-y-auto" style={{ background: '#050505' }}>
@@ -189,8 +270,8 @@ export default function WorkspacePage() {
         {!selectedPortfolioId && portfolios.length === 0 && visibleProjects.length === 0 ? (
           <EmptyStatePanel
             emoji="🗂️"
-            title={emptyTitle}
-            description={ko ? '프로젝트를 먼저 만들어보세요.' : 'Create a project first to organize your writing.'}
+            title={ko ? '프로젝트가 없습니다' : 'No projects yet'}
+            description={ko ? '새 프로젝트를 만들어 문서를 작성해보세요.' : 'Create a project first to organize your writing.'}
             actionLabel={ko ? '새 프로젝트' : 'New project'}
             onAction={openProjectCreate}
             accent="blue"
@@ -204,67 +285,27 @@ export default function WorkspacePage() {
           />
         ) : visibleProjects.length === 0 ? (
           <EmptyStatePanel
-            emoji="📄"
-            title={emptyTitle}
-            description={emptyDescription}
+            emoji="📁"
+            title={ko ? '프로젝트가 없습니다' : 'No projects yet'}
+            description={ko ? '새 프로젝트를 만들어 문서를 작성해보세요.' : 'Create a project first to organize your writing.'}
             actionLabel={ko ? '새 프로젝트' : 'New project'}
             onAction={openProjectCreate}
             accent="violet"
           />
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {visibleProjects.map(project => (
-              <div
+              <ProjectCard
                 key={project.id}
-                className="flex items-center justify-between gap-4 rounded-3xl px-5 py-4 transition-all duration-300 hover:-translate-y-0.5"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-              >
-                <button
-                  onClick={() => {
-                    const view = project.isSynced ? '&view=1' : '';
-                    navigate(
-                      `/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}${view}`,
-                    );
-                  }}
-                  className="flex min-w-0 flex-1 items-start gap-4 text-left"
-                >
-                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl text-sm font-black text-white" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.28), rgba(37,99,235,0.25))' }}>
-                    {project.name.slice(0, 1).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-semibold text-white">{project.name}</p>
-                      <span className="rounded-full border border-white/8 bg-white/[0.03] px-2 py-0.5 text-[10px] text-zinc-400">
-                        {project.role || (ko ? '직무 없음' : 'No role')}
-                      </span>
-                      {project.isSynced && (
-                        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
-                          {ko ? '완성 문서' : 'Final doc'}
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 line-clamp-1 text-xs text-zinc-600">{project.summary || (ko ? '요약 없음' : 'No summary yet.')}</p>
-                    {project.skills?.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {project.skills.slice(0, 4).map(skill => (
-                          <span key={skill} className="rounded-full border border-white/8 bg-white/[0.02] px-2.5 py-1 text-[10px] text-zinc-400">
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </button>
-                <div className="flex flex-shrink-0 items-center gap-2">
-                  <button
-                    onClick={() => void deleteProject(project)}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-300"
-                    aria-label="Delete project"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
+                project={project}
+                onOpen={() => {
+                  const view = project.isSynced ? '&view=1' : '';
+                  navigate(
+                    `/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}${view}`,
+                  );
+                }}
+                onDelete={() => void deleteProject(project)}
+              />
             ))}
           </div>
         )}

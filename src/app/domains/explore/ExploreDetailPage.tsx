@@ -84,8 +84,13 @@ export default function ExploreDetailPage() {
     { label: 'Figma', url: publicProfile?.figmaUrl },
   ];
 
-  const viewerUrl = useMemo(() => buildPptxViewerUrl(detail?.pptxUrl || null), [detail?.pptxUrl]);
-  const openTabUrl = useMemo(() => buildPptxTabUrl(detail?.pptxUrl || null), [detail?.pptxUrl]);
+  const selectedPortfolio = portfolios.find(item => item.id === selectedId) || null;
+  const previewSource = {
+    pdfUrl: detail?.pdfUrl || selectedPortfolio?.pdfUrl || null,
+    pptxUrl: detail?.pptxUrl || selectedPortfolio?.pptxUrl || null,
+  };
+  const viewerUrl = useMemo(() => buildPptxViewerUrl(previewSource), [previewSource]);
+  const openTabUrl = useMemo(() => buildPptxTabUrl(previewSource), [previewSource]);
 
   const toggleFollow = () => {
     setFollowingIds(prev => (prev.includes(targetKey) ? prev.filter(item => item !== targetKey) : [...prev, targetKey]));

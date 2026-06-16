@@ -37,7 +37,8 @@ function matchesStackValue(skill: string, target: string) {
     nodejs: ['nodejs', 'node'],
     nextjs: ['nextjs', 'next'],
   };
-  const canonical = (value: string) => Object.entries(aliases).find(([, values]) => values.includes(normalizeText(value)))?.[0] || normalizeText(value);
+  const canonical = (value: string) =>
+    Object.entries(aliases).find(([, values]) => values.includes(normalizeText(value)))?.[0] || normalizeText(value);
   return canonical(skill) === canonical(target);
 }
 
@@ -67,6 +68,10 @@ export default function ExplorePage() {
   }, [ko]);
 
   useEffect(() => {
+    if (followingIds.length === 0) setFollowOnly(false);
+  }, [followingIds.length]);
+
+  useEffect(() => {
     let alive = true;
     void listExploreUsers()
       .then(data => {
@@ -87,7 +92,10 @@ export default function ExplorePage() {
     const rows = users.filter(user => {
       if (!user.isPublic) return false;
       const role = normalizeText(user.role);
-      const matchesRole = activeRole === (ko ? '전체' : 'All') || role === normalizeText(activeRole) || (activeRole === '개발자' && role === 'developer');
+      const matchesRole =
+        activeRole === (ko ? '전체' : 'All') ||
+        role === normalizeText(activeRole) ||
+        (activeRole === '개발자' && role === 'developer');
       const matchesStack = !activeStack || (user.skills || []).some(skill => matchesStackValue(skill, activeStack));
       const matchesFollow = !followOnly || followingIds.includes(user.id);
       return matchesRole && matchesStack && matchesFollow;
@@ -178,37 +186,41 @@ export default function ExplorePage() {
           ))}
         </div>
 
-        <p className="mb-6 text-sm text-zinc-600">{sorted.length}{ko ? '개의 결과' : ' results'}</p>
+        <p className="mb-6 text-sm text-zinc-600">
+          {sorted.length}
+          {ko ? '개의 결과' : ' results'}
+        </p>
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {loading ? Array.from({ length: 9 }).map((_, index) => <SkeletonCard key={index} />) : sorted.map(user => {
-            return (
-            <div
-              key={user.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => navigate(`/explore/${user.id}`)}
-              onKeyDown={event => {
-                if (event.key === 'Enter' || event.key === ' ') navigate(`/explore/${user.id}`);
-              }}
-              className="group aspect-[16/9] overflow-hidden rounded-2xl text-left transition-all duration-300 hover:-translate-y-1"
-              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
-              aria-label={user.name}
-            >
-              {user.thumbnail ? (
-                <img
-                  src={user.thumbnail}
-                  alt=""
-                  loading="lazy"
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-500/25 to-blue-500/20 text-4xl font-black text-white/80">
-                  PPT
+          {loading
+            ? Array.from({ length: 9 }).map((_, index) => <SkeletonCard key={index} />)
+            : sorted.map(user => (
+                <div
+                  key={user.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`/explore/${user.id}`)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' || event.key === ' ') navigate(`/explore/${user.id}`);
+                  }}
+                  className="group aspect-[16/9] overflow-hidden rounded-2xl text-left transition-all duration-300 hover:-translate-y-1"
+                  style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+                  aria-label={user.name}
+                >
+                  {user.thumbnail ? (
+                    <img
+                      src={user.thumbnail}
+                      alt=""
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-violet-500/25 to-blue-500/20 text-4xl font-black text-white/80">
+                      PPT
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          );})}
+              ))}
         </div>
       </div>
     </div>

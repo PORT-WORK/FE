@@ -37,6 +37,7 @@ export type PortfolioSummary = {
   summary: string | null;
   skills: string[];
   pptxUrl: string | null;
+  pdfUrl?: string | null;
   isPublic: boolean;
   viewCount: number;
   likeCount: number;
@@ -53,6 +54,7 @@ export type PortfolioDetail = {
   skills: string[];
   templateId: number | null;
   pptxUrl: string | null;
+  pdfUrl?: string | null;
   customDomain: string | null;
   isPublic: boolean;
   viewCount: number;
@@ -99,6 +101,7 @@ export type ProjectItem = {
   role: string;
   summary: string | null;
   thumbnailUrl: string | null;
+  imageUrls?: string[];
   skills: string[];
   isSynced: boolean;
   startDate: string | null;
@@ -323,6 +326,7 @@ function normalizePortfolioSummary(item: unknown): PortfolioSummary {
     summary: (readField<string | null>(record, 'summary', 'description') || null) as string | null,
     skills: normalizeSkills(readField(record, 'skills', 'skill', 'skill_list')),
     pptxUrl: (readField<string | null>(record, 'pptxUrl', 'pptx_url') || null) as string | null,
+    pdfUrl: (readField<string | null>(record, 'pdfUrl', 'pdf_url') || null) as string | null,
     isPublic: Boolean(readField(record, 'isPublic', 'is_public', 'public') ?? true),
     viewCount: Number(readField(record, 'viewCount', 'view_count', 'views') || 0),
     likeCount: Number(readField(record, 'likeCount', 'like_count', 'likes') || 0),
@@ -342,6 +346,7 @@ function normalizePortfolioDetail(item: unknown): PortfolioDetail {
     skills: normalizeSkills(readField(record, 'skills', 'skill', 'skill_list')),
     templateId: readField<number | null>(record, 'templateId', 'template_id', 'template') ?? null,
     pptxUrl: (readField<string | null>(record, 'pptxUrl', 'pptx_url') || null) as string | null,
+    pdfUrl: (readField<string | null>(record, 'pdfUrl', 'pdf_url') || null) as string | null,
     customDomain: (readField<string | null>(record, 'customDomain', 'custom_domain') || null) as string | null,
     isPublic: Boolean(readField(record, 'isPublic', 'is_public', 'public') ?? false),
     viewCount: Number(readField(record, 'viewCount', 'view_count', 'views') || 0),
@@ -648,6 +653,8 @@ export async function createPortfolioProject(
     startDate?: string | null;
     endDate?: string | null;
     skills?: string;
+    thumbnailUrl?: string | null;
+    imageUrls?: string[];
   },
 ) {
   return apiRequestStrict<ProjectItem>({ url: `/portfolios/${portfolioId}/projects`, method: 'POST', data: payload });
@@ -663,6 +670,8 @@ export async function updatePortfolioProject(
     startDate?: string | null;
     endDate?: string | null;
     skills?: string;
+    thumbnailUrl?: string | null;
+    imageUrls?: string[];
   },
 ) {
   return apiRequestStrict<ProjectItem>({ url: `/portfolios/${portfolioId}/projects/${projectId}`, method: 'PUT', data: payload });
