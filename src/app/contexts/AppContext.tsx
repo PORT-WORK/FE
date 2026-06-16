@@ -342,6 +342,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const nextUser = mapProfileToUser(profile);
         setCurrentUserId(profile.id);
         setUser(nextUser);
+        setFollowingIds(defaultState.followingIds);
         setAiCount((value) => Math.max(value, 1));
       })
       .catch(() => {

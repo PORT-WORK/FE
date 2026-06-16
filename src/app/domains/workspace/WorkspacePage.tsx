@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import EmptyStatePanel from '../../components/EmptyStatePanel';
-import { listMyPortfolios, listPortfolioProjects, type PortfolioSummary, type ProjectItem } from '../../api/contentApi';
+import { deletePortfolioProject, listMyPortfolios, listPortfolioProjects, type PortfolioSummary, type ProjectItem } from '../../api/contentApi';
 import ProjectCreateModal from './ui/ProjectCreateModal';
-import { getLocalProjectListEventName, loadLocalProjectItems } from './projectWriting';
+import { getLocalProjectListEventName, loadLocalProjectItems, removeLocalProjectItem } from './projectWriting';
 import type { ProjectRole } from '../projectWriting';
 
 function parseRole(value: string | null): ProjectRole | null {
@@ -107,11 +107,6 @@ export default function WorkspacePage() {
     };
   }, [ko, selectedPortfolioId]);
 
-  const selectedPortfolio = useMemo(
-    () => portfolios.find(item => item.id === selectedPortfolioId) || null,
-    [portfolios, selectedPortfolioId],
-  );
-
   const visibleProjects = useMemo(() => {
     if (!selectedPortfolioId) {
       return localProjects;
@@ -128,9 +123,29 @@ export default function WorkspacePage() {
     setModalOpen(true);
   };
 
+  const deleteProject = async (project: ProjectItem) => {
+    const confirmed = window.confirm(ko ? '이 프로젝트를 삭제할까요?' : 'Delete this project?');
+    if (!confirmed) return;
+    try {
+      if (project.portfolioId > 0) {
+        await deletePortfolioProject(project.portfolioId, project.id);
+        if (selectedPortfolioId === project.portfolioId) {
+          const items = await listPortfolioProjects(project.portfolioId);
+          setProjects(items);
+        }
+      } else {
+        removeLocalProjectItem(project.id);
+        setLocalProjects(loadLocalProjectItems());
+      }
+      setError(null);
+    } catch {
+      setError(ko ? '프로젝트를 삭제하지 못했습니다.' : 'Failed to delete the project.');
+    }
+  };
+
   const emptyTitle = ko ? '프로젝트가 없습니다' : 'No projects yet';
   const emptyDescription = ko
-    ? '새 프로젝트를 만들고 문서를 작성해보세요.'
+    ? '새 프로젝트를 만들어 문서를 작성해보세요.'
     : 'Create a project first, then organize the documents that become a portfolio.';
 
   return (
@@ -171,11 +186,11 @@ export default function WorkspacePage() {
           </div>
         )}
 
-        {!selectedPortfolio && portfolios.length === 0 && visibleProjects.length === 0 ? (
+        {!selectedPortfolioId && portfolios.length === 0 && visibleProjects.length === 0 ? (
           <EmptyStatePanel
-            emoji="🗂"
+            emoji="🗂️"
             title={emptyTitle}
-            description={ko ? '프로젝트를 먼저 만들어 주세요.' : 'Create a project first to organize your writing.'}
+            description={ko ? '프로젝트를 먼저 만들어보세요.' : 'Create a project first to organize your writing.'}
             actionLabel={ko ? '새 프로젝트' : 'New project'}
             onAction={openProjectCreate}
             accent="blue"
@@ -189,7 +204,7 @@ export default function WorkspacePage() {
           />
         ) : visibleProjects.length === 0 ? (
           <EmptyStatePanel
-            emoji="📝"
+            emoji="📄"
             title={emptyTitle}
             description={emptyDescription}
             actionLabel={ko ? '새 프로젝트' : 'New project'}
@@ -197,25 +212,59 @@ export default function WorkspacePage() {
             accent="violet"
           />
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-3">
             {visibleProjects.map(project => (
-              <button
+              <div
                 key={project.id}
-                onClick={() =>
-                  navigate(
-                    `/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}`,
-                  )
-                }
-                className="overflow-hidden rounded-3xl text-left transition-all duration-300 hover:-translate-y-0.5"
+                className="flex items-center justify-between gap-4 rounded-3xl px-5 py-4 transition-all duration-300 hover:-translate-y-0.5"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
               >
-                <div className="h-28" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.15), rgba(37,99,235,0.12))' }} />
-                <div className="p-5">
-                  <p className="text-sm font-semibold text-white">{project.name}</p>
-                  <p className="mt-1 text-xs text-zinc-500">{project.role || (ko ? '직무 없음' : 'No role yet')}</p>
-                  <p className="mt-3 line-clamp-2 text-xs text-zinc-600">{project.summary || (ko ? '요약 없음' : 'No summary yet.')}</p>
+                <button
+                  onClick={() => {
+                    const view = project.isSynced ? '&view=1' : '';
+                    navigate(
+                      `/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}${view}`,
+                    );
+                  }}
+                  className="flex min-w-0 flex-1 items-start gap-4 text-left"
+                >
+                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl text-sm font-black text-white" style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.28), rgba(37,99,235,0.25))' }}>
+                    {project.name.slice(0, 1).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-white">{project.name}</p>
+                      <span className="rounded-full border border-white/8 bg-white/[0.03] px-2 py-0.5 text-[10px] text-zinc-400">
+                        {project.role || (ko ? '직무 없음' : 'No role')}
+                      </span>
+                      {project.isSynced && (
+                        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
+                          {ko ? '완성 문서' : 'Final doc'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 line-clamp-1 text-xs text-zinc-600">{project.summary || (ko ? '요약 없음' : 'No summary yet.')}</p>
+                    {project.skills?.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {project.skills.slice(0, 4).map(skill => (
+                          <span key={skill} className="rounded-full border border-white/8 bg-white/[0.02] px-2.5 py-1 text-[10px] text-zinc-400">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </button>
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <button
+                    onClick={() => void deleteProject(project)}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                    aria-label="Delete project"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}

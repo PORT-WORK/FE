@@ -19,7 +19,17 @@ import {
 import { useApp } from '../../contexts/AppContext';
 import EmptyStatePanel from '../../components/EmptyStatePanel';
 import { getCurrentUserId, subscribeRealtime } from '../../api/client';
-import { fetchPublicProfile, listConversationMessages, listMessages, markMessageRead, sendMessage, type ConversationCard, type MessageItem } from '../../api/contentApi';
+import {
+  deleteMessage,
+  fetchPublicProfile,
+  listConversationMessages,
+  listMessages,
+  markMessageRead,
+  sendMessage,
+  updateMessage,
+  type ConversationCard,
+  type MessageItem,
+} from '../../api/contentApi';
 
 type ChatType = 'text' | 'image' | 'file' | 'voice';
 
@@ -168,6 +178,7 @@ export default function MessagesPage() {
             time: formatDateKey(item.createdAt),
             date: formatDateKey(item.createdAt),
             type: 'text' as const,
+            edited: Boolean(item.edited),
           }));
           setChats(history.length > 0 ? history : buildInitialChats(activeCard));
         })
@@ -347,13 +358,22 @@ export default function MessagesPage() {
     event.target.value = '';
   };
 
-  const saveEdit = () => {
-    setChats(prev => prev.map(msg => (msg.id === editId ? { ...msg, text: editText, edited: true } : msg)));
+  const saveEdit = async () => {
+    if (!editId) return;
+    const nextText = editText.trim();
+    if (!nextText) return;
+    setChats(prev => prev.map(msg => (msg.id === editId ? { ...msg, text: nextText, edited: true } : msg)));
+    await updateMessage(editId, nextText);
+    void reloadConversations(true).catch(() => undefined);
     setEditId(null);
   };
 
-  const deleteMsg = (id: string) => {
+  const deleteMsg = async (id: string) => {
+    const confirmed = window.confirm(ko ? '메시지를 삭제할까요?' : 'Delete this message?');
+    if (!confirmed) return;
+    await deleteMessage(id);
     setChats(prev => prev.filter(msg => msg.id !== id));
+    void reloadConversations(true).catch(() => undefined);
   };
 
   const renderedChats: Array<ChatMsg | { _sep: string; id: string }> = [];

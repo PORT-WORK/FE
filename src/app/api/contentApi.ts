@@ -114,6 +114,7 @@ export type MessageItem = {
   isRead: boolean;
   createdAt: string;
   readAt: string | null;
+  edited?: boolean;
 };
 
 let messageBucketCache: {
@@ -122,6 +123,55 @@ let messageBucketCache: {
   inbox: MessageItem[];
   sent: MessageItem[];
 } | null = null;
+
+type MessageOverrideState = {
+  edited: Record<string, { content: string; updatedAt: string }>;
+  deleted: string[];
+};
+
+const MESSAGE_OVERRIDE_STORAGE_KEY = 'port-message-overrides';
+
+function messageOverrideKey(userId: number) {
+  return `${MESSAGE_OVERRIDE_STORAGE_KEY}:${userId}`;
+}
+
+function readMessageOverrides(userId: number): MessageOverrideState {
+  const win = safeWindow();
+  if (!win) return { edited: {}, deleted: [] };
+  try {
+    const raw = win.localStorage.getItem(messageOverrideKey(userId));
+    if (!raw) return { edited: {}, deleted: [] };
+    const parsed = JSON.parse(raw) as Partial<MessageOverrideState>;
+    return {
+      edited: parsed.edited && typeof parsed.edited === 'object' ? parsed.edited : {},
+      deleted: Array.isArray(parsed.deleted) ? parsed.deleted.map(String) : [],
+    };
+  } catch {
+    return { edited: {}, deleted: [] };
+  }
+}
+
+function writeMessageOverrides(userId: number, state: MessageOverrideState) {
+  const win = safeWindow();
+  if (!win) return;
+  win.localStorage.setItem(messageOverrideKey(userId), JSON.stringify(state));
+}
+
+function applyMessageOverrides(messages: MessageItem[], currentUserId: number) {
+  const overrides = readMessageOverrides(currentUserId);
+  const deleted = new Set(overrides.deleted.map(String));
+  return messages
+    .filter(item => !deleted.has(String(item.id)))
+    .map(item => {
+      const edited = overrides.edited[String(item.id)];
+      if (!edited) return item;
+      return {
+        ...item,
+        content: edited.content,
+        edited: true,
+      };
+    });
+}
 
 async function fetchMessageBuckets() {
   const currentUserId = getCurrentUserId();
@@ -136,8 +186,8 @@ async function fetchMessageBuckets() {
   messageBucketCache = {
     at: now,
     currentUserId,
-    inbox: asArray<MessageItem>(inbox),
-    sent: asArray<MessageItem>(sent),
+    inbox: applyMessageOverrides(asArray<MessageItem>(inbox), currentUserId),
+    sent: applyMessageOverrides(asArray<MessageItem>(sent), currentUserId),
   };
   return messageBucketCache;
 }
@@ -370,7 +420,7 @@ export async function listMessages(): Promise<ConversationCard[]> {
 
 export async function listConversationMessages(peerId: number): Promise<MessageItem[]> {
   const { currentUserId, inbox, sent } = await fetchMessageBuckets();
-  return [...inbox, ...sent]
+  return applyMessageOverrides([...inbox, ...sent], currentUserId)
     .filter(item =>
       (item.senderId === currentUserId && item.receiverId === peerId) ||
       (item.senderId === peerId && item.receiverId === currentUserId),
@@ -385,6 +435,47 @@ export async function sendMessage(receiverId: number, content: string) {
   );
   messageBucketCache = null;
   return result;
+}
+
+export async function updateMessage(messageId: string | number, content: string) {
+  const currentUserId = getCurrentUserId();
+  const id = String(messageId);
+  try {
+    const result = await apiRequest(
+      { url: `/messages/${id}`, method: 'PUT', data: { content } },
+      async () => undefined,
+    );
+    messageBucketCache = null;
+    return result;
+  } catch {
+    const overrides = readMessageOverrides(currentUserId);
+    overrides.edited[id] = { content, updatedAt: new Date().toISOString() };
+    writeMessageOverrides(currentUserId, overrides);
+    messageBucketCache = null;
+    return undefined;
+  }
+}
+
+export async function deleteMessage(messageId: string | number) {
+  const currentUserId = getCurrentUserId();
+  const id = String(messageId);
+  try {
+    const result = await apiRequest(
+      { url: `/messages/${id}`, method: 'DELETE' },
+      async () => undefined,
+    );
+    messageBucketCache = null;
+    return result;
+  } catch {
+    const overrides = readMessageOverrides(currentUserId);
+    if (!overrides.deleted.includes(id)) {
+      overrides.deleted = [...overrides.deleted, id];
+    }
+    delete overrides.edited[id];
+    writeMessageOverrides(currentUserId, overrides);
+    messageBucketCache = null;
+    return undefined;
+  }
 }
 
 export async function localLogin(email: string, password: string) {

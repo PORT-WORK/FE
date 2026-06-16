@@ -279,6 +279,7 @@ export default function ProjectEditorPage() {
   const projectName = query.get('name') || (ko ? '새 프로젝트' : 'New project');
   const role = (query.get('role') === 'PM' ? 'PM' : 'DEVELOPER') as Role;
   const draftMode = query.get('draft') === '1' || !projectId || portfolioId === 0;
+  const viewMode = query.get('view') === '1';
   const sectionMeta = useMemo(() => roleSections[role](language), [language, role]);
 
   const [session, setSession] = useState<ProjectWritingSession | null>(null);
@@ -353,6 +354,9 @@ export default function ProjectEditorPage() {
         setReviewedText(existing.reviewedDocument || '');
         setStep((existing.writingStatus as any) || 'NOT_STARTED');
         setResumable(Boolean(existing.updatedAt));
+        if (viewMode && (existing.reviewedDocument || existing.document)) {
+          setDocumentModalOpen(true);
+        }
       }
       setLoading(false);
       return;
@@ -383,6 +387,11 @@ export default function ProjectEditorPage() {
         setActiveKey(sectionMeta.find(item => nextDrafts[item.key])?.key || sectionMeta[0]?.key || '');
         setError(data.lastError || null);
         setStep((data.status as any) || 'NOT_STARTED');
+        if (viewMode && (data.reviewedDocument || data.documentText)) {
+          setDocumentText(data.documentText || '');
+          setReviewedText(data.reviewedDocument || '');
+          setDocumentModalOpen(true);
+        }
       })
       .catch(() => {
         if (!alive) return;
