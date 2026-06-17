@@ -95,6 +95,10 @@ export default function ExploreDetailPage() {
   const viewerUrl = useMemo(() => buildPptxViewerUrl(previewSource), [previewSource]);
   const pagedViewerUrl = useMemo(() => buildPdfPageUrl(viewerUrl, pdfPage), [pdfPage, viewerUrl]);
   const openTabUrl = useMemo(() => buildPptxTabUrl(previewSource), [previewSource]);
+  const detailSkills = useMemo(
+    () => (detail?.skills?.length ? detail.skills : selectedPortfolio?.skills || []).filter(Boolean),
+    [detail?.skills, selectedPortfolio?.skills],
+  );
 
   const toggleFollow = () => {
     const target = String(userId);
@@ -197,7 +201,7 @@ export default function ExploreDetailPage() {
                     />
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 px-4 py-4">
                       <div className="rounded-2xl border border-white/10 bg-black/55 px-4 py-2 text-xs font-semibold text-zinc-200 shadow-lg backdrop-blur">
-                        {ko ? `PDF 표지 / ${pdfPage}페이지` : `PDF cover / page ${pdfPage}`}
+                        {ko ? `PDF ${pdfPage}페이지` : `PDF page ${pdfPage}`}
                       </div>
                       <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-white/10 bg-black/70 px-2 py-2 shadow-lg backdrop-blur">
                         <button type="button" onClick={() => setPdfPage(page => Math.max(1, page - 1))} className="rounded-xl p-2 text-zinc-200 hover:bg-white/10">
@@ -254,6 +258,15 @@ export default function ExploreDetailPage() {
                 <section className="rounded-[28px] border border-white/8 bg-white/[0.03] p-4">
                   <p className="text-sm font-semibold text-white">{detail?.title || (ko ? '선택한 포트폴리오' : 'Selected portfolio')}</p>
                   <p className="mt-3 text-sm leading-6 text-zinc-500">{detail?.summary || (ko ? '선택한 PDF 정보를 확인합니다.' : 'Review selected PDF information.')}</p>
+                  {detailSkills.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {detailSkills.map(skill => (
+                        <span key={skill} className="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-100">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="mt-4 flex flex-wrap gap-2">
                     {[
                       { key: 'saved' as const, active: saved, icon: Bookmark, label: ko ? '저장됨' : 'Saved' },

@@ -12,6 +12,7 @@ export type ProjectWritingStatus =
 export type SectionStatus = 'EMPTY' | 'DRAFT' | 'COMPLETED';
 
 export type ProjectSectionKey =
+  | 'overview'
   | 'role'
   | 'problem'
   | 'tech'
@@ -72,6 +73,7 @@ export const WRITING_ROLES: Array<{ key: ProjectRole; label: string; description
 
 export const SECTION_TEMPLATES: Record<ProjectRole, ProjectSectionTemplate[]> = {
   DEVELOPER: [
+    { key: 'overview', title: '프로젝트 개요', guide: '무엇을 왜 만들었는지, 어떤 문제를 풀었는지 먼저 설명합니다.', placeholder: '프로젝트 개요를 적어주세요.' },
     { key: 'role', title: '담당 역할', guide: '본인의 책임 범위와 실제 기여를 분리해서 적습니다.', placeholder: '맡은 역할을 적어주세요.' },
     { key: 'problem', title: '문제 정의', guide: '해결하려는 문제를 사용자 관점에서 설명합니다.', placeholder: '문제를 적어주세요.' },
     { key: 'tech', title: '기술 스택', guide: '실제로 사용한 기술만 적습니다.', placeholder: 'React, TypeScript, Node.js...' },

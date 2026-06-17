@@ -225,10 +225,11 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
             <div className="mt-4 flex items-center gap-2">
               <button
                 onClick={() => {
-                  if (!portfolioId || selectedProjectIds.length === 0) return;
-                  onConfirm({ portfolioId, projectIds: selectedProjectIds, articleIds: [] });
+                  if (selectedProjectIds.length === 0) return;
+                  const resolvedPortfolioId = portfolioId || selectedProjects[0]?.portfolioId || 0;
+                  onConfirm({ portfolioId: resolvedPortfolioId, projectIds: selectedProjectIds, articleIds: [] });
                 }}
-                disabled={!portfolioId || selectedProjectIds.length === 0}
+                disabled={selectedProjectIds.length === 0}
                 className="flex-1 rounded-2xl py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
                 style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', boxShadow: '0 0 24px rgba(124,58,237,0.32)' }}
               >

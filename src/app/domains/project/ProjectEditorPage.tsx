@@ -43,6 +43,7 @@ type ImageAsset = {
 
 const roleSections: Record<Role, (lang: 'ko' | 'en') => SectionMeta[]> = {
   DEVELOPER: lang => [
+    { key: 'overview', title: lang === 'ko' ? '프로젝트 개요' : 'Project overview', guide: lang === 'ko' ? '무엇을 왜 만들었는지, 어떤 문제를 풀었는지 먼저 설명합니다.' : 'Explain what you built, why you built it, and what problem it solved.', placeholder: lang === 'ko' ? '프로젝트 개요를 적어주세요.' : 'Write the project overview.' },
     { key: 'role', title: lang === 'ko' ? '담당 역할' : 'Role', guide: lang === 'ko' ? '본인의 범위를 분리해서 적습니다.' : 'Separate your own scope clearly.', placeholder: lang === 'ko' ? '맡은 역할을 적어주세요.' : 'Write your responsibilities.' },
     { key: 'problem', title: lang === 'ko' ? '문제 정의' : 'Problem definition', guide: lang === 'ko' ? '해결하려는 문제를 사용자 관점에서 설명합니다.' : 'Describe the problem from the user perspective.', placeholder: lang === 'ko' ? '문제를 적어주세요.' : 'Write the problem.' },
     { key: 'tech', title: lang === 'ko' ? '기술 스택' : 'Tech stack', guide: lang === 'ko' ? '실제로 사용한 기술만 적습니다.' : 'List only the technologies you actually used.', placeholder: 'React, TypeScript, Spring Boot...' },
@@ -206,6 +207,7 @@ function buildSectionDraftMap(
   ) as Record<string, { value: string; status: SectionStatus }>;
 
   const developerRules: Array<{ key: string; terms: string[] }> = [
+    { key: 'overview', terms: ['readme', 'overview', 'summary', 'description', 'introduction', 'project'] },
     { key: 'role', terms: ['role', 'responsibility', 'scope', 'owner'] },
     { key: 'problem', terms: ['issue', 'bug', 'problem', 'pain', 'challenge'] },
     { key: 'tech', terms: ['language', 'stack', 'tech', 'framework', 'library', 'dependency'] },
@@ -307,7 +309,6 @@ export default function ProjectEditorPage() {
   const [sourceModalDismissed, setSourceModalDismissed] = useState(false);
   const [documentModalOpen, setDocumentModalOpen] = useState(false);
   const [reviewConfirmOpen, setReviewConfirmOpen] = useState(false);
-  const saveTimer = useRef<number | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const readFileAsDataUrl = (file: File) =>
@@ -445,58 +446,6 @@ export default function ProjectEditorPage() {
   const sourceItems = Array.isArray(sourceSnapshot.sources) ? (sourceSnapshot.sources as Array<Record<string, unknown>>) : [];
   const selectedSlides = parsePresentation(session?.presentationJson || null);
   const selectedSourceCount = session?.selectedSourceIds?.length || sourceItems.length;
-
-  const persistDraft = async (nextDrafts: Record<string, { value: string; status: SectionStatus }>) => {
-    if (draftMode) {
-      saveLocalDraft({
-        projectId: projectId || Number(Date.now()),
-        portfolioId: portfolioId || null,
-        projectName,
-        role,
-        writingStatus: step,
-        sections: nextDrafts,
-        selectedProjectIds: [],
-        selectedArticleIds: [],
-        imageAssets,
-        reviewedDocument: reviewedText,
-        document: documentText,
-        updatedAt: new Date().toISOString(),
-      });
-      persistLocalProjectListing(documentText, reviewedText, step);
-      return;
-    }
-
-    if (!projectId) return;
-    setSaving(true);
-    try {
-      const payload = {
-        progress,
-        sectionDrafts: Object.fromEntries(Object.entries(nextDrafts).map(([key, item]) => [key, item.value])),
-        sectionStatuses: Object.fromEntries(Object.entries(nextDrafts).map(([key, item]) => [key, item.status])),
-        documentText,
-        reviewedDocument: reviewedText,
-      };
-      const updated = await saveProjectWritingDraft(projectId, payload);
-      setSession(updated);
-      setError(updated.lastError || null);
-    } catch {
-      setError(ko ? '임시 저장에 실패했습니다.' : 'Failed to save draft.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!projectId || loading) return;
-    if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(() => {
-      void persistDraft(sectionDrafts);
-    }, 500);
-    return () => {
-      if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sectionDrafts, projectId, loading]);
 
   const updateSection = (key: string, value: string) => {
     setSectionDrafts(prev => ({
@@ -1039,7 +988,7 @@ export default function ProjectEditorPage() {
                   className="rounded-2xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg,#22c55e,#2563eb)' }}
                 >
-                  {saving ? (ko ? '저장 중' : 'Saving') : (ko ? '저장' : 'Save')}
+                  {saving ? (ko ? '저장 중' : 'Saving') : (ko ? '확인' : 'Confirm')}
                 </button>
               </div>
             </div>
@@ -1124,7 +1073,7 @@ export default function ProjectEditorPage() {
                 className="rounded-2xl px-5 py-3 text-sm font-semibold text-white"
                 style={{ background: 'linear-gradient(135deg,#22c55e,#2563eb)' }}
               >
-                {ko ? '저장' : 'Save'}
+                {ko ? '확인' : 'Confirm'}
               </button>
             </div>
           </div>
@@ -1201,7 +1150,7 @@ export default function ProjectEditorPage() {
                   <h2 className="text-xl font-black text-white">{activeSection?.title}</h2>
                   <p className="mt-2 text-sm leading-6 text-zinc-500">{activeSection?.guide}</p>
                 </div>
-                <div className="mt-1">{saving ? (ko ? '저장 중...' : 'Saving...') : ko ? '자동 저장' : 'Auto save'}</div>
+                <div className="mt-1">{saving ? (ko ? '저장 중...' : 'Saving...') : ko ? '저장 버튼을 눌러 저장' : 'Save manually'}</div>
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3">
