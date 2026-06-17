@@ -325,8 +325,8 @@ function normalizePortfolioSummary(item: unknown): PortfolioSummary {
     thumbnailUrl: (readField<string | null>(record, 'thumbnailUrl', 'thumbnail_url', 'thumbnail') || null) as string | null,
     summary: (readField<string | null>(record, 'summary', 'description') || null) as string | null,
     skills: normalizeSkills(readField(record, 'skills', 'skill', 'skill_list')),
-    pptxUrl: (readField<string | null>(record, 'pptxUrl', 'pptx_url') || null) as string | null,
-    pdfUrl: (readField<string | null>(record, 'pdfUrl', 'pdf_url') || null) as string | null,
+    pdfUrl: (readField<string | null>(record, 'pdfUrl', 'pdf_url', 'pptxUrl', 'pptx_url') || null) as string | null,
+    pptxUrl: (readField<string | null>(record, 'pptxUrl', 'pptx_url', 'pdfUrl', 'pdf_url') || null) as string | null,
     isPublic: Boolean(readField(record, 'isPublic', 'is_public', 'public') ?? true),
     viewCount: Number(readField(record, 'viewCount', 'view_count', 'views') || 0),
     likeCount: Number(readField(record, 'likeCount', 'like_count', 'likes') || 0),
@@ -345,8 +345,8 @@ function normalizePortfolioDetail(item: unknown): PortfolioDetail {
     summary: (readField<string | null>(record, 'summary', 'description') || null) as string | null,
     skills: normalizeSkills(readField(record, 'skills', 'skill', 'skill_list')),
     templateId: readField<number | null>(record, 'templateId', 'template_id', 'template') ?? null,
-    pptxUrl: (readField<string | null>(record, 'pptxUrl', 'pptx_url') || null) as string | null,
-    pdfUrl: (readField<string | null>(record, 'pdfUrl', 'pdf_url') || null) as string | null,
+    pdfUrl: (readField<string | null>(record, 'pdfUrl', 'pdf_url', 'pptxUrl', 'pptx_url') || null) as string | null,
+    pptxUrl: (readField<string | null>(record, 'pptxUrl', 'pptx_url', 'pdfUrl', 'pdf_url') || null) as string | null,
     customDomain: (readField<string | null>(record, 'customDomain', 'custom_domain') || null) as string | null,
     isPublic: Boolean(readField(record, 'isPublic', 'is_public', 'public') ?? false),
     viewCount: Number(readField(record, 'viewCount', 'view_count', 'views') || 0),
@@ -686,8 +686,8 @@ export async function exportPortfolioPptx(portfolioId: number, sourceText = '') 
   const hasSource = Boolean(sourceText.trim());
   return apiRequestStrict<Blob>(
     hasSource
-      ? { url: `/portfolios/${portfolioId}/export/pptx`, method: 'POST', data: { sourceText }, responseType: 'blob' }
-      : { url: `/portfolios/${portfolioId}/export/pptx`, method: 'GET', responseType: 'blob' },
+      ? { url: `/portfolios/${portfolioId}/export/pdf`, method: 'POST', data: { sourceText }, responseType: 'blob' }
+      : { url: `/portfolios/${portfolioId}/export/pdf`, method: 'GET', responseType: 'blob' },
   );
 }
 
@@ -719,6 +719,8 @@ export async function saveProjectWritingDraft(
     progress?: number;
     sectionDrafts?: Record<string, string>;
     sectionStatuses?: Record<string, string>;
+    documentText?: string;
+    reviewedDocument?: string;
   },
 ) {
   return apiRequestStrict<ProjectWritingSession>({ url: `/projects/${projectId}/writing/draft`, method: 'PUT', data: payload });
@@ -737,7 +739,7 @@ export async function createProjectWritingPresentation(projectId: number) {
 }
 
 export async function exportProjectWritingPptx(projectId: number) {
-  return apiRequestStrict<Blob>({ url: `/projects/${projectId}/writing/export/pptx`, method: 'GET', responseType: 'blob' });
+  return apiRequestStrict<Blob>({ url: `/projects/${projectId}/writing/export/pdf`, method: 'GET', responseType: 'blob' });
 }
 
 export async function listDocumentBlocks(documentId: number) {

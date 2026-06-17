@@ -52,6 +52,7 @@ export type ProjectWritingDraft = {
   sections: Record<string, { value: string; status: SectionStatus }>;
   selectedProjectIds: number[];
   selectedArticleIds: string[];
+  imageAssets: Array<{ id: string; name: string; url: string }>;
   reviewedDocument: string;
   document: string;
   updatedAt: string | null;
@@ -122,6 +123,7 @@ export function createEmptyDraft(projectId: number, portfolioId: number | null, 
     sections,
     selectedProjectIds: [],
     selectedArticleIds: [],
+    imageAssets: [],
     reviewedDocument: '',
     document: '',
     updatedAt: null,
@@ -136,7 +138,16 @@ export function loadDraft(projectId: number): ProjectWritingDraft | null {
   try {
     const raw = localStorage.getItem(getDraftStorageKey(projectId));
     if (!raw) return null;
-    return JSON.parse(raw) as ProjectWritingDraft;
+    const parsed = JSON.parse(raw) as Partial<ProjectWritingDraft>;
+    return {
+      ...createEmptyDraft(Number(parsed.projectId || projectId), parsed.portfolioId ?? null, (parsed.role === 'PM' ? 'PM' : 'DEVELOPER') as ProjectRole, parsed.projectName || 'New project'),
+      ...parsed,
+      imageAssets: Array.isArray(parsed.imageAssets) ? parsed.imageAssets.filter(Boolean).map(item => ({
+        id: String((item as { id?: unknown }).id || ''),
+        name: String((item as { name?: unknown }).name || ''),
+        url: String((item as { url?: unknown }).url || ''),
+      })).filter(item => item.id && item.name && item.url) : [],
+    };
   } catch {
     return null;
   }

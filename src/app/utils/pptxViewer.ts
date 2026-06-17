@@ -1,7 +1,10 @@
-const GOOGLE_VIEWER_BASE = 'https://docs.google.com/gview?embedded=1&url=';
-
 function isViewableUrl(value: string) {
   return /^https?:\/\//i.test(value) || value.startsWith('blob:') || value.startsWith('data:');
+}
+
+function isPdfUrl(value: string) {
+  const lower = value.toLowerCase();
+  return lower.startsWith('blob:') || lower.startsWith('data:application/pdf') || lower.includes('.pdf') || lower.includes('/pdf') || lower.includes('resource_type=raw');
 }
 
 type PreviewInput = {
@@ -18,10 +21,8 @@ export function buildPptxViewerUrl(input?: string | PreviewInput | null) {
   }
   const trimmed = input.trim();
   if (!trimmed) return '';
-  if (/\.pdf(?:$|\?)/i.test(trimmed)) return trimmed;
-  if (/view\.officeapps\.live\.com|docs\.google\.com/i.test(trimmed)) return trimmed;
-  if (!isViewableUrl(trimmed)) return trimmed;
-  return `${GOOGLE_VIEWER_BASE}${encodeURIComponent(trimmed)}`;
+  if (!isViewableUrl(trimmed) || !isPdfUrl(trimmed)) return '';
+  return trimmed;
 }
 
 export function buildPptxTabUrl(input?: string | PreviewInput | null) {
@@ -33,5 +34,11 @@ export function buildPptxTabUrl(input?: string | PreviewInput | null) {
   }
   const trimmed = input.trim();
   if (!trimmed) return '';
-  return trimmed;
+  return isViewableUrl(trimmed) ? trimmed : '';
+}
+
+export function buildPdfPageUrl(url: string, page: number) {
+  if (!url) return '';
+  const separator = url.includes('#') ? '&' : '#';
+  return `${url}${separator}toolbar=0&navpanes=0&scrollbar=0&page=${Math.max(1, page)}`;
 }

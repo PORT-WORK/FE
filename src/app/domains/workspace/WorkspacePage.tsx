@@ -213,7 +213,7 @@ export default function WorkspacePage() {
           }
           setModalOpen(false);
           navigate(
-            `/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}${project.portfolioId > 0 ? '' : '&draft=1'}`,
+            `/project/editor?projectId=${project.id}&portfolioId=${project.portfolioId}&role=${project.role || 'DEVELOPER'}&name=${encodeURIComponent(project.name)}`,
           );
         }}
       />

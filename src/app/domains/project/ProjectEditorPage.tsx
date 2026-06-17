@@ -9,6 +9,7 @@ import {
   reviewProjectWritingDocument,
   saveProjectWritingDraft,
   selectProjectWritingSources,
+  updatePortfolioProject,
   type ProjectWritingSession,
 } from '../../api/contentApi';
 import { type IntegrationProviderKey } from '../../api/integrationProviders';
@@ -280,7 +281,7 @@ export default function ProjectEditorPage() {
   const portfolioId = Number(query.get('portfolioId') || 0);
   const projectName = query.get('name') || (ko ? '새 프로젝트' : 'New project');
   const role = (query.get('role') === 'PM' ? 'PM' : 'DEVELOPER') as Role;
-  const draftMode = query.get('draft') === '1' || !projectId || portfolioId === 0;
+  const draftMode = query.get('draft') === '1' || !projectId;
   const viewMode = query.get('view') === '1';
   const sectionMeta = useMemo(() => roleSections[role](language), [language, role]);
 
@@ -305,6 +306,7 @@ export default function ProjectEditorPage() {
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [sourceModalDismissed, setSourceModalDismissed] = useState(false);
   const [documentModalOpen, setDocumentModalOpen] = useState(false);
+  const [reviewConfirmOpen, setReviewConfirmOpen] = useState(false);
   const saveTimer = useRef<number | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -350,12 +352,13 @@ export default function ProjectEditorPage() {
       name: session?.projectName || projectName,
       role,
       summary,
-      thumbnailUrl: null,
+      thumbnailUrl: imageAssets[0]?.url || null,
       skills: extractProjectSkills(nextDraftSnapshot),
       isSynced: nextStatus === 'REVIEWED' || nextStatus === 'PPT_CREATED',
       startDate: null,
       endDate: null,
       orderIndex: Number(session?.progress || nextCompletedCount || 0),
+      imageUrls: imageAssets.map(item => item.url),
     });
     notifyLocalProjectItemsChanged();
   };
@@ -385,9 +388,6 @@ export default function ProjectEditorPage() {
         setReviewedText(existing.reviewedDocument || '');
         setStep((existing.writingStatus as any) || 'NOT_STARTED');
         setResumable(Boolean(existing.updatedAt));
-        if (viewMode && (existing.reviewedDocument || existing.document)) {
-          setDocumentModalOpen(true);
-        }
       }
       setLoading(false);
       return;
@@ -418,11 +418,8 @@ export default function ProjectEditorPage() {
         setActiveKey(sectionMeta.find(item => nextDrafts[item.key])?.key || sectionMeta[0]?.key || '');
         setError(data.lastError || null);
         setStep((data.status as any) || 'NOT_STARTED');
-        if (viewMode && (data.reviewedDocument || data.documentText)) {
-          setDocumentText(data.documentText || '');
-          setReviewedText(data.reviewedDocument || '');
-          setDocumentModalOpen(true);
-        }
+        setDocumentText(data.documentText || '');
+        setReviewedText(data.reviewedDocument || '');
       })
       .catch(() => {
         if (!alive) return;
@@ -460,6 +457,7 @@ export default function ProjectEditorPage() {
         sections: nextDrafts,
         selectedProjectIds: [],
         selectedArticleIds: [],
+        imageAssets,
         reviewedDocument: reviewedText,
         document: documentText,
         updatedAt: new Date().toISOString(),
@@ -475,12 +473,14 @@ export default function ProjectEditorPage() {
         progress,
         sectionDrafts: Object.fromEntries(Object.entries(nextDrafts).map(([key, item]) => [key, item.value])),
         sectionStatuses: Object.fromEntries(Object.entries(nextDrafts).map(([key, item]) => [key, item.status])),
+        documentText,
+        reviewedDocument: reviewedText,
       };
       const updated = await saveProjectWritingDraft(projectId, payload);
       setSession(updated);
       setError(updated.lastError || null);
     } catch {
-      setError(ko ? '?꾩떆 ??μ뿉 ?ㅽ뙣?덉뒿?덈떎.' : 'Failed to save draft.');
+      setError(ko ? '임시 저장에 실패했습니다.' : 'Failed to save draft.');
     } finally {
       setSaving(false);
     }
@@ -748,11 +748,12 @@ export default function ProjectEditorPage() {
       }
       const next = await reviewProjectWritingDocument(projectId);
       setSession(next);
-      setReviewedText(next.reviewedDocument || '');
+      setDocumentText(next.documentText || localDocument);
+      setReviewedText(next.reviewedDocument || next.documentText || localDocument);
       setDocumentModalOpen(true);
       setStep('REVIEWED');
       setError(next.lastError || null);
-      persistLocalProjectListing(next.documentText || localDocument, next.reviewedDocument || '', 'REVIEWED', sectionDrafts);
+      persistLocalProjectListing(next.documentText || localDocument, next.reviewedDocument || next.documentText || localDocument, 'REVIEWED', sectionDrafts);
     } catch {
       setError(ko ? 'AI 검수에 실패했습니다.' : 'Failed to review the document.');
     } finally {
@@ -802,7 +803,7 @@ export default function ProjectEditorPage() {
       setStep('PPT_CREATED');
       setError(next.lastError || null);
     } catch {
-      setError(ko ? 'PPTX 생성에 실패했습니다.' : 'Failed to generate PPTX.');
+      setError(ko ? 'PDF 생성에 실패했습니다.' : 'Failed to generate PDF.');
     } finally {
       setGenerateBusy(false);
     }
@@ -816,7 +817,7 @@ export default function ProjectEditorPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `project-${projectId}.pptx`;
+      a.download = `project-${projectId}.pdf`;
       a.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1500);
     } finally {
@@ -838,23 +839,128 @@ export default function ProjectEditorPage() {
         sections: sectionDrafts,
         selectedProjectIds: session?.selectedProjectIds || [],
         selectedArticleIds: session?.selectedSourceIds || [],
+        imageAssets,
         reviewedDocument: nextReviewed,
         document: nextDocument,
         updatedAt: new Date().toISOString(),
       });
       persistLocalProjectListing(nextDocument, nextReviewed, nextReviewed ? 'REVIEWED' : 'DOCUMENT_CREATED', sectionDrafts);
+      setSession(prev => (prev ? {
+        ...prev,
+        documentText: nextDocument || prev.documentText,
+        reviewedDocument: nextReviewed || prev.reviewedDocument,
+        status: nextReviewed ? 'REVIEWED' : 'DOCUMENT_CREATED',
+        lastSavedAt: new Date().toISOString(),
+      } : prev));
+      setStep(nextReviewed ? 'REVIEWED' : 'DOCUMENT_CREATED');
+      setDocumentModalOpen(false);
+      return;
     }
 
-    setSession(prev => (prev ? {
-      ...prev,
-      documentText: nextDocument || prev.documentText,
-      reviewedDocument: nextReviewed || prev.reviewedDocument,
-      status: nextReviewed ? 'REVIEWED' : 'DOCUMENT_CREATED',
-      lastSavedAt: new Date().toISOString(),
-    } : prev));
-    setStep(nextReviewed ? 'REVIEWED' : 'DOCUMENT_CREATED');
-    setDocumentModalOpen(false);
+    void (async () => {
+      if (!projectId) return;
+      setSaving(true);
+      try {
+        saveLocalDraft({
+          projectId,
+          portfolioId: portfolioId || null,
+          projectName,
+          role,
+          writingStatus: nextReviewed ? 'REVIEWED' : 'DOCUMENT_CREATED',
+          sections: sectionDrafts,
+          selectedProjectIds: session?.selectedProjectIds || [],
+          selectedArticleIds: session?.selectedSourceIds || [],
+          imageAssets,
+          reviewedDocument: nextReviewed,
+          document: nextDocument,
+          updatedAt: new Date().toISOString(),
+        });
+        const updated = await saveProjectWritingDraft(projectId, {
+          progress,
+          sectionDrafts: Object.fromEntries(Object.entries(sectionDrafts).map(([key, item]) => [key, item.value])),
+          sectionStatuses: Object.fromEntries(Object.entries(sectionDrafts).map(([key, item]) => [key, item.status])),
+          documentText: nextDocument,
+          reviewedDocument: nextReviewed,
+        });
+        const thumbnail = imageAssets[0]?.url || null;
+        if (portfolioId > 0 && thumbnail && thumbnail.length <= 500) {
+          await updatePortfolioProject(portfolioId, projectId, {
+            name: session?.projectName || projectName,
+            role,
+            summary: extractProjectSummary(nextDocument, nextReviewed, projectName),
+            skills: extractProjectSkills(sectionDrafts).join(','),
+            thumbnailUrl: thumbnail,
+          }).catch(() => undefined);
+        }
+        setSession(updated);
+        setError(updated.lastError || null);
+        persistLocalProjectListing(nextDocument, nextReviewed, nextReviewed ? 'REVIEWED' : 'DOCUMENT_CREATED', sectionDrafts);
+        setStep(nextReviewed ? 'REVIEWED' : 'DOCUMENT_CREATED');
+        setDocumentModalOpen(false);
+        navigate('/workspace', { replace: true, state: { portfolioId } });
+      } catch {
+        setError(ko ? '문서 저장에 실패했습니다.' : 'Failed to save the document.');
+      } finally {
+        setSaving(false);
+      }
+    })();
   };
+
+  const requestReview = () => {
+    setReviewConfirmOpen(true);
+  };
+
+  const runConfirmedReview = () => {
+    setReviewConfirmOpen(false);
+    void reviewDocument();
+  };
+
+  const mergedDocument = (reviewedText.trim() || documentText.trim()).trim();
+  const documentOnlyMode =
+    !documentModalOpen &&
+    mergedDocument.length > 0 &&
+    (viewMode || step === 'DOCUMENT_CREATED' || step === 'REVIEWED' || step === 'PPT_CREATED');
+
+  const busyOverlay = (documentBusy || reviewBusy) ? (
+    <div className="fixed inset-0 z-[390] flex items-center justify-center bg-black/75 px-4 backdrop-blur-md">
+      <div className="rounded-[28px] border border-white/10 bg-[#101010] px-8 py-7 text-center shadow-2xl">
+        <Loader2 size={22} className="mx-auto mb-4 animate-spin text-violet-300" />
+        <p className="text-lg font-black text-white">{documentBusy ? '문서를 생성하는 중' : 'AI 검수 중'}</p>
+        <p className="mt-2 text-sm text-zinc-500">잠시만 기다려주세요.</p>
+      </div>
+    </div>
+  ) : null;
+
+  const reviewConfirmModal = reviewConfirmOpen ? (
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/75 px-4 backdrop-blur-md">
+      <div className="w-full max-w-sm rounded-[28px] border border-white/10 bg-[#101010] p-6 shadow-2xl">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-500/25 bg-violet-500/10 text-violet-200">
+          <Wand2 size={20} />
+        </div>
+        <h3 className="mt-5 text-lg font-black text-white">{ko ? 'AI 검수를 진행하시겠습니까?' : 'Run AI review?'}</h3>
+        <p className="mt-2 text-sm leading-6 text-zinc-500">
+          {ko ? '현재 합쳐진 문서를 백엔드 AI 검수 API로 보내 문장과 흐름을 다듬습니다.' : 'The merged document will be sent to the backend AI review API.'}
+        </p>
+        <div className="mt-6 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setReviewConfirmOpen(false)}
+            className="flex-1 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-zinc-300"
+          >
+            {ko ? '취소' : 'Cancel'}
+          </button>
+          <button
+            type="button"
+            onClick={runConfirmedReview}
+            className="flex-1 rounded-2xl px-4 py-3 text-sm font-semibold text-white"
+            style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
+          >
+            {ko ? '진행' : 'Continue'}
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   if (loading) {
     return (
@@ -888,6 +994,66 @@ export default function ProjectEditorPage() {
       </div>
     );
   }
+
+  if (documentOnlyMode) {
+    return (
+      <div className="min-h-full overflow-y-auto bg-[#050505] px-6 py-6 lg:px-8">
+        {busyOverlay}
+        {reviewConfirmModal}
+        <div className="mx-auto max-w-5xl space-y-6">
+          <div className="flex items-center justify-between gap-4">
+            <button
+              type="button"
+              onClick={() => navigate('/workspace')}
+              className="inline-flex items-center gap-2 text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+            >
+              <ArrowLeft size={14} />
+              {ko ? '프로젝트로 돌아가기' : 'Back to projects'}
+            </button>
+            <div className="flex items-center gap-2 text-xs text-zinc-500">
+              <Clock3 size={12} />
+              {session?.lastSavedAt ? new Date(session.lastSavedAt).toLocaleString() : '-'}
+            </div>
+          </div>
+
+          <section className="rounded-[32px] border border-white/10 bg-white/[0.03] p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-violet-300">Project document</p>
+                <h1 className="mt-2 text-3xl font-black text-white">{session?.projectName || projectName}</h1>
+                <p className="mt-2 text-sm text-zinc-500">{role}</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={requestReview}
+                  disabled={reviewBusy}
+                  className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-zinc-200 disabled:opacity-50"
+                >
+                  {ko ? 'AI 검수' : 'AI Review'}
+                </button>
+                <button
+                  type="button"
+                  onClick={saveDocumentSnapshot}
+                  disabled={saving}
+                  className="rounded-2xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg,#22c55e,#2563eb)' }}
+                >
+                  {saving ? (ko ? '저장 중' : 'Saving') : (ko ? '저장' : 'Save')}
+                </button>
+              </div>
+            </div>
+            <textarea
+              value={reviewedText || documentText}
+              onChange={event => (reviewedText ? setReviewedText(event.target.value) : setDocumentText(event.target.value))}
+              className="mt-6 min-h-[620px] w-full resize-y rounded-[26px] border border-white/8 bg-black/25 px-6 py-5 text-sm leading-8 text-zinc-100 outline-none focus:border-violet-500/35"
+            />
+          </section>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-full overflow-y-auto bg-[#050505] px-6 py-6 lg:px-8">
       <ProjectSourceSelectionModal
@@ -914,15 +1080,8 @@ export default function ProjectEditorPage() {
         onOpenSources={() => setSourceModalOpen(true)}
       />
 
-      {(documentBusy || reviewBusy) && (
-        <div className="fixed inset-0 z-[390] flex items-center justify-center bg-black/75 px-4 backdrop-blur-md">
-          <div className="rounded-[28px] border border-white/10 bg-[#101010] px-8 py-7 text-center shadow-2xl">
-            <Loader2 size={22} className="mx-auto mb-4 animate-spin text-violet-300" />
-            <p className="text-lg font-black text-white">{documentBusy ? '문서를 생성하는 중' : 'AI 검수 중'}</p>
-            <p className="mt-2 text-sm text-zinc-500">잠시만 기다려주세요.</p>
-          </div>
-        </div>
-      )}
+      {busyOverlay}
+      {reviewConfirmModal}
 
       {documentModalOpen && (
         <div className="fixed inset-0 z-[380] flex items-start justify-center overflow-y-auto bg-black/75 px-4 py-6 backdrop-blur-md" onClick={() => setDocumentModalOpen(false)}>
@@ -953,11 +1112,8 @@ export default function ProjectEditorPage() {
               </div>
             </div>
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => void createDocument()} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-zinc-300">
-                {ko ? '재시도' : 'Retry'}
-              </button>
               <button
-                onClick={() => void reviewDocument()}
+                onClick={requestReview}
                 className="rounded-2xl px-5 py-3 text-sm font-semibold text-white"
                 style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
               >
@@ -1008,7 +1164,7 @@ export default function ProjectEditorPage() {
                   </div>
                   <h1 className="text-3xl font-black tracking-tight text-white">{session?.projectName || projectName}</h1>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                    {ko ? '자료를 선택하고 섹션을 하나씩 작성한 뒤, AI 검수 후 PPTX로 내보냅니다.' : 'Choose sources, edit sections one by one, review once with AI, then export the PPTX.'}
+                    {ko ? '자료를 선택하고 섹션을 하나씩 작성한 뒤, AI 검수 후 PDF로 내보냅니다.' : 'Choose sources, edit sections one by one, review once with AI, then export the PDF.'}
                   </p>
                 </div>
                 <button
@@ -1091,7 +1247,7 @@ export default function ProjectEditorPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-black text-white">{ko ? '생성 흐름' : 'Generation pipeline'}</h2>
-                  <p className="mt-1 text-xs text-zinc-500">{ko ? '초안 작성 → AI 검수 → PPTX 생성' : 'Draft writing → AI review → PPTX generation'}</p>
+                  <p className="mt-1 text-xs text-zinc-500">{ko ? '초안 작성 → AI 검수 → PDF 생성' : 'Draft writing → AI review → PDF generation'}</p>
                 </div>
                 <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-1 text-[10px] text-violet-200">{step}</span>
               </div>
@@ -1164,7 +1320,7 @@ export default function ProjectEditorPage() {
                     style={{ background: 'linear-gradient(135deg,#22c55e,#2563eb)' }}
                   >
                     {generateBusy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
-                    {ko ? 'PPTX 생성' : 'Generate PPTX'}
+                    {ko ? 'PDF 생성' : 'Generate PDF'}
                   </button>
                 )}
                 {false && (

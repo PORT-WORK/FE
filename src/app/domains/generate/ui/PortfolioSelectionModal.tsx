@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, GripVertical, Loader2, Sparkles, X } from 'lucide-react';
+import { Check, GripVertical, ImageIcon, Loader2, Sparkles, X } from 'lucide-react';
 import { fetchPortfolioData, type PortfolioDataResponse } from '../../../api/contentApi';
 import { loadLocalProjectItems } from '../../workspace/projectWriting';
 
@@ -80,11 +80,6 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
     [projects, selectedProjectIds],
   );
 
-  const availableProjects = useMemo(
-    () => projects.filter(item => !selectedProjectIds.includes(item.id)),
-    [projects, selectedProjectIds],
-  );
-
   const toggleProject = (projectId: number) => {
     setSelectedProjectIds(prev => (prev.includes(projectId) ? prev.filter(item => item !== projectId) : [...prev, projectId]));
   };
@@ -108,7 +103,7 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
       <div
         className="w-full max-w-6xl overflow-hidden rounded-[32px] border border-white/10 bg-[#090909] shadow-2xl shadow-black/50"
         style={{ maxHeight: 'calc(100vh - 3rem)' }}
-        onClick={e => e.stopPropagation()}
+        onClick={event => event.stopPropagation()}
       >
         <div className="flex items-start justify-between border-b border-white/6 px-6 py-5">
           <div>
@@ -116,8 +111,8 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
               <Sparkles size={12} />
               프로젝트 선택
             </div>
-            <h3 className="text-xl font-black text-white">프로젝트만 선택해서 PPT로 보냅니다</h3>
-            <p className="mt-1 text-sm text-zinc-500">게시글 선택은 제외하고, 프로젝트 순서만 정렬한 뒤 생성합니다.</p>
+            <h3 className="text-xl font-black text-white">프로젝트만 선택해서 PDF로 보냅니다</h3>
+            <p className="mt-1 text-sm text-zinc-500">프로젝트를 카드로 선택하고, 오른쪽에서 순서를 정렬한 뒤 생성합니다.</p>
           </div>
           <button onClick={onClose} className="rounded-xl p-2 text-zinc-500 transition-colors hover:bg-white/[0.05] hover:text-zinc-200">
             <X size={16} />
@@ -125,64 +120,54 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
         </div>
 
         <div className="grid min-h-[640px] grid-cols-1 md:grid-cols-[1fr_360px]">
-          <section className="border-r border-white/6 p-4">
-            <div className="mb-3 flex items-center justify-between">
+          <section className="border-r border-white/6 p-5">
+            <div className="mb-4 flex items-center justify-between">
               <span className="text-[10px] uppercase tracking-[0.28em] text-cyan-300">PROJECT</span>
               <span className="text-[10px] text-zinc-500">{loading ? '...' : projects.length}</span>
             </div>
 
-            <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 'calc(100vh - 12rem)' }}>
+            <div className="grid grid-cols-1 gap-4 overflow-y-auto pr-1 lg:grid-cols-2" style={{ maxHeight: 'calc(100vh - 13rem)' }}>
               {loading ? (
-                <div className="flex min-h-[420px] items-center justify-center rounded-3xl border border-white/6 bg-white/[0.02] text-sm text-zinc-500">
+                <div className="col-span-full flex min-h-[360px] items-center justify-center rounded-3xl border border-white/6 bg-white/[0.02] text-sm text-zinc-500">
                   <Loader2 size={16} className="mr-2 animate-spin" />
                   프로젝트를 불러오는 중...
                 </div>
-              ) : availableProjects.length === 0 ? (
-                <div className="rounded-2xl p-4 text-center text-xs text-zinc-400" style={{ border: '1px dashed rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.01)' }}>
+              ) : projects.length === 0 ? (
+                <div className="col-span-full rounded-2xl p-5 text-center text-sm text-zinc-400" style={{ border: '1px dashed rgba(255,255,255,0.12)' }}>
                   선택 가능한 프로젝트가 없습니다.
                 </div>
               ) : (
-                availableProjects.map(project => {
+                projects.map(project => {
                   const active = selectedProjectIds.includes(project.id);
                   return (
                     <button
                       key={project.id}
+                      type="button"
                       onClick={() => toggleProject(project.id)}
-                      className="w-full rounded-3xl p-4 text-left transition-all duration-200"
+                      className="group overflow-hidden rounded-[28px] text-left transition-all duration-200"
                       style={{
-                        background: active ? 'rgba(124,58,237,0.10)' : 'rgba(255,255,255,0.02)',
-                        border: `1px solid ${active ? 'rgba(124,58,237,0.24)' : 'rgba(255,255,255,0.06)'}`,
+                        background: active ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.025)',
+                        border: `1px solid ${active ? 'rgba(124,58,237,0.42)' : 'rgba(255,255,255,0.08)'}`,
                       }}
                     >
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/[0.05] text-white">
-                          {project.thumbnailUrl ? (
-                            <img src={project.thumbnailUrl} alt="" className="h-full w-full object-cover" />
-                          ) : active ? (
-                            <Check size={16} className="text-emerald-300" />
-                          ) : (
-                            <span className="text-lg font-black">{String(project.name || 'P').slice(0, 1).toUpperCase()}</span>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-white">{project.name}</p>
-                              <p className="mt-1 text-[11px] text-zinc-500">{project.role || 'DEVELOPER'}</p>
-                            </div>
-                            <span className="text-[10px] uppercase tracking-[0.18em] text-zinc-600">{active ? 'Selected' : 'Available'}</span>
-                          </div>
-                          {project.summary && <p className="mt-3 line-clamp-2 text-xs leading-6 text-zinc-400">{project.summary}</p>}
-                          {!!project.skills?.length && (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {project.skills.slice(0, 4).map(skill => (
-                                <span key={skill} className="rounded-full border border-white/8 bg-white/[0.03] px-2 py-1 text-[10px] text-zinc-400">
-                                  {skill}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                      <div className="relative flex h-36 items-center justify-center overflow-hidden bg-gradient-to-br from-violet-950/70 to-emerald-950/30">
+                        {project.thumbnailUrl ? (
+                          <img src={project.thumbnailUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                        ) : (
+                          <ImageIcon size={28} className="text-white/20" />
+                        )}
+                        <span className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1 text-[10px] font-black text-white">
+                          {project.role || 'DEVELOPER'}
+                        </span>
+                        {active && (
+                          <span className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-black">
+                            <Check size={16} />
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <p className="truncate text-base font-black text-white">{project.name}</p>
+                        {project.summary && <p className="mt-2 line-clamp-2 text-xs leading-5 text-zinc-500">{project.summary}</p>}
                       </div>
                     </button>
                   );
@@ -191,17 +176,17 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
             </div>
           </section>
 
-          <section className="flex flex-col border-l border-white/6 p-4">
-            <div className="mb-3 flex items-center justify-between">
+          <section className="flex flex-col border-l border-white/6 p-5">
+            <div className="mb-4 flex items-center justify-between">
               <span className="text-[10px] uppercase tracking-[0.28em] text-emerald-300">SELECTED</span>
               <span className="text-[10px] text-zinc-500">{selectedProjects.length}</span>
             </div>
 
-            <div className="flex-1 overflow-y-auto rounded-[22px] p-4" style={{ background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(16,185,129,0.25)' }}>
-              <div className="space-y-2">
+            <div className="flex-1 overflow-y-auto rounded-[24px] p-4" style={{ background: 'rgba(0,0,0,0.22)', border: '1px solid rgba(16,185,129,0.25)' }}>
+              <div className="space-y-3">
                 {selectedProjects.length === 0 ? (
-                  <div className="rounded-2xl p-4 text-center text-xs text-zinc-400" style={{ border: '1px dashed rgba(16,185,129,0.28)', background: 'rgba(255,255,255,0.01)' }}>
-                    아직 선택된 프로젝트가 없습니다. 선택 버튼을 눌러 프로젝트를 골라주세요.
+                  <div className="rounded-2xl p-5 text-center text-xs leading-6 text-zinc-400" style={{ border: '1px dashed rgba(16,185,129,0.28)' }}>
+                    아직 선택된 프로젝트가 없습니다. 프로젝트 카드를 선택해주세요.
                   </div>
                 ) : (
                   selectedProjects.map((project, index) => (
@@ -218,18 +203,16 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
                         setDraggingId(null);
                       }}
                       onClick={() => toggleProject(project.id)}
-                      className="w-full rounded-3xl p-4 text-left"
+                      className="w-full rounded-2xl p-4 text-left"
                       style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(16,185,129,0.25)' }}
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-xs font-bold text-emerald-300">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-xs font-bold text-emerald-300">
                           {index + 1}
                         </div>
+                        <GripVertical size={14} className="text-zinc-600" />
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <GripVertical size={14} className="text-zinc-600" />
-                            <p className="truncate text-sm font-semibold text-white">{project.name}</p>
-                          </div>
+                          <p className="truncate text-sm font-semibold text-white">{project.name}</p>
                           <p className="mt-1 text-[11px] text-zinc-500">{project.role || 'DEVELOPER'}</p>
                         </div>
                       </div>
@@ -243,11 +226,7 @@ export default function PortfolioSelectionModal({ open, portfolioId, onClose, on
               <button
                 onClick={() => {
                   if (!portfolioId || selectedProjectIds.length === 0) return;
-                  onConfirm({
-                    portfolioId,
-                    projectIds: selectedProjectIds,
-                    articleIds: [],
-                  });
+                  onConfirm({ portfolioId, projectIds: selectedProjectIds, articleIds: [] });
                 }}
                 disabled={!portfolioId || selectedProjectIds.length === 0}
                 className="flex-1 rounded-2xl py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"

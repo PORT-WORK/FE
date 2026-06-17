@@ -284,7 +284,7 @@ export default function AnalyticsPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <dt className="text-zinc-500">{ko ? '슬라이드' : 'Slides'}</dt>
-                      <dd className="text-zinc-200">{portfolioDetail.pptxUrl ? 'Available' : 'Not available'}</dd>
+                      <dd className="text-zinc-200">{portfolioDetail.pdfUrl || portfolioDetail.pptxUrl ? 'Available' : 'Not available'}</dd>
                     </div>
                   </dl>
                 </div>

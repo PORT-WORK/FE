@@ -38,8 +38,9 @@ export default function PortfolioPage() {
     navigate('/workspace', { state: { portfolioId: file.id } });
   };
 
-  const viewerUrl = buildPptxViewerUrl(selectedFile ? { pdfUrl: selectedFile.pdfUrl, pptxUrl: selectedFile.pptxUrl } : null);
-  const tabUrl = buildPptxTabUrl(selectedFile ? { pdfUrl: selectedFile.pdfUrl, pptxUrl: selectedFile.pptxUrl } : null);
+  const fileUrl = selectedFile?.pdfUrl || selectedFile?.pptxUrl || '';
+  const viewerUrl = buildPptxViewerUrl(selectedFile ? { pdfUrl: selectedFile.pdfUrl || selectedFile.pptxUrl, pptxUrl: selectedFile.pptxUrl } : null);
+  const tabUrl = buildPptxTabUrl(selectedFile ? { pdfUrl: selectedFile.pdfUrl || selectedFile.pptxUrl, pptxUrl: selectedFile.pptxUrl } : null);
 
   return (
     <div className="flex h-full" style={{ background: '#050505' }}>
@@ -141,7 +142,7 @@ export default function PortfolioPage() {
             <div className="grid gap-4 p-5 lg:grid-cols-[1fr_280px]">
               <div className="min-h-[680px] overflow-hidden rounded-[26px] border border-white/8 bg-black/20">
                 {viewerUrl ? (
-                  selectedFile?.pdfUrl ? (
+                  fileUrl ? (
                     <object
                       data={viewerUrl}
                       type="application/pdf"
@@ -189,7 +190,7 @@ export default function PortfolioPage() {
                   <p>{selectedFile.skills?.join(', ') || ''}</p>
                 </div>
                 <a
-                  href={tabUrl || selectedFile.pdfUrl || selectedFile.pptxUrl || '#'}
+                  href={tabUrl || fileUrl || '#'}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white"
@@ -202,9 +203,9 @@ export default function PortfolioPage() {
                   type="button"
                   onClick={() => {
                     const link = document.createElement('a');
-                    const nextUrl = selectedFile.pdfUrl || selectedFile.pptxUrl || '';
+                    const nextUrl = fileUrl;
                     link.href = nextUrl;
-                    link.download = `${encodeURIComponent(selectedFile.title || 'portfolio')}.${selectedFile.pdfUrl ? 'pdf' : 'pptx'}`;
+                    link.download = `${encodeURIComponent(selectedFile.title || 'portfolio')}.pdf`;
                     link.click();
                   }}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 px-4 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:bg-white/[0.04]"

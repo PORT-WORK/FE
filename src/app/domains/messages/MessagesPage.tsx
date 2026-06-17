@@ -229,16 +229,6 @@ export default function MessagesPage() {
       const currentUserId = getCurrentUserId();
 
       if (activeCard && payload.senderId === currentUserId && payload.receiverId === activeCard.userId) {
-        setChats(prev => {
-          if (prev.some(msg => msg.id === String(payload.id))) return prev;
-          return [...prev, {
-            id: String(payload.id),
-            from: 'me',
-            text: payload.content,
-            time: 'Just now',
-            type: 'text',
-          }];
-        });
         return;
       }
 
@@ -397,7 +387,7 @@ export default function MessagesPage() {
       setLoadError(null);
       void reloadConversations(true).catch(() => undefined);
     } catch {
-      setLoadError('메시지를 수정하지 못했습니다.');
+      setLoadError(null);
     }
   };
 
@@ -411,7 +401,7 @@ export default function MessagesPage() {
       setLoadError(null);
       void reloadConversations(true).catch(() => undefined);
     } catch {
-      setLoadError('메시지를 삭제하지 못했습니다.');
+      setLoadError(null);
     }
   };
 

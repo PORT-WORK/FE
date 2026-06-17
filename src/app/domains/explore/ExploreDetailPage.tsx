@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Bookmark, Heart, MessageSquare, User } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Heart, MessageSquare, User } from 'lucide-react';
 import {
   fetchPortfolioDetail,
   fetchPublicProfile,
@@ -10,7 +10,7 @@ import {
   type PublicUserProfile,
 } from '../../api/contentApi';
 import { useApp } from '../../contexts/AppContext';
-import { buildPptxTabUrl, buildPptxViewerUrl } from '../../utils/pptxViewer';
+import { buildPdfPageUrl, buildPptxTabUrl, buildPptxViewerUrl } from '../../utils/pptxViewer';
 
 export default function ExploreDetailPage() {
   const { id } = useParams();
@@ -26,11 +26,11 @@ export default function ExploreDetailPage() {
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(initialPortfolioId || null);
   const [detail, setDetail] = useState<PortfolioDetail | null>(null);
+  const [pdfPage, setPdfPage] = useState(1);
 
   const selectedPortfolio = portfolios.find(item => item.id === selectedId) || null;
   const portfolioKey = selectedPortfolio ? `portfolio:${selectedPortfolio.id}` : initialPortfolioId ? `portfolio:${initialPortfolioId}` : '';
-  const targetUserKey = String(userId);
-  const following = followingIds.includes(targetUserKey);
+  const following = followingIds.includes(String(userId));
   const saved = portfolioKey ? savedCollections.saved.includes(portfolioKey) : false;
   const liked = portfolioKey ? savedCollections.liked.includes(portfolioKey) : false;
   const archived = portfolioKey ? savedCollections.archived.includes(portfolioKey) : false;
@@ -47,10 +47,7 @@ export default function ExploreDetailPage() {
       const publicRows = rows.filter(item => item.isPublic !== false);
       setProfile(nextProfile);
       setPortfolios(publicRows);
-      const matchedId = initialPortfolioId && publicRows.some(item => item.id === initialPortfolioId)
-        ? initialPortfolioId
-        : publicRows[0]?.id ?? null;
-      setSelectedId(matchedId);
+      setSelectedId(initialPortfolioId && publicRows.some(item => item.id === initialPortfolioId) ? initialPortfolioId : publicRows[0]?.id ?? null);
     });
 
     return () => {
@@ -64,6 +61,7 @@ export default function ExploreDetailPage() {
       return;
     }
     let alive = true;
+    setPdfPage(1);
 
     fetchPortfolioDetail(selectedId)
       .then(next => {
@@ -78,13 +76,11 @@ export default function ExploreDetailPage() {
     };
   }, [selectedId]);
 
-  const publicProfile = profile as
-    | (PublicUserProfile & {
-        githubUrl?: string | null;
-        notionUrl?: string | null;
-        figmaUrl?: string | null;
-      })
-    | null;
+  const publicProfile = profile as PublicUserProfile & {
+    githubUrl?: string | null;
+    notionUrl?: string | null;
+    figmaUrl?: string | null;
+  } | null;
 
   const links = [
     { label: 'GitHub', url: publicProfile?.githubUrl },
@@ -97,10 +93,12 @@ export default function ExploreDetailPage() {
     pptxUrl: detail?.pptxUrl || selectedPortfolio?.pptxUrl || null,
   };
   const viewerUrl = useMemo(() => buildPptxViewerUrl(previewSource), [previewSource]);
+  const pagedViewerUrl = useMemo(() => buildPdfPageUrl(viewerUrl, pdfPage), [pdfPage, viewerUrl]);
   const openTabUrl = useMemo(() => buildPptxTabUrl(previewSource), [previewSource]);
 
   const toggleFollow = () => {
-    setFollowingIds(prev => (prev.includes(targetUserKey) ? prev.filter(item => item !== targetUserKey) : [...prev, targetUserKey]));
+    const target = String(userId);
+    setFollowingIds(prev => (prev.includes(target) ? prev.filter(item => item !== target) : [...prev, target]));
   };
 
   const toggleCollection = (key: 'saved' | 'liked' | 'archived') => {
@@ -115,6 +113,7 @@ export default function ExploreDetailPage() {
     <div className="min-h-full overflow-y-auto px-6 py-6 lg:px-8" style={{ background: '#050505' }}>
       <div className="mx-auto max-w-[1420px] space-y-6">
         <button
+          type="button"
           onClick={() => navigate('/explore')}
           className="inline-flex items-center gap-2 text-sm text-zinc-500 transition-colors hover:text-zinc-200"
         >
@@ -128,15 +127,8 @@ export default function ExploreDetailPage() {
               <div className="h-28 bg-gradient-to-br from-violet-500/30 via-blue-500/20 to-cyan-400/10" />
               <div className="-mt-10 px-5 pb-5">
                 <div className="flex items-end gap-3">
-                  <div
-                    className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-[22px] ring-4 ring-[#050505]"
-                    style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}
-                  >
-                    {profile?.profileImageUrl ? (
-                      <img src={profile.profileImageUrl} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <User size={26} className="text-white" />
-                    )}
+                  <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-[22px] ring-4 ring-[#050505]" style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)' }}>
+                    {profile?.profileImageUrl ? <img src={profile.profileImageUrl} alt="" className="h-full w-full object-cover" /> : <User size={26} className="text-white" />}
                   </div>
                   <div className="pb-1">
                     <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">{ko ? '프로필' : 'Profile'}</p>
@@ -145,9 +137,7 @@ export default function ExploreDetailPage() {
                   </div>
                 </div>
 
-                <p className="mt-4 text-sm leading-6 text-zinc-400">
-                  {profile?.bio || (ko ? '소개가 없습니다.' : 'No bio available.')}
-                </p>
+                <p className="mt-4 text-sm leading-6 text-zinc-400">{profile?.bio || (ko ? '소개가 없습니다.' : 'No bio available.')}</p>
 
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   {links.map(link => (
@@ -189,12 +179,8 @@ export default function ExploreDetailPage() {
           <main className="space-y-4">
             <section className="rounded-[30px] border border-white/8 bg-white/[0.03] p-5">
               <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">{ko ? 'PDF 보기' : 'PDF viewer'}</p>
-              <h2 className="mt-2 text-2xl font-black text-white">
-                {detail?.title || (ko ? '포트폴리오를 선택하세요' : 'Select a portfolio')}
-              </h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                {detail?.jobRole || (ko ? '오른쪽 목록에서 PPT를 선택하면 표시됩니다.' : 'Pick a PPT from the list.')}
-              </p>
+              <h2 className="mt-2 text-2xl font-black text-white">{detail?.title || (ko ? '포트폴리오를 선택하세요' : 'Select a portfolio')}</h2>
+              <p className="mt-1 text-sm text-zinc-500">{detail?.jobRole || (ko ? '오른쪽 목록에서 PDF를 선택하면 표시됩니다.' : 'Pick a PDF from the list.')}</p>
             </section>
 
             <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -202,19 +188,27 @@ export default function ExploreDetailPage() {
                 {viewerUrl ? (
                   <div className="relative h-[680px] bg-[#070707]">
                     <iframe
-                      key={viewerUrl}
-                      src={viewerUrl}
-                      title={detail?.title || 'PPT preview'}
+                      key={pagedViewerUrl}
+                      src={pagedViewerUrl}
+                      title={detail?.title || 'PDF preview'}
                       className="h-full w-full"
                       allow="fullscreen"
                       loading="eager"
                     />
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-4 py-4">
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 px-4 py-4">
                       <div className="rounded-2xl border border-white/10 bg-black/55 px-4 py-2 text-xs font-semibold text-zinc-200 shadow-lg backdrop-blur">
-                        {ko ? '실제 PDF 미리보기' : 'Live PDF preview'}
+                        {ko ? `PDF 표지 / ${pdfPage}페이지` : `PDF cover / page ${pdfPage}`}
+                      </div>
+                      <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-white/10 bg-black/70 px-2 py-2 shadow-lg backdrop-blur">
+                        <button type="button" onClick={() => setPdfPage(page => Math.max(1, page - 1))} className="rounded-xl p-2 text-zinc-200 hover:bg-white/10">
+                          <ChevronLeft size={14} />
+                        </button>
+                        <button type="button" onClick={() => setPdfPage(page => page + 1)} className="rounded-xl p-2 text-zinc-200 hover:bg-white/10">
+                          <ChevronRight size={14} />
+                        </button>
                       </div>
                       <a
-                        href={openTabUrl || detail.pdfUrl || detail.pptxUrl || '#'}
+                        href={openTabUrl || '#'}
                         target="_blank"
                         rel="noreferrer"
                         className="pointer-events-auto rounded-2xl border border-white/10 bg-black/70 px-4 py-2 text-xs font-semibold text-zinc-100 shadow-lg backdrop-blur"
@@ -230,9 +224,7 @@ export default function ExploreDetailPage() {
                         <Bookmark size={22} />
                       </div>
                       <p className="text-lg font-black text-white">{ko ? 'PDF 파일이 없습니다' : 'No PDF file'}</p>
-                      <p className="mt-2 text-sm text-zinc-500">
-                        {ko ? 'pdfUrl이 있는 공개 포트폴리오만 표시됩니다.' : 'Only public portfolios with pdfUrl can be shown.'}
-                      </p>
+                      <p className="mt-2 text-sm text-zinc-500">{ko ? 'pdfUrl이 있는 공개 포트폴리오만 표시됩니다.' : 'Only public portfolios with pdfUrl can be shown.'}</p>
                     </div>
                   </div>
                 )}
@@ -261,9 +253,7 @@ export default function ExploreDetailPage() {
 
                 <section className="rounded-[28px] border border-white/8 bg-white/[0.03] p-4">
                   <p className="text-sm font-semibold text-white">{detail?.title || (ko ? '선택한 포트폴리오' : 'Selected portfolio')}</p>
-                  <p className="mt-3 text-sm leading-6 text-zinc-500">
-                    {detail?.summary || (ko ? '선택한 PPT 정보를 확인합니다.' : 'Review selected PPT information.')}
-                  </p>
+                  <p className="mt-3 text-sm leading-6 text-zinc-500">{detail?.summary || (ko ? '선택한 PDF 정보를 확인합니다.' : 'Review selected PDF information.')}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {[
                       { key: 'saved' as const, active: saved, icon: Bookmark, label: ko ? '저장됨' : 'Saved' },
