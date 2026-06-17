@@ -627,18 +627,42 @@ export default function ProjectEditorPage() {
     setDocumentBusy(true);
     setError(null);
     try {
+      const draftPayload = {
+        progress,
+        sectionDrafts: Object.fromEntries(Object.entries(sectionDrafts).map(([key, item]) => [key, item.value])),
+        sectionStatuses: Object.fromEntries(Object.entries(sectionDrafts).map(([key, item]) => [key, item.status])),
+        documentText,
+        reviewedDocument: reviewedText,
+      };
+      const saved = await saveProjectWritingDraft(projectId, draftPayload);
       const next = await createProjectWritingDocument(projectId);
       setSession(next);
       setDocumentText(next.documentText || buildDocumentFromDrafts(sectionDrafts));
       setDocumentModalOpen(true);
-      const sourceDrafts = buildSectionDraftMap(role, sectionMeta, next.sourceSnapshot || session?.sourceSnapshot || sourceSnapshot, sectionDrafts);
+      const sourceDrafts = buildSectionDraftMap(
+        role,
+        sectionMeta,
+        next.sourceSnapshot || saved.sourceSnapshot || session?.sourceSnapshot || sourceSnapshot,
+        sectionDrafts,
+      );
       const nextDrafts = fillCompletedStatus(sourceDrafts);
       setSectionDrafts(nextDrafts);
       setStep('DOCUMENT_CREATED');
       setError(next.lastError || null);
       persistLocalProjectListing(next.documentText || buildDocumentFromDrafts(nextDrafts), '', 'DOCUMENT_CREATED', nextDrafts);
     } catch {
-      setError(ko ? '문서 생성에 실패했습니다.' : 'Failed to create the document.');
+      const nextDrafts = fillCompletedStatus(sectionDrafts);
+      const fallbackDocument = buildDocumentFromDrafts(nextDrafts);
+      if (fallbackDocument) {
+        setSectionDrafts(nextDrafts);
+        setDocumentText(fallbackDocument);
+        setDocumentModalOpen(true);
+        setStep('DOCUMENT_CREATED');
+        persistLocalProjectListing(fallbackDocument, '', 'DOCUMENT_CREATED', nextDrafts);
+        setError(null);
+      } else {
+        setError(ko ? '문서 생성에 실패했습니다.' : 'Failed to create the document.');
+      }
     } finally {
       setDocumentBusy(false);
     }
